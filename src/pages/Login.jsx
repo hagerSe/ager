@@ -7,6 +7,10 @@ import {
   FaPaperPlane, FaCheckCircle, FaTimesCircle
 } from 'react-icons/fa';
 
+// ==================== API URL CONFIGURATION ====================
+// Uses environment variable for production, falls back to localhost for development
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+
 const Login = () => {
   const [scrolled, setScrolled] = useState(false);
   const [email, setEmail] = useState('');
@@ -31,6 +35,42 @@ const Login = () => {
   
   const navigate = useNavigate();
 
+  // Check if user is already logged in
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const user = localStorage.getItem("user");
+    if (token && user) {
+      try {
+        const userData = JSON.parse(user);
+        const userRole = userData.userType || userData.role;
+        
+        const roleRoutes = {
+          'federal': '/federal-dashboard',
+          'Federal_Admin': '/federal-dashboard',
+          'regional': '/regional-dashboard',
+          'Regional_Admin': '/regional-dashboard',
+          'zone': '/zone-dashboard',
+          'Zone_Admin': '/zone-dashboard',
+          'woreda': '/woreda-dashboard',
+          'Woreda_Admin': '/woreda-dashboard',
+          'kebele': '/kebele-dashboard',
+          'Kebele_Admin': '/kebele-dashboard',
+          'hospital': '/hospital-dashboard',
+          'Hospital_Admin': '/hospital-dashboard',
+          'staff': '/staff-dashboard'
+        };
+        
+        if (roleRoutes[userRole]) {
+          navigate(roleRoutes[userRole]);
+        }
+      } catch (err) {
+        console.error("Error parsing user data:", err);
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+      }
+    }
+  }, [navigate]);
+
   // Navbar scroll effect
   useEffect(() => {
     const handleScroll = () => {
@@ -46,14 +86,26 @@ const Login = () => {
     setError('');
     setLoading(true);
     
+    // Input validation
+    if (!email || !password) {
+      setError("Please enter both email and password");
+      setLoading(false);
+      return;
+    }
+    
     try {
-      const res = await axios.post("http://localhost:5001/api/auth/login", { 
+      console.log("Attempting login for:", email);
+      console.log("API URL:", API_URL);
+      
+      const res = await axios.post(`${API_URL}/auth/login`, { 
         email, 
         password 
       }, {
         headers: { "Content-Type": "application/json" },
-        timeout: 10000
+        timeout: 15000
       });
+      
+      console.log("Login response:", res.data);
       
       if (res.data.success && res.data.token) {
         const userData = {
@@ -64,14 +116,22 @@ const Login = () => {
           isVerified: res.data.user.is_verified
         };
         
+        // Check if email is verified
         if (!userData.isVerified) {
-          setError("⚠️ Please verify your email address first.");
+          setError("⚠️ Please verify your email address first. Check your inbox for the verification link.");
           setLoading(false);
           return;
         }
         
+        // Clear any existing data first
+        localStorage.clear();
+        
+        // Store new data
         localStorage.setItem("token", res.data.token);
         localStorage.setItem("user", JSON.stringify(userData));
+        
+        // Set axios default header for future requests
+        axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
         
         const userRole = userData.userType || userData.role;
         
@@ -104,32 +164,59 @@ const Login = () => {
           'Human_Resource': '/hr-dashboard'
         };
         
+        let redirectPath = '/';
         if (userRole === 'staff' && userData.department) {
-          const redirectPath = departmentRoutes[userData.department];
-          window.location.href = redirectPath || '/staff-dashboard';
+          redirectPath = departmentRoutes[userData.department] || '/staff-dashboard';
         } else if (roleRoutes[userRole]) {
-          window.location.href = roleRoutes[userRole];
-        } else {
-          window.location.href = '/';
+          redirectPath = roleRoutes[userRole];
         }
+        
+        // Use navigate for better SPA experience
+        window.location.href = redirectPath;
       } else {
-        setError("Login failed. Please check your credentials.");
+        setError(res.data.message || "Login failed. Please check your credentials.");
       }
     } catch (err) {
+      console.error("Login error details:", {
+        code: err.code,
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message
+      });
+      
       if (err.code === 'ECONNABORTED') {
-        setError("Connection timeout. Make sure backend is running");
+        setError("Connection timeout. Please check your internet connection.");
       } else if (err.response) {
-        if (err.response.status === 401) {
-          setError("❌ Invalid email or password");
-        } else if (err.response.status === 403) {
-          setError("❌ Email not verified. Please check your inbox.");
-        } else {
-          setError(err.response.data?.message || "Login failed");
+        switch (err.response.status) {
+          case 400:
+            setError(err.response.data?.message || "Invalid request. Please check your input.");
+            break;
+          case 401:
+            setError("❌ Invalid email or password. Please try again.");
+            break;
+          case 403:
+            setError("❌ Email not verified. Please check your inbox and verify your email address.");
+            // Offer to resend verification
+            setTimeout(() => {
+              if (window.confirm("Would you like to resend the verification email?")) {
+                setVerifyEmail(email);
+                setShowResendVerification(true);
+              }
+            }, 500);
+            break;
+          case 404:
+            setError("User not found. Please check your email address.");
+            break;
+          case 429:
+            setError("Too many attempts. Please try again later.");
+            break;
+          default:
+            setError(err.response.data?.message || `Login failed (Status: ${err.response.status})`);
         }
       } else if (err.request) {
-        setError("❌ Cannot connect to server.");
+        setError("❌ Cannot connect to server. Please make sure the backend is running.");
       } else {
-        setError("An error occurred. Please try again.");
+        setError(`An error occurred: ${err.message}`);
       }
     } finally {
       setLoading(false);
@@ -142,13 +229,21 @@ const Login = () => {
     setResetMessage('');
     setResetLoading(true);
     
+    if (!resetEmail) {
+      setResetError("Please enter your email address");
+      setResetLoading(false);
+      return;
+    }
+    
     try {
-      const response = await axios.post("http://localhost:5001/api/auth/forgot-password", {
+      const response = await axios.post(`${API_URL}/auth/forgot-password`, {
         email: resetEmail
       });
       
+      console.log("Forgot password response:", response.data);
+      
       if (response.data.success) {
-        setResetMessage("✅ Password reset link sent to your email!");
+        setResetMessage("✅ Password reset link sent! Please check your email.");
         setTimeout(() => {
           setShowForgotPassword(false);
           setResetEmail('');
@@ -158,44 +253,69 @@ const Login = () => {
         setResetError(response.data.message || "Failed to send reset link");
       }
     } catch (err) {
-      setResetError("❌ Failed to send reset link. Please try again.");
+      console.error("Forgot password error:", err);
+      setResetError(err.response?.data?.message || "❌ Failed to send reset link. Please try again.");
     } finally {
       setResetLoading(false);
     }
   };
 
-const handleResendVerification = async (e) => {
-  e.preventDefault();
-  setVerifyError('');
-  setVerifyMessage('');
-  setVerifyLoading(true);
-  
-  try {
-    const response = await axios.post("http://localhost:5001/api/auth/resend-verification", {
-      email: verifyEmail
-    });
+  const handleResendVerification = async (e) => {
+    e.preventDefault();
+    setVerifyError('');
+    setVerifyMessage('');
+    setVerifyLoading(true);
     
-    console.log('Response:', response.data); // Check console
-    
-    if (response.data.success) {
-      setVerifyMessage("✅ Verification email sent! Please check your inbox.");
-      setTimeout(() => {
-        setShowResendVerification(false);
-        setVerifyEmail('');
-        setVerifyMessage('');
-      }, 3000);
-    } else {
-      setVerifyError(response.data.message || "Failed to send verification email");
+    if (!verifyEmail) {
+      setVerifyError("Please enter your email address");
+      setVerifyLoading(false);
+      return;
     }
-  } catch (err) {
-    console.error('Error:', err);
-    setVerifyError(err.response?.data?.message || "❌ Failed to send verification email.");
-  } finally {
-    setVerifyLoading(false);
-  }
-};
+    
+    try {
+      const response = await axios.post(`${API_URL}/auth/resend-verification`, {
+        email: verifyEmail
+      });
+      
+      console.log('Resend verification response:', response.data);
+      
+      if (response.data.success) {
+        setVerifyMessage("✅ Verification email sent! Please check your inbox and spam folder.");
+        setTimeout(() => {
+          setShowResendVerification(false);
+          setVerifyEmail('');
+          setVerifyMessage('');
+        }, 3000);
+      } else {
+        setVerifyError(response.data.message || "Failed to send verification email");
+      }
+    } catch (err) {
+      console.error('Resend verification error:', err);
+      if (err.response?.data?.message) {
+        setVerifyError(err.response.data.message);
+      } else if (err.response?.status === 404) {
+        setVerifyError("Email not found. Please register first.");
+      } else {
+        setVerifyError("❌ Failed to send verification email. Please try again.");
+      }
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 via-blue-50 to-gray-200 relative overflow-hidden">
+      
+      {/* Development Mode Banner */}
+      {import.meta.env.DEV && (
+        <div className="fixed top-16 left-0 right-0 z-50 bg-yellow-500 text-black text-center py-2 px-4 shadow-lg">
+          <div className="container mx-auto">
+            <p className="text-sm font-semibold">
+              🔧 DEVELOPMENT MODE | API: {API_URL}
+            </p>
+          </div>
+        </div>
+      )}
       
       {/* ========== NAVBAR - ONLY NHMS ========== */}
       <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${
@@ -220,18 +340,18 @@ const handleResendVerification = async (e) => {
       {/* Login Form Centered */}
       <div className="min-h-screen flex items-center justify-center px-4">
         
-        {/* Animated Background Particles - Gray & Blue only */}
+        {/* Animated Background Particles */}
         <div className="absolute inset-0">
           <div className="absolute top-20 left-10 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse"></div>
           <div className="absolute bottom-20 right-10 w-72 h-72 bg-gray-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" style={{ animationDelay: '1s' }}></div>
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-100 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" style={{ animationDelay: '0.5s' }}></div>
         </div>
 
-        {/* Login Card - Centered */}
+        {/* Login Card */}
         <div className="relative w-full max-w-lg mx-auto">
           <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
             
-            {/* Header - Water Blue Gradient */}
+            {/* Header */}
             <div className="bg-gradient-to-r from-blue-500 to-blue-700 px-8 py-8 text-center">
               <div className="inline-flex items-center justify-center w-24 h-24 bg-white/20 rounded-full mb-4">
                 <FaHospitalUser className="text-white text-5xl" />
@@ -251,7 +371,7 @@ const handleResendVerification = async (e) => {
                   </h3>
                   
                   {resetMessage && (
-                    <div className="mb-4 p-3 bg-green-50 border-l-4 border-green-500 rounded-lg">
+                    <div className="mb-4 p-3 bg-green-50 border-l-4 border-green-500 rounded-lg animate-fadeIn">
                       <p className="text-green-700 text-sm flex items-center gap-2">
                         <FaCheckCircle /> {resetMessage}
                       </p>
@@ -289,7 +409,7 @@ const handleResendVerification = async (e) => {
                     <button
                       type="submit"
                       disabled={resetLoading}
-                      className="w-full bg-gradient-to-r from-blue-500 to-blue-700 text-white py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-blue-800 transition-all"
+                      className="w-full bg-gradient-to-r from-blue-500 to-blue-700 text-white py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-blue-800 transition-all disabled:opacity-50"
                     >
                       {resetLoading ? "Sending..." : "Send Reset Link"}
                     </button>
@@ -311,7 +431,7 @@ const handleResendVerification = async (e) => {
                   </h3>
                   
                   {verifyMessage && (
-                    <div className="mb-4 p-3 bg-green-50 border-l-4 border-green-500 rounded-lg">
+                    <div className="mb-4 p-3 bg-green-50 border-l-4 border-green-500 rounded-lg animate-fadeIn">
                       <p className="text-green-700 text-sm">{verifyMessage}</p>
                     </div>
                   )}
@@ -345,7 +465,7 @@ const handleResendVerification = async (e) => {
                     <button
                       type="submit"
                       disabled={verifyLoading}
-                      className="w-full bg-gradient-to-r from-blue-500 to-blue-700 text-white py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-blue-800"
+                      className="w-full bg-gradient-to-r from-blue-500 to-blue-700 text-white py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-blue-800 transition-all disabled:opacity-50"
                     >
                       {verifyLoading ? "Sending..." : "Resend Verification"}
                     </button>
@@ -368,7 +488,7 @@ const handleResendVerification = async (e) => {
                   </div>
 
                   {error && (
-                    <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-500 rounded-lg">
+                    <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-500 rounded-lg animate-fadeIn">
                       <p className="text-red-700 text-sm">{error}</p>
                     </div>
                   )}
@@ -389,6 +509,7 @@ const handleResendVerification = async (e) => {
                           onChange={(e) => setEmail(e.target.value)}
                           className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800"
                           required
+                          autoComplete="email"
                         />
                       </div>
                     </div>
@@ -408,6 +529,7 @@ const handleResendVerification = async (e) => {
                           onChange={(e) => setPassword(e.target.value)}
                           className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
                           required
+                          autoComplete="current-password"
                         />
                         <button
                           type="button"
