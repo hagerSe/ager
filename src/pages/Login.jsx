@@ -9,7 +9,7 @@ import {
 
 // ==================== IMPORTANT: BACKEND URL ====================
 // CHANGE THIS TO YOUR RENDER BACKEND URL
-const BACKEND_URL = 'https://health-backend.onrender.com';
+const BACKEND_URL = 'https://health-backend-2-gqv6.onrender.com';
 const API_URL = `${BACKEND_URL}/api`;
 
 const Login = () => {
