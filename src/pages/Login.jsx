@@ -7,9 +7,10 @@ import {
   FaPaperPlane, FaCheckCircle, FaTimesCircle
 } from 'react-icons/fa';
 
-// ==================== API URL CONFIGURATION ====================
-// Uses environment variable for production, falls back to localhost for development
-const API_URL = 'https://health-backend.onrender.com/api';
+// ==================== IMPORTANT: BACKEND URL ====================
+// CHANGE THIS TO YOUR RENDER BACKEND URL
+const BACKEND_URL = 'https://health-backend.onrender.com';
+const API_URL = `${BACKEND_URL}/api`;
 
 const Login = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -86,7 +87,6 @@ const Login = () => {
     setError('');
     setLoading(true);
     
-    // Input validation
     if (!email || !password) {
       setError("Please enter both email and password");
       setLoading(false);
@@ -95,8 +95,9 @@ const Login = () => {
     
     try {
       console.log("Attempting login for:", email);
-      console.log("API URL:", API_URL);
+      console.log("Using API URL:", API_URL);
       
+      // USE THE CORRECT BACKEND URL
       const res = await axios.post(`${API_URL}/auth/login`, { 
         email, 
         password 
@@ -116,21 +117,15 @@ const Login = () => {
           isVerified: res.data.user.is_verified
         };
         
-        // Check if email is verified
         if (!userData.isVerified) {
-          setError("⚠️ Please verify your email address first. Check your inbox for the verification link.");
+          setError("⚠️ Please verify your email address first.");
           setLoading(false);
           return;
         }
         
-        // Clear any existing data first
-        localStorage.clear();
-        
-        // Store new data
         localStorage.setItem("token", res.data.token);
         localStorage.setItem("user", JSON.stringify(userData));
         
-        // Set axios default header for future requests
         axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
         
         const userRole = userData.userType || userData.role;
@@ -171,32 +166,22 @@ const Login = () => {
           redirectPath = roleRoutes[userRole];
         }
         
-        // Use navigate for better SPA experience
         window.location.href = redirectPath;
       } else {
-        setError(res.data.message || "Login failed. Please check your credentials.");
+        setError("Login failed. Please check your credentials.");
       }
     } catch (err) {
-      console.error("Login error details:", {
-        code: err.code,
-        status: err.response?.status,
-        data: err.response?.data,
-        message: err.message
-      });
+      console.error("Login error:", err);
       
       if (err.code === 'ECONNABORTED') {
         setError("Connection timeout. Please check your internet connection.");
       } else if (err.response) {
         switch (err.response.status) {
-          case 400:
-            setError(err.response.data?.message || "Invalid request. Please check your input.");
-            break;
           case 401:
-            setError("❌ Invalid email or password. Please try again.");
+            setError("❌ Invalid email or password");
             break;
           case 403:
-            setError("❌ Email not verified. Please check your inbox and verify your email address.");
-            // Offer to resend verification
+            setError("❌ Email not verified. Please check your inbox.");
             setTimeout(() => {
               if (window.confirm("Would you like to resend the verification email?")) {
                 setVerifyEmail(email);
@@ -204,19 +189,13 @@ const Login = () => {
               }
             }, 500);
             break;
-          case 404:
-            setError("User not found. Please check your email address.");
-            break;
-          case 429:
-            setError("Too many attempts. Please try again later.");
-            break;
           default:
-            setError(err.response.data?.message || `Login failed (Status: ${err.response.status})`);
+            setError(err.response.data?.message || "Login failed");
         }
       } else if (err.request) {
-        setError("❌ Cannot connect to server. Please make sure the backend is running.");
+        setError("❌ Cannot connect to server. Backend may be down.");
       } else {
-        setError(`An error occurred: ${err.message}`);
+        setError("An error occurred. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -240,10 +219,8 @@ const Login = () => {
         email: resetEmail
       });
       
-      console.log("Forgot password response:", response.data);
-      
       if (response.data.success) {
-        setResetMessage("✅ Password reset link sent! Please check your email.");
+        setResetMessage("✅ Password reset link sent to your email!");
         setTimeout(() => {
           setShowForgotPassword(false);
           setResetEmail('');
@@ -253,8 +230,7 @@ const Login = () => {
         setResetError(response.data.message || "Failed to send reset link");
       }
     } catch (err) {
-      console.error("Forgot password error:", err);
-      setResetError(err.response?.data?.message || "❌ Failed to send reset link. Please try again.");
+      setResetError("❌ Failed to send reset link. Please try again.");
     } finally {
       setResetLoading(false);
     }
@@ -277,10 +253,8 @@ const Login = () => {
         email: verifyEmail
       });
       
-      console.log('Resend verification response:', response.data);
-      
       if (response.data.success) {
-        setVerifyMessage("✅ Verification email sent! Please check your inbox and spam folder.");
+        setVerifyMessage("✅ Verification email sent! Please check your inbox.");
         setTimeout(() => {
           setShowResendVerification(false);
           setVerifyEmail('');
@@ -290,14 +264,7 @@ const Login = () => {
         setVerifyError(response.data.message || "Failed to send verification email");
       }
     } catch (err) {
-      console.error('Resend verification error:', err);
-      if (err.response?.data?.message) {
-        setVerifyError(err.response.data.message);
-      } else if (err.response?.status === 404) {
-        setVerifyError("Email not found. Please register first.");
-      } else {
-        setVerifyError("❌ Failed to send verification email. Please try again.");
-      }
+      setVerifyError(err.response?.data?.message || "❌ Failed to send verification email.");
     } finally {
       setVerifyLoading(false);
     }
@@ -306,18 +273,13 @@ const Login = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 via-blue-50 to-gray-200 relative overflow-hidden">
       
-      {/* Development Mode Banner */}
-      {import.meta.env.DEV && (
-        <div className="fixed top-16 left-0 right-0 z-50 bg-yellow-500 text-black text-center py-2 px-4 shadow-lg">
-          <div className="container mx-auto">
-            <p className="text-sm font-semibold">
-              🔧 DEVELOPMENT MODE | API: {API_URL}
-            </p>
-          </div>
+      {/* Show current API URL in development */}
+      {process.env.NODE_ENV !== 'production' && (
+        <div className="fixed top-16 left-0 right-0 z-50 bg-yellow-500 text-black text-center py-1 px-4 text-xs">
+          API: {API_URL}
         </div>
       )}
       
-      {/* ========== NAVBAR - ONLY NHMS ========== */}
       <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${
         scrolled 
           ? 'bg-white/95 backdrop-blur-md shadow-lg' 
@@ -337,21 +299,17 @@ const Login = () => {
         </div>
       </nav>
 
-      {/* Login Form Centered */}
       <div className="min-h-screen flex items-center justify-center px-4">
         
-        {/* Animated Background Particles */}
         <div className="absolute inset-0">
           <div className="absolute top-20 left-10 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse"></div>
           <div className="absolute bottom-20 right-10 w-72 h-72 bg-gray-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" style={{ animationDelay: '1s' }}></div>
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-100 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" style={{ animationDelay: '0.5s' }}></div>
         </div>
 
-        {/* Login Card */}
         <div className="relative w-full max-w-lg mx-auto">
           <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
             
-            {/* Header */}
             <div className="bg-gradient-to-r from-blue-500 to-blue-700 px-8 py-8 text-center">
               <div className="inline-flex items-center justify-center w-24 h-24 bg-white/20 rounded-full mb-4">
                 <FaHospitalUser className="text-white text-5xl" />
@@ -360,7 +318,6 @@ const Login = () => {
               <p className="text-blue-100 text-sm mt-2">Sign in to your account</p>
             </div>
 
-            {/* Form Section */}
             <div className="px-8 py-8">
               
               {showForgotPassword ? (
@@ -371,7 +328,7 @@ const Login = () => {
                   </h3>
                   
                   {resetMessage && (
-                    <div className="mb-4 p-3 bg-green-50 border-l-4 border-green-500 rounded-lg animate-fadeIn">
+                    <div className="mb-4 p-3 bg-green-50 border-l-4 border-green-500 rounded-lg">
                       <p className="text-green-700 text-sm flex items-center gap-2">
                         <FaCheckCircle /> {resetMessage}
                       </p>
@@ -409,7 +366,7 @@ const Login = () => {
                     <button
                       type="submit"
                       disabled={resetLoading}
-                      className="w-full bg-gradient-to-r from-blue-500 to-blue-700 text-white py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-blue-800 transition-all disabled:opacity-50"
+                      className="w-full bg-gradient-to-r from-blue-500 to-blue-700 text-white py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-blue-800 transition-all"
                     >
                       {resetLoading ? "Sending..." : "Send Reset Link"}
                     </button>
@@ -431,7 +388,7 @@ const Login = () => {
                   </h3>
                   
                   {verifyMessage && (
-                    <div className="mb-4 p-3 bg-green-50 border-l-4 border-green-500 rounded-lg animate-fadeIn">
+                    <div className="mb-4 p-3 bg-green-50 border-l-4 border-green-500 rounded-lg">
                       <p className="text-green-700 text-sm">{verifyMessage}</p>
                     </div>
                   )}
@@ -465,7 +422,7 @@ const Login = () => {
                     <button
                       type="submit"
                       disabled={verifyLoading}
-                      className="w-full bg-gradient-to-r from-blue-500 to-blue-700 text-white py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-blue-800 transition-all disabled:opacity-50"
+                      className="w-full bg-gradient-to-r from-blue-500 to-blue-700 text-white py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-blue-800"
                     >
                       {verifyLoading ? "Sending..." : "Resend Verification"}
                     </button>
@@ -488,7 +445,7 @@ const Login = () => {
                   </div>
 
                   {error && (
-                    <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-500 rounded-lg animate-fadeIn">
+                    <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-500 rounded-lg">
                       <p className="text-red-700 text-sm">{error}</p>
                     </div>
                   )}
@@ -509,7 +466,6 @@ const Login = () => {
                           onChange={(e) => setEmail(e.target.value)}
                           className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800"
                           required
-                          autoComplete="email"
                         />
                       </div>
                     </div>
@@ -529,7 +485,6 @@ const Login = () => {
                           onChange={(e) => setPassword(e.target.value)}
                           className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
                           required
-                          autoComplete="current-password"
                         />
                         <button
                           type="button"
