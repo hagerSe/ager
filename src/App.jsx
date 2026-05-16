@@ -4,6 +4,7 @@ import Home from './pages/Home';
 import Contact from './pages/Contact';
 import Login from './pages/Login';
 import About from './pages/About';
+import VerifyEmail from './pages/VerifyEmail'
 import FederalDashboard from './components/FederalDashboard';
 import RegionalDashboard from './components/RegionalDashboard';
 import ZoneDashboard from './components/ZoneDashboard';
@@ -240,7 +241,7 @@ const App = () => {
             <Navigate to="/login" />
           } 
         />
-        
+        <Route path="/verify-email/:token" element={<VerifyEmail />} />
         {/* Catch all - redirect to home */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>

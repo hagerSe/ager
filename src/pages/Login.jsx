@@ -1,25 +1,52 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaHospitalUser, FaShieldAlt } from 'react-icons/fa';
+import { 
+  FaEnvelope, FaLock, FaEye, FaEyeSlash, 
+  FaHospitalUser, FaShieldAlt, FaKey, 
+  FaPaperPlane, FaCheckCircle, FaTimesCircle
+} from 'react-icons/fa';
 
 const Login = () => {
+  const [scrolled, setScrolled] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  // Forgot Password States
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetMessage, setResetMessage] = useState('');
+  const [resetError, setResetError] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  
+  // Resend Verification States
+  const [showResendVerification, setShowResendVerification] = useState(false);
+  const [verifyEmail, setVerifyEmail] = useState('');
+  const [verifyMessage, setVerifyMessage] = useState('');
+  const [verifyError, setVerifyError] = useState('');
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  
   const navigate = useNavigate();
 
+  // Navbar scroll effect
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 50);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Handle Login
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     
     try {
-      console.log("Attempting login with:", email);
-      
-      // ✅ Use the unified /api/auth/login endpoint
       const res = await axios.post("http://localhost:5001/api/auth/login", { 
         email, 
         password 
@@ -28,105 +55,79 @@ const Login = () => {
         timeout: 10000
       });
       
-      console.log("Login response:", res.data);
-      
       if (res.data.success && res.data.token) {
         const userData = {
           ...res.data.user,
           role: res.data.user.role,
           userType: res.data.user.userType || res.data.user.role,
-          level: res.data.user.userType || res.data.user.role
+          level: res.data.user.userType || res.data.user.role,
+          isVerified: res.data.user.is_verified
         };
+        
+        if (!userData.isVerified) {
+          setError("⚠️ Please verify your email address first.");
+          setLoading(false);
+          return;
+        }
         
         localStorage.setItem("token", res.data.token);
         localStorage.setItem("user", JSON.stringify(userData));
         
-        console.log("User role:", userData.role);
-        console.log("User type:", userData.userType);
-        
-        // Hierarchical role-based redirect
         const userRole = userData.userType || userData.role;
         
-        // Federal Level
-        if (userRole === 'federal' || userRole === 'Federal_Admin') {
-          console.log("✅ Federal Admin - Redirecting to Federal Dashboard");
-          window.location.href = '/federal-dashboard';
-        }
-        // Regional Level
-        else if (userRole === 'regional' || userRole === 'Regional_Admin') {
-          console.log("✅ Regional Admin - Redirecting to Regional Dashboard");
-          window.location.href = '/regional-dashboard';
-        }
-        // Zone Level
-        else if (userRole === 'zone' || userRole === 'Zone_Admin') {
-          console.log("✅ Zone Admin - Redirecting to Zone Dashboard");
-          window.location.href = '/zone-dashboard';
-        }
-        // Woreda Level
-        else if (userRole === 'woreda' || userRole === 'Woreda_Admin') {
-          console.log("✅ Woreda Admin - Redirecting to Woreda Dashboard");
-          window.location.href = '/woreda-dashboard';
-        }
-        // Kebele Level
-        else if (userRole === 'kebele' || userRole === 'Kebele_Admin') {
-          console.log("✅ Kebele Admin - Redirecting to Kebele Dashboard");
-          window.location.href = '/kebele-dashboard';
-        }
-        // Hospital Level
-        else if (userRole === 'hospital' || userRole === 'Hospital_Admin') {
-          console.log("✅ Hospital Admin - Redirecting to Hospital Dashboard");
-          window.location.href = '/hospital-dashboard';
-        }
-        // Staff Level - Check department
-        else if (userRole === 'staff') {
-          const department = userData.department;
-          console.log("✅ Staff - Department:", department);
-          
-          // ✅ FIXED: Department-based redirects with correct naming
-          const departmentRoutes = {
-            'Doctor': '/doctor-dashboard',
-            'Nurse': '/nurse-dashboard',
-            'Pharma': '/pharma-dashboard',
-            'Lab': '/lab-dashboard',
-            'Radio': '/radio-dashboard',
-            'Midwife': '/midwife-dashboard',
-            'Triage': '/triage-dashboard',
-            'Card_Office': '/card-office-dashboard',      // ✅ Fixed from 'cardofffice' to 'Card_Office'
-            'Bed_Management': '/bed-management-dashboard',
-            'Human_Resource': '/hr-dashboard'
-          };
-          
-          const redirectPath = departmentRoutes[department];
-          if (redirectPath) {
-            console.log(`✅ Redirecting ${department} to ${redirectPath}`);
-            window.location.href = redirectPath;
-          } else {
-            console.log(`⚠️ No specific dashboard for ${department}, going to staff-dashboard`);
-            window.location.href = '/staff-dashboard';
-          }
-        }
-        else {
-          console.log("Unknown role, going to home");
+        const roleRoutes = {
+          'federal': '/federal-dashboard',
+          'Federal_Admin': '/federal-dashboard',
+          'regional': '/regional-dashboard',
+          'Regional_Admin': '/regional-dashboard',
+          'zone': '/zone-dashboard',
+          'Zone_Admin': '/zone-dashboard',
+          'woreda': '/woreda-dashboard',
+          'Woreda_Admin': '/woreda-dashboard',
+          'kebele': '/kebele-dashboard',
+          'Kebele_Admin': '/kebele-dashboard',
+          'hospital': '/hospital-dashboard',
+          'Hospital_Admin': '/hospital-dashboard',
+          'staff': '/staff-dashboard'
+        };
+        
+        const departmentRoutes = {
+          'Doctor': '/doctor-dashboard',
+          'Nurse': '/nurse-dashboard',
+          'Pharma': '/pharma-dashboard',
+          'Lab': '/lab-dashboard',
+          'Radio': '/radio-dashboard',
+          'Midwife': '/midwife-dashboard',
+          'Triage': '/triage-dashboard',
+          'Card_Office': '/card-office-dashboard',
+          'Bed_Management': '/bed-management-dashboard',
+          'Human_Resource': '/hr-dashboard'
+        };
+        
+        if (userRole === 'staff' && userData.department) {
+          const redirectPath = departmentRoutes[userData.department];
+          window.location.href = redirectPath || '/staff-dashboard';
+        } else if (roleRoutes[userRole]) {
+          window.location.href = roleRoutes[userRole];
+        } else {
           window.location.href = '/';
         }
       } else {
         setError("Login failed. Please check your credentials.");
       }
     } catch (err) {
-      console.error("Login error:", err);
-      
       if (err.code === 'ECONNABORTED') {
-        setError("Connection timeout. Make sure backend is running on port 5001");
+        setError("Connection timeout. Make sure backend is running");
       } else if (err.response) {
         if (err.response.status === 401) {
-          setError("❌ Invalid email or password. Please check your credentials.");
-        } else if (err.response.status === 404) {
-          setError("❌ Server endpoint not found. Please use /api/auth/login");
+          setError("❌ Invalid email or password");
+        } else if (err.response.status === 403) {
+          setError("❌ Email not verified. Please check your inbox.");
         } else {
           setError(err.response.data?.message || "Login failed");
         }
       } else if (err.request) {
-        setError("❌ Cannot connect to server. Please make sure backend is running on http://localhost:5001");
+        setError("❌ Cannot connect to server.");
       } else {
         setError("An error occurred. Please try again.");
       }
@@ -135,121 +136,332 @@ const Login = () => {
     }
   };
 
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setResetError('');
+    setResetMessage('');
+    setResetLoading(true);
+    
+    try {
+      const response = await axios.post("http://localhost:5001/api/auth/forgot-password", {
+        email: resetEmail
+      });
+      
+      if (response.data.success) {
+        setResetMessage("✅ Password reset link sent to your email!");
+        setTimeout(() => {
+          setShowForgotPassword(false);
+          setResetEmail('');
+          setResetMessage('');
+        }, 3000);
+      } else {
+        setResetError(response.data.message || "Failed to send reset link");
+      }
+    } catch (err) {
+      setResetError("❌ Failed to send reset link. Please try again.");
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+const handleResendVerification = async (e) => {
+  e.preventDefault();
+  setVerifyError('');
+  setVerifyMessage('');
+  setVerifyLoading(true);
+  
+  try {
+    const response = await axios.post("http://localhost:5001/api/auth/resend-verification", {
+      email: verifyEmail
+    });
+    
+    console.log('Response:', response.data); // Check console
+    
+    if (response.data.success) {
+      setVerifyMessage("✅ Verification email sent! Please check your inbox.");
+      setTimeout(() => {
+        setShowResendVerification(false);
+        setVerifyEmail('');
+        setVerifyMessage('');
+      }, 3000);
+    } else {
+      setVerifyError(response.data.message || "Failed to send verification email");
+    }
+  } catch (err) {
+    console.error('Error:', err);
+    setVerifyError(err.response?.data?.message || "❌ Failed to send verification email.");
+  } finally {
+    setVerifyLoading(false);
+  }
+};
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-blue-700 to-blue-500 relative overflow-hidden">
-      {/* Animated background particles */}
-      <div className="absolute inset-0">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-blue-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
-        <div className="absolute bottom-20 right-10 w-72 h-72 bg-purple-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse" style={{ animationDelay: '1s' }}></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse" style={{ animationDelay: '0.5s' }}></div>
-      </div>
-
-      {/* Main Login Card */}
-      <div className="relative w-full max-w-md mx-4">
-        <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-transparent via-white to-transparent rounded-full"></div>
-        
-        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-800 px-8 py-6 text-center">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-white/20 rounded-full mb-4">
-              <FaHospitalUser className="text-white text-4xl" />
-            </div>
-            <h2 className="text-2xl font-bold text-white">NHMS Portal</h2>
-            <p className="text-blue-100 text-sm mt-1">National Health Management System</p>
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-blue-50 to-gray-200 relative overflow-hidden">
+      
+      {/* ========== NAVBAR - ONLY NHMS ========== */}
+      <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${
+        scrolled 
+          ? 'bg-white/95 backdrop-blur-md shadow-lg' 
+          : 'bg-white/80 backdrop-blur-sm'
+      }`}>
+        <div className="px-6 py-4">
+          <div 
+            onClick={() => navigate('/')}
+            className="cursor-pointer w-fit"
+          >
+            <h1 className={`font-bold text-2xl transition-all duration-300 ${
+              scrolled ? 'text-blue-600' : 'text-blue-600'
+            }`}>
+              NHMS
+            </h1>
           </div>
+        </div>
+      </nav>
 
-          {/* Form Section */}
-          <div className="px-8 py-6">
-            <div className="flex items-center justify-center gap-2 mb-6">
-              <FaShieldAlt className="text-green-500 text-sm" />
-              <span className="text-xs text-gray-500">Secure Encrypted Connection</span>
-              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+      {/* Login Form Centered */}
+      <div className="min-h-screen flex items-center justify-center px-4">
+        
+        {/* Animated Background Particles - Gray & Blue only */}
+        <div className="absolute inset-0">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse"></div>
+          <div className="absolute bottom-20 right-10 w-72 h-72 bg-gray-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" style={{ animationDelay: '1s' }}></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-100 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" style={{ animationDelay: '0.5s' }}></div>
+        </div>
+
+        {/* Login Card - Centered */}
+        <div className="relative w-full max-w-lg mx-auto">
+          <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
+            
+            {/* Header - Water Blue Gradient */}
+            <div className="bg-gradient-to-r from-blue-500 to-blue-700 px-8 py-8 text-center">
+              <div className="inline-flex items-center justify-center w-24 h-24 bg-white/20 rounded-full mb-4">
+                <FaHospitalUser className="text-white text-5xl" />
+              </div>
+              <h2 className="text-3xl font-bold text-white">Welcome Back</h2>
+              <p className="text-blue-100 text-sm mt-2">Sign in to your account</p>
             </div>
 
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-500 rounded-lg">
-                <p className="text-red-700 text-sm">{error}</p>
-              </div>
-            )}
-
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Address
-                </label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FaEnvelope className="text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-                  </div>
-                  <input
-                    type="email"
-                    placeholder="admin@nhms.gov.et"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                    required
-                  />
+            {/* Form Section */}
+            <div className="px-8 py-8">
+              
+              {showForgotPassword ? (
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <FaKey className="text-blue-600" />
+                    Reset Password
+                  </h3>
+                  
+                  {resetMessage && (
+                    <div className="mb-4 p-3 bg-green-50 border-l-4 border-green-500 rounded-lg">
+                      <p className="text-green-700 text-sm flex items-center gap-2">
+                        <FaCheckCircle /> {resetMessage}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {resetError && (
+                    <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-500 rounded-lg">
+                      <p className="text-red-700 text-sm flex items-center gap-2">
+                        <FaTimesCircle /> {resetError}
+                      </p>
+                    </div>
+                  )}
+                  
+                  <form onSubmit={handleForgotPassword} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Email Address
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <FaEnvelope className="text-gray-400" />
+                        </div>
+                        <input
+                          type="email"
+                          placeholder="Enter your registered email"
+                          value={resetEmail}
+                          onChange={(e) => setResetEmail(e.target.value)}
+                          className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+                          required
+                        />
+                      </div>
+                    </div>
+                    
+                    <button
+                      type="submit"
+                      disabled={resetLoading}
+                      className="w-full bg-gradient-to-r from-blue-500 to-blue-700 text-white py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-blue-800 transition-all"
+                    >
+                      {resetLoading ? "Sending..." : "Send Reset Link"}
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotPassword(false)}
+                      className="w-full text-gray-500 py-2 text-sm hover:text-blue-600 transition"
+                    >
+                      ← Back to Login
+                    </button>
+                  </form>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Password
-                </label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FaLock className="text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-                  </div>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  >
-                    {showPassword ? (
-                      <FaEyeSlash className="text-gray-400 hover:text-gray-600 transition" />
-                    ) : (
-                      <FaEye className="text-gray-400 hover:text-gray-600 transition" />
-                    )}
-                  </button>
+              ) : showResendVerification ? (
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <FaPaperPlane className="text-blue-600" />
+                    Resend Verification
+                  </h3>
+                  
+                  {verifyMessage && (
+                    <div className="mb-4 p-3 bg-green-50 border-l-4 border-green-500 rounded-lg">
+                      <p className="text-green-700 text-sm">{verifyMessage}</p>
+                    </div>
+                  )}
+                  
+                  {verifyError && (
+                    <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-500 rounded-lg">
+                      <p className="text-red-700 text-sm">{verifyError}</p>
+                    </div>
+                  )}
+                  
+                  <form onSubmit={handleResendVerification} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Email Address
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <FaEnvelope className="text-gray-400" />
+                        </div>
+                        <input
+                          type="email"
+                          placeholder="Enter your registered email"
+                          value={verifyEmail}
+                          onChange={(e) => setVerifyEmail(e.target.value)}
+                          className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+                          required
+                        />
+                      </div>
+                    </div>
+                    
+                    <button
+                      type="submit"
+                      disabled={verifyLoading}
+                      className="w-full bg-gradient-to-r from-blue-500 to-blue-700 text-white py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-blue-800"
+                    >
+                      {verifyLoading ? "Sending..." : "Resend Verification"}
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => setShowResendVerification(false)}
+                      className="w-full text-gray-500 py-2 text-sm hover:text-blue-600 transition"
+                    >
+                      ← Back to Login
+                    </button>
+                  </form>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-center gap-2 mb-6">
+                    <FaShieldAlt className="text-green-500 text-sm" />
+                    <span className="text-xs text-gray-500">Secure Encrypted Connection</span>
+                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                  </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-800 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98]"
-              >
-                {loading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Authenticating...
-                  </span>
-                ) : (
-                  "Sign In"
-                )}
-              </button>
-            </form>
+                  {error && (
+                    <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-500 rounded-lg">
+                      <p className="text-red-700 text-sm">{error}</p>
+                    </div>
+                  )}
 
-            <div className="mt-6 pt-4 border-t border-gray-200 text-center">
-              <p className="text-xs text-gray-500">
-                © 2024 National Health Management System. All rights reserved.
-              </p>
+                  <form onSubmit={handleLogin} className="space-y-5">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Email Address
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <FaEnvelope className="text-gray-400" />
+                        </div>
+                        <input
+                          type="email"
+                          placeholder="admin@nhms.gov.et"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Password
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <FaLock className="text-gray-400" />
+                        </div>
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Enter your password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                        >
+                          {showPassword ? (
+                            <FaEyeSlash className="text-gray-400 hover:text-gray-600" />
+                          ) : (
+                            <FaEye className="text-gray-400 hover:text-gray-600" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <button
+                        type="button"
+                        onClick={() => setShowForgotPassword(true)}
+                        className="text-sm text-blue-600 hover:text-blue-800 hover:underline transition"
+                      >
+                        Forgot Password?
+                      </button>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full bg-gradient-to-r from-blue-500 to-blue-700 text-white py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-blue-800 transition-all duration-200 disabled:opacity-50 transform hover:scale-[1.02] active:scale-[0.98]"
+                    >
+                      {loading ? "Authenticating..." : "Sign In"}
+                    </button>
+                  </form>
+
+                  <div className="mt-5 text-center">
+                    <button
+                      type="button"
+                      onClick={() => setShowResendVerification(true)}
+                      className="text-sm text-blue-600 hover:text-blue-800 hover:underline transition"
+                    >
+                      Didn't receive verification email?
+                    </button>
+                  </div>
+
+                  <div className="mt-6 pt-4 border-t border-gray-200 text-center">
+                    <p className="text-xs text-gray-400">
+                      © 2024 National Health Management System
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
-
-        <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-transparent via-white to-transparent rounded-full"></div>
       </div>
     </div>
   );
