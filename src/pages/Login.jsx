@@ -9,7 +9,8 @@ import {
 
 // ==================== BACKEND URL ====================
 // Automatically uses localhost in development, deployed URL in production
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 
+  (import.meta.env.PROD ? 'https://health-backend-2-gqv6.onrender.com' : 'http://localhost:5001');
 const API_URL = `${BACKEND_URL}/api`;
 
 const Login = () => {
