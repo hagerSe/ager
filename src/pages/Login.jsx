@@ -7,9 +7,9 @@ import {
   FaPaperPlane, FaCheckCircle, FaTimesCircle
 } from 'react-icons/fa';
 
-// ==================== IMPORTANT: BACKEND URL ====================
-// CHANGE THIS TO YOUR RENDER BACKEND URL
-const BACKEND_URL = 'https://health-backend-2-gqv6.onrender.com';
+// ==================== BACKEND URL ====================
+// Automatically uses localhost in development, deployed URL in production
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
 const API_URL = `${BACKEND_URL}/api`;
 
 const Login = () => {
@@ -95,9 +95,8 @@ const Login = () => {
     
     try {
       console.log("Attempting login for:", email);
-      console.log("Using API URL:", API_URL);
+      console.log("Using API URL:", `${API_URL}/auth/login`);
       
-      // USE THE CORRECT BACKEND URL
       const res = await axios.post(`${API_URL}/auth/login`, { 
         email, 
         password 
