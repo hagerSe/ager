@@ -110,8 +110,8 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const [realTimeNotification, setRealTimeNotification] = useState(null);
 
   const navigate = useNavigate();
-  const API_URL = 'http://localhost:5001';
-  const SOCKET_URL = 'http://localhost:5001';
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+  const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001';
 
   // ==================== VALIDATION FUNCTIONS ====================
   const validateName = (name, fieldName) => {
@@ -829,7 +829,11 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       } shadow-2xl flex flex-col h-screen sticky top-0 z-50`}>
         <div className="p-4">
           <div className="flex items-center justify-between mb-8">
-            {!sidebarCollapsed && (
+            {sidebarCollapsed ? (
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-lg">
+                <FaIdCard className="text-white text-sm" />
+              </div>
+            ) : (
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-lg">
                   <FaIdCard className="text-white text-sm" />
@@ -837,90 +841,85 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                 <span className="font-bold text-base tracking-tight">Card Office</span>
               </div>
             )}
-            {sidebarCollapsed && (
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-lg mx-auto">
-                <FaIdCard className="text-white text-sm" />
-              </div>
-            )}
-            <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="p-2 hover:bg-slate-700 rounded-lg transition-colors">
+            <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="p-2 hover:bg-slate-700 rounded-lg transition-colors flex-shrink-0">
               {sidebarCollapsed ? <FaChevronRight /> : <FaChevronLeft />}
             </button>
           </div>
 
           <nav className="space-y-1">
             {/* Register Patient */}
-            <button onClick={() => { setActiveTab('register'); setShowScheduleView(false); }} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm ${
+            <button onClick={() => { setActiveTab('register'); setShowScheduleView(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
               activeTab === 'register' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
-              <FaUserPlus className="text-lg" />
+              <FaUserPlus className="text-lg flex-shrink-0" />
               {!sidebarCollapsed && <span>Register Patient</span>}
             </button>
 
             {/* Search Patients */}
-            <button onClick={() => { setActiveTab('search'); setShowScheduleView(false); }} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm ${
+            <button onClick={() => { setActiveTab('search'); setShowScheduleView(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
               activeTab === 'search' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
-              <FaSearch className="text-lg" />
+              <FaSearch className="text-lg flex-shrink-0" />
               {!sidebarCollapsed && <span>Search Patients</span>}
             </button>
 
             {/* Recent Registrations */}
-            <button onClick={() => { setActiveTab('recent'); setShowScheduleView(false); }} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm ${
+            <button onClick={() => { setActiveTab('recent'); setShowScheduleView(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
               activeTab === 'recent' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
-              <FaHistory className="text-lg" />
+              <FaHistory className="text-lg flex-shrink-0" />
               {!sidebarCollapsed && <span>Recent Registrations</span>}
             </button>
 
-            <div className="h-px bg-slate-700/50 my-4 mx-3"></div>
+            <div className="h-px bg-slate-700/50 my-3 mx-2"></div>
 
             {/* Inbox */}
-            <button onClick={() => { setActiveTab('inbox'); setShowScheduleView(false); fetchReportsInbox(); }} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm relative ${
+            <button onClick={() => { setActiveTab('inbox'); setShowScheduleView(false); fetchReportsInbox(); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm relative ${sidebarCollapsed ? 'justify-center' : ''} ${
               activeTab === 'inbox' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
-              <FaInbox className="text-lg" />
+              <FaInbox className="text-lg flex-shrink-0" />
               {!sidebarCollapsed && <span>Inbox</span>}
               {unreadReportsCount > 0 && (
-                <span className="absolute right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-pulse">
+                <span className={`${sidebarCollapsed ? 'absolute -top-1 -right-1' : 'ml-auto'} bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-pulse`}>
                   {unreadReportsCount}
                 </span>
               )}
             </button>
 
             {/* Sent Reports */}
-            <button onClick={() => { setActiveTab('outbox'); setShowScheduleView(false); fetchReportsOutbox(); }} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm ${
+            <button onClick={() => { setActiveTab('outbox'); setShowScheduleView(false); fetchReportsOutbox(); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
               activeTab === 'outbox' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
-              <FaPaperPlane className="text-lg" />
+              <FaPaperPlane className="text-lg flex-shrink-0" />
               {!sidebarCollapsed && <span>Sent Reports</span>}
             </button>
 
             {/* Statistics */}
-            <button onClick={() => { setActiveTab('reports'); setShowScheduleView(false); }} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm ${
+            <button onClick={() => { setActiveTab('reports'); setShowScheduleView(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
               activeTab === 'reports' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
-              <FaChartBar className="text-lg" />
+              <FaChartBar className="text-lg flex-shrink-0" />
               {!sidebarCollapsed && <span>Statistics</span>}
             </button>
 
             {/* ==================== MY SCHEDULE ==================== */}
             <button 
               onClick={() => { setActiveTab('schedule'); setShowScheduleView(true); }} 
-              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
                 showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
               }`}
             >
-              <FaCalendarAlt className="text-lg" />
+              <FaCalendarAlt className="text-lg flex-shrink-0" />
               {!sidebarCollapsed && <span>My Schedule</span>}
             </button>
 
-            <div className="h-px bg-slate-700/50 my-4 mx-3"></div>
+            <div className="h-px bg-slate-700/50 my-3 mx-2"></div>
 
             {/* Profile */}
-            <button onClick={() => { setActiveTab('profile'); setShowScheduleView(false); }} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm ${
+            <button onClick={() => { setActiveTab('profile'); setShowScheduleView(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
               activeTab === 'profile' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
-              <FaUserCircle className="text-lg" />
+              <FaUserCircle className="text-lg flex-shrink-0" />
               {!sidebarCollapsed && <span>Profile</span>}
             </button>
           </nav>

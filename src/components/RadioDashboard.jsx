@@ -96,8 +96,8 @@ const RadiologyDashboard = ({ user, onLogout }) => {
   });
   
   // ==================== CONSTANTS ====================
-  const API_URL = 'http://localhost:5001';
-  const SOCKET_URL = 'http://localhost:5001';
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+  const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001';
   const socketRef = useRef(null);
   const navigate = useNavigate();
   
@@ -420,47 +420,50 @@ const RadiologyDashboard = ({ user, onLogout }) => {
   const handleRemoveImage = (indexToRemove) => {
     setUploadedImages(prev => prev.filter((_, index) => index !== indexToRemove));
   };
+// In RadioDashboard.jsx - handleSubmitReport function
 
-  const handleSubmitReport = async () => {
-    if (!reportData.findings) {
-      setMessage({ type: 'error', text: 'Please enter findings' });
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      
-      const res = await axios.put(`${API_URL}/api/radiology/report/${selectedRequest.id}`, {
-        report: {
-          findings: reportData.findings,
-          impression: reportData.impression,
-          critical: reportData.critical
-        },
-        images: uploadedImages.map(img => ({
-          url: img.url,
-          key: img.key,
-          originalName: img.originalName
-        }))
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
+const handleSubmitReport = async () => {
+  try {
+    const formData = new FormData();
+    
+    // Add text fields
+    formData.append('findings', findings || '');
+    formData.append('impression', impression || '');
+    formData.append('recommendations', recommendations || '');
+    formData.append('critical', critical ? 'true' : 'false');
+    formData.append('clinical_history', clinicalHistory || '');
+    
+    // Add images - Field name must match 'images' (used in upload.array('images'))
+    if (imageFiles && imageFiles.length > 0) {
+      imageFiles.forEach((file) => {
+        formData.append('images', file);
       });
-
-      if (res.data.success) {
-        setMessage({ type: 'success', text: 'Report submitted successfully' });
-        setShowReportModal(false);
-        setSelectedRequest(null);
-        fetchAllData();
-        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      }
-    } catch (error) {
-      console.error('Error submitting report:', error);
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Error submitting report' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } finally {
-      setLoading(false);
     }
-  };
+    
+    const token = localStorage.getItem('token');
+    
+    const response = await axios.put(
+      `${API_URL}/api/radiology/report/${requestId}`,
+      formData,
+      {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        },
+        timeout: 120000  // Increase timeout for large images
+      }
+    );
+    
+    if (response.data.success) {
+      console.log('✅ Report submitted successfully');
+      // Handle success
+    }
+  } catch (error) {
+    console.error('Error submitting report:', error);
+    console.error('Response:', error.response?.data);
+    // Show error to user
+  }
+};
 
   // ==================== REPORT FUNCTIONS ====================
   const fetchReportsInbox = async () => {

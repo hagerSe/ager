@@ -30,8 +30,8 @@ const VerifyEmail = () => {
           setDebug(prev => prev + `\n⚠️ Token seems too short: ${token.length} characters`);
         }
         
-        // Try different URL patterns (your backend route might be different)
-        const backendUrl = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+        // Use Vite env var for production, fallback to localhost for development
+        const backendUrl = import.meta.env.VITE_API_URL?.replace(/\/api$/, '') || 'http://localhost:5001';
         const verificationUrl = `${backendUrl}/api/auth/verify-email/${token}`;
         
         setDebug(prev => prev + `\n📡 Attempting to connect to: ${verificationUrl}`);
@@ -116,7 +116,7 @@ const VerifyEmail = () => {
           // Request made but no response
           errorMessage = 'Cannot connect to verification server. Make sure backend is running.';
           debugInfo += `\n🔌 No response from server. Request made but no reply.`;
-          debugInfo += `\n🌐 Check if backend is running on http://localhost:5001`;
+          debugInfo += `\n🌐 Check if backend is running on ${import.meta.env.VITE_API_URL?.replace(/\/api$/, '') || 'http://localhost:5001'}`;
         } else {
           // Something else
           errorMessage = `Error: ${error.message}`;

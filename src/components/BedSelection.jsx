@@ -7,7 +7,7 @@ const BedSelection = ({ ward, hospitalId, onBedSelect, selectedBed, title = "Sel
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const API_URL = 'http://localhost:5001';
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
   useEffect(() => {
     if (ward && hospitalId) {

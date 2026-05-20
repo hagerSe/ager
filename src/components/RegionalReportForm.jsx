@@ -38,8 +38,9 @@ const RegionalReportForm = ({ user, onClose, onSuccess, recipients = [], fetchin
         recipient_id: parseInt(formData.recipient_id)
       };
 
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
       const response = await axios.post(
-        'http://localhost:5001/api/regional/reports/send',
+        `${apiBaseUrl}/regional/reports/send`,
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );

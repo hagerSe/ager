@@ -77,8 +77,8 @@ const FederalDashboard = ({ user, onLogout }) => {
   const [recipients, setRecipients] = useState({ regions: [] });
 
   const navigate = useNavigate();
-  const API_URL = 'http://localhost:5001';
-  const SOCKET_URL = 'http://localhost:5001';
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+  const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001';
 
   const getFileIcon = (mimeType) => {
     if (!mimeType) return <FaFileAlt className="text-gray-500 text-xl" />;

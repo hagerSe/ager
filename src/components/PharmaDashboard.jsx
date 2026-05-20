@@ -14,7 +14,8 @@ import {
   FaProcedures, FaUserInjured, FaEdit, FaSave, FaKey, FaCamera,
   FaReply, FaEye, FaFileAlt, FaPaperclip, FaTrash, FaTools,
   FaBroom, FaArrowRight, FaArrowLeft, FaTimesCircle, FaSync,
-  FaIdCard, FaHistory, FaUserPlus, FaPrescription, FaBoxes, FaTruck
+  FaIdCard, FaHistory, FaUserPlus, FaPrescription, FaBoxes, FaTruck,
+  FaUndo, FaTextHeight
 } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import ScheduleViewer from '../components/ScheduleViewer';
@@ -27,6 +28,16 @@ const PharmacyDashboard = ({ user, onLogout }) => {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [showScheduleView, setShowScheduleView] = useState(false);
+  
+  // ==================== TEXT SIZE STATE (XLARGE BY DEFAULT) ====================
+  const [textSize, setTextSize] = useState('xlarge');
+  const [showTextSizeMenu, setShowTextSizeMenu] = useState(false);
+  
+  // ==================== LOGOUT CONFIRMATION ====================
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  
+  // ==================== HISTORY FOR BACK NAVIGATION ====================
+  const [tabHistory, setTabHistory] = useState(['prescriptions']);
   
   // ==================== PRESCRIPTION STATES ====================
   const [prescriptions, setPrescriptions] = useState([]);
@@ -103,9 +114,53 @@ const PharmacyDashboard = ({ user, onLogout }) => {
     confirm_password: ''
   });
   
+  // ==================== TEXT SIZE STYLES ====================
+  const getTextSizeClasses = () => {
+    switch(textSize) {
+      case 'small':
+        return { base: 'text-sm', heading: 'text-base', title: 'text-lg', large: 'text-sm' };
+      case 'normal':
+        return { base: 'text-base', heading: 'text-lg', title: 'text-xl', large: 'text-base' };
+      case 'large':
+        return { base: 'text-lg', heading: 'text-xl', title: 'text-2xl', large: 'text-lg' };
+      case 'xlarge':
+        return { base: 'text-xl', heading: 'text-2xl', title: 'text-3xl', large: 'text-xl' };
+      default:
+        return { base: 'text-xl', heading: 'text-2xl', title: 'text-3xl', large: 'text-xl' };
+    }
+  };
+  
+  const textSizeClasses = getTextSizeClasses();
+  
+  // Apply text size to body
+  useEffect(() => {
+    document.documentElement.style.fontSize = 
+      textSize === 'small' ? '13px' : 
+      textSize === 'normal' ? '15px' : 
+      textSize === 'large' ? '17px' : '19px';
+  }, [textSize]);
+  
+  // ==================== BACK NAVIGATION HANDLER ====================
+  const handleTabChange = (tab, isSchedule = false) => {
+    if (tab !== activeTab || isSchedule !== showScheduleView) {
+      setTabHistory(prev => [...prev, activeTab]);
+      setActiveTab(tab);
+      setShowScheduleView(isSchedule);
+    }
+  };
+  
+  const handleGoBack = () => {
+    if (tabHistory.length > 0) {
+      const previousTab = tabHistory[tabHistory.length - 1];
+      setTabHistory(prev => prev.slice(0, -1));
+      setActiveTab(previousTab);
+      setShowScheduleView(previousTab === 'schedule');
+    }
+  };
+  
   // ==================== CONSTANTS ====================
-  const API_URL = 'http://localhost:5001';
-  const SOCKET_URL = 'http://localhost:5001';
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+  const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001';
   const socketRef = useRef(null);
   const navigate = useNavigate();
   
@@ -299,6 +354,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
       
       if (res.data.success) {
         setInventory(res.data.inventory);
+        setStats(prev => ({ ...prev, totalInventory: res.data.inventory.length }));
       }
     } catch (error) {
       console.error('Error fetching inventory:', error);
@@ -334,8 +390,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
         setStats(prev => ({
           ...prev,
           dispensedToday: res.data.dispensedCount || 0,
-          pendingCount: res.data.pendingCount || 0,
-          totalInventory: inventory.length
+          pendingCount: res.data.pendingCount || 0
         }));
       }
     } catch (error) {
@@ -357,6 +412,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
       if (res.data.success) {
         setMessage({ type: 'success', text: 'Prescription prepared successfully' });
         fetchPrescriptions();
+        fetchStats();
       }
     } catch (error) {
       setMessage({ type: 'error', text: error.response?.data?.message || 'Error preparing prescription' });
@@ -405,6 +461,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
       if (res.data.success) {
         setMessage({ type: 'success', text: 'Prescription cancelled successfully' });
         fetchPrescriptions();
+        fetchStats();
       }
     } catch (error) {
       setMessage({ type: 'error', text: error.response?.data?.message || 'Error cancelling prescription' });
@@ -468,6 +525,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
         });
         fetchInventory();
         fetchLowStock();
+        fetchStats();
       }
     } catch (error) {
       setMessage({ type: 'error', text: error.response?.data?.message || 'Error adding inventory item' });
@@ -709,6 +767,23 @@ const PharmacyDashboard = ({ user, onLogout }) => {
     }
   };
 
+  // ==================== LOGOUT WITH CONFIRMATION ====================
+  const handleLogoutClick = () => {
+    setShowLogoutConfirm(true);
+  };
+  
+  const handleConfirmLogout = () => {
+    if (socketRef.current) socketRef.current.disconnect();
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    if (onLogout) onLogout();
+    navigate('/login');
+  };
+  
+  const handleCancelLogout = () => {
+    setShowLogoutConfirm(false);
+  };
+
   // ==================== REAL TIME NOTIFICATION ====================
   const [realTimeNotification, setRealTimeNotification] = useState(null);
 
@@ -727,26 +802,26 @@ const PharmacyDashboard = ({ user, onLogout }) => {
         exit={{ opacity: 0, x: 100, scale: 0.9 }}
         className={`fixed bottom-6 right-6 z-[10000] max-w-md bg-white rounded-2xl shadow-2xl border-l-4 ${priorityColors[realTimeNotification.priority] || 'border-teal-500'} overflow-hidden`}
       >
-        <div className="p-4">
-          <div className="flex items-start gap-3">
+        <div className="p-5">
+          <div className="flex items-start gap-4">
             <div className="flex-shrink-0">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-teal-100">
+              <div className="w-14 h-14 rounded-full flex items-center justify-center text-3xl bg-teal-100">
                 {realTimeNotification.type === 'reply' ? '💬' : 
                  realTimeNotification.type === 'prepared' ? '📋' : 
                  realTimeNotification.type === 'dispensed' ? '💊' : '📬'}
               </div>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-sm font-bold text-gray-900">{realTimeNotification.title}</p>
-                <span className="text-xs text-gray-400 ml-2">{getPriorityIcon(realTimeNotification.priority)} {realTimeNotification.priority}</span>
+              <div className="flex items-center justify-between mb-2">
+                <p className={`font-bold text-gray-900 ${textSizeClasses.heading}`}>{realTimeNotification.title}</p>
+                <span className="text-base text-gray-400 ml-2">{getPriorityIcon(realTimeNotification.priority)} {realTimeNotification.priority}</span>
               </div>
-              <p className="text-sm text-gray-600 mb-2">{realTimeNotification.message}</p>
-              <div className="flex items-center gap-3 text-xs text-gray-400">
+              <p className={`text-gray-600 mb-2 ${textSizeClasses.base}`}>{realTimeNotification.message}</p>
+              <div className="flex items-center gap-3 text-sm text-gray-400">
                 <span>🕒 {new Date(realTimeNotification.timestamp).toLocaleTimeString()}</span>
               </div>
             </div>
-            <button onClick={() => setRealTimeNotification(null)} className="flex-shrink-0 text-gray-400 hover:text-gray-600 text-xl">×</button>
+            <button onClick={() => setRealTimeNotification(null)} className="flex-shrink-0 text-gray-400 hover:text-gray-600 text-2xl">×</button>
           </div>
         </div>
         <motion.div
@@ -768,19 +843,11 @@ const PharmacyDashboard = ({ user, onLogout }) => {
     };
     const config = statusConfig[connectionStatus] || statusConfig.connecting;
     return (
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-full">
-        <div className={`w-2 h-2 rounded-full ${config.color} animate-pulse`} />
-        <span className="text-xs text-gray-600">{config.icon} {config.text}</span>
+      <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-full">
+        <div className={`w-3 h-3 rounded-full ${config.color} animate-pulse`} />
+        <span className={`text-gray-600 ${textSizeClasses.base}`}>{config.icon} {config.text}</span>
       </div>
     );
-  };
-
-  const handleLogout = () => {
-    if (socketRef.current) socketRef.current.disconnect();
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    if (onLogout) onLogout();
-    navigate('/login');
   };
 
   // ==================== INITIAL LOAD ====================
@@ -820,58 +887,92 @@ const PharmacyDashboard = ({ user, onLogout }) => {
 
   // ==================== RENDER ====================
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex">
+    <div className={`min-h-screen bg-gradient-to-br from-blue-50/50 to-indigo-50/50 flex ${textSizeClasses.base}`}>
       <RealTimeNotification />
+      
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10001] p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8"
+          >
+            <div className="text-center">
+              <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5">
+                <FaSignOutAlt className="text-red-600 text-3xl" />
+              </div>
+              <h3 className={`font-bold text-gray-800 mb-3 ${textSizeClasses.title}`}>Confirm Logout</h3>
+              <p className={`text-gray-600 mb-8 ${textSizeClasses.base}`}>Are you sure you want to logout?</p>
+              <div className="flex gap-4">
+                <button
+                  onClick={handleCancelLogout}
+                  className={`flex-1 px-6 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition font-medium ${textSizeClasses.base}`}
+                >
+                  No, Stay
+                </button>
+                <button
+                  onClick={handleConfirmLogout}
+                  className={`flex-1 px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition font-medium ${textSizeClasses.base}`}
+                >
+                  Yes, Logout
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
       
       <style>{`
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
-        @keyframes glow { 0% { box-shadow: 0 0 5px rgba(59,130,246,0.2); } 50% { box-shadow: 0 0 20px rgba(59,130,246,0.5); } 100% { box-shadow: 0 0 5px rgba(59,130,246,0.2); } }
+        @keyframes glow { 0% { box-shadow: 0 0 5px rgba(59,130,246,0.15); } 50% { box-shadow: 0 0 20px rgba(59,130,246,0.3); } 100% { box-shadow: 0 0 5px rgba(59,130,246,0.15); } }
         .animate-slide-in { animation: slideIn 0.3s ease-out; }
         .animate-glow { animation: glow 2s infinite; }
       `}</style>
 
       {/* ==================== SIDEBAR ==================== */}
       <div className={`bg-gradient-to-b from-slate-900 to-slate-800 text-white transition-all duration-300 ${
-        sidebarCollapsed ? 'w-20' : 'w-64'
+        sidebarCollapsed ? 'w-24' : 'w-72'
       } shadow-2xl flex flex-col h-screen sticky top-0 z-50`}>
-        <div className="p-4">
+        <div className="p-5">
           <div className="flex items-center justify-between mb-8">
             {!sidebarCollapsed && (
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-lg">
-                  <FaPills className="text-white text-sm" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-500/70 to-indigo-500/70 rounded-xl flex items-center justify-center shadow-lg">
+                  <FaPills className="text-white text-lg" />
                 </div>
-                <span className="font-bold text-base tracking-tight">Pharmacy</span>
+                <span className={`font-bold tracking-tight ${textSizeClasses.heading}`}>Pharmacy</span>
               </div>
             )}
             {sidebarCollapsed && (
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-lg mx-auto">
-                <FaPills className="text-white text-sm" />
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-500/70 to-indigo-500/70 rounded-xl flex items-center justify-center shadow-lg mx-auto">
+                <FaPills className="text-white text-lg" />
               </div>
             )}
-            <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="p-2 hover:bg-slate-700 rounded-lg transition-colors">
-              {sidebarCollapsed ? <FaChevronRight /> : <FaChevronLeft />}
+            <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="p-2 hover:bg-slate-700 rounded-xl transition-colors">
+              {sidebarCollapsed ? <FaChevronRight size={20} /> : <FaChevronLeft size={20} />}
             </button>
           </div>
 
-          <nav className="space-y-1">
+          <nav className="space-y-2">
             {/* Prescriptions */}
-            <button onClick={() => { setActiveTab('prescriptions'); setShowScheduleView(false); }} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm ${
-              activeTab === 'prescriptions' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
+            <button onClick={() => handleTabChange('prescriptions', false)} className={`w-full flex items-center space-x-4 px-4 py-3 rounded-xl transition-all duration-200 ${textSizeClasses.base} ${
+              activeTab === 'prescriptions' && !showScheduleView ? 'bg-gradient-to-r from-blue-600/70 to-indigo-600/70 shadow-lg' : 'hover:bg-slate-700'
             }`}>
-              <FaPrescription className="text-lg" />
+              <FaPrescription className="text-xl" />
               {!sidebarCollapsed && <span>Prescriptions</span>}
             </button>
 
             {/* Inventory */}
-            <button onClick={() => { setActiveTab('inventory'); setShowScheduleView(false); }} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm ${
-              activeTab === 'inventory' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
+            <button onClick={() => handleTabChange('inventory', false)} className={`w-full flex items-center space-x-4 px-4 py-3 rounded-xl transition-all duration-200 ${textSizeClasses.base} ${
+              activeTab === 'inventory' && !showScheduleView ? 'bg-gradient-to-r from-blue-600/70 to-indigo-600/70 shadow-lg' : 'hover:bg-slate-700'
             }`}>
-              <FaBoxes className="text-lg" />
+              <FaBoxes className="text-xl" />
               {!sidebarCollapsed && <span>Inventory</span>}
               {lowStockItems.length > 0 && (
-                <span className="absolute right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-pulse">
+                <span className="ml-auto bg-red-500 text-white text-sm rounded-full h-6 w-6 flex items-center justify-center animate-pulse">
                   {lowStockItems.length}
                 </span>
               )}
@@ -880,73 +981,73 @@ const PharmacyDashboard = ({ user, onLogout }) => {
             <div className="h-px bg-slate-700/50 my-4 mx-3"></div>
 
             {/* Inbox */}
-            <button onClick={() => { setActiveTab('inbox'); setShowScheduleView(false); fetchReportsInbox(); }} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm relative ${
-              activeTab === 'inbox' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
+            <button onClick={() => { handleTabChange('inbox', false); fetchReportsInbox(); }} className={`w-full flex items-center space-x-4 px-4 py-3 rounded-xl transition-all duration-200 ${textSizeClasses.base} relative ${
+              activeTab === 'inbox' && !showScheduleView ? 'bg-gradient-to-r from-blue-600/70 to-indigo-600/70 shadow-lg' : 'hover:bg-slate-700'
             }`}>
-              <FaInbox className="text-lg" />
+              <FaInbox className="text-xl" />
               {!sidebarCollapsed && <span>Inbox</span>}
               {unreadReportsCount > 0 && (
-                <span className="absolute right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-pulse">
+                <span className="absolute right-3 bg-red-500 text-white text-sm rounded-full h-6 w-6 flex items-center justify-center animate-pulse">
                   {unreadReportsCount}
                 </span>
               )}
             </button>
 
             {/* Sent Reports */}
-            <button onClick={() => { setActiveTab('outbox'); setShowScheduleView(false); fetchReportsOutbox(); }} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm ${
-              activeTab === 'outbox' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
+            <button onClick={() => { handleTabChange('outbox', false); fetchReportsOutbox(); }} className={`w-full flex items-center space-x-4 px-4 py-3 rounded-xl transition-all duration-200 ${textSizeClasses.base} ${
+              activeTab === 'outbox' && !showScheduleView ? 'bg-gradient-to-r from-blue-600/70 to-indigo-600/70 shadow-lg' : 'hover:bg-slate-700'
             }`}>
-              <FaPaperPlane className="text-lg" />
+              <FaPaperPlane className="text-xl" />
               {!sidebarCollapsed && <span>Sent Reports</span>}
             </button>
 
             {/* Statistics */}
-            <button onClick={() => { setActiveTab('reports'); setShowScheduleView(false); }} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm ${
-              activeTab === 'reports' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
+            <button onClick={() => handleTabChange('reports', false)} className={`w-full flex items-center space-x-4 px-4 py-3 rounded-xl transition-all duration-200 ${textSizeClasses.base} ${
+              activeTab === 'reports' && !showScheduleView ? 'bg-gradient-to-r from-blue-600/70 to-indigo-600/70 shadow-lg' : 'hover:bg-slate-700'
             }`}>
-              <FaChartBar className="text-lg" />
+              <FaChartBar className="text-xl" />
               {!sidebarCollapsed && <span>Statistics</span>}
             </button>
 
             {/* My Schedule */}
             <button 
-              onClick={() => { setActiveTab('schedule'); setShowScheduleView(true); }} 
-              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm ${
-                showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
+              onClick={() => handleTabChange('schedule', true)} 
+              className={`w-full flex items-center space-x-4 px-4 py-3 rounded-xl transition-all duration-200 ${textSizeClasses.base} ${
+                showScheduleView ? 'bg-gradient-to-r from-blue-600/70 to-indigo-600/70 shadow-lg' : 'hover:bg-slate-700'
               }`}
             >
-              <FaCalendarAlt className="text-lg" />
+              <FaCalendarAlt className="text-xl" />
               {!sidebarCollapsed && <span>My Schedule</span>}
             </button>
 
             <div className="h-px bg-slate-700/50 my-4 mx-3"></div>
 
             {/* Profile */}
-            <button onClick={() => { setActiveTab('profile'); setShowScheduleView(false); }} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm ${
-              activeTab === 'profile' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
+            <button onClick={() => handleTabChange('profile', false)} className={`w-full flex items-center space-x-4 px-4 py-3 rounded-xl transition-all duration-200 ${textSizeClasses.base} ${
+              activeTab === 'profile' && !showScheduleView ? 'bg-gradient-to-r from-blue-600/70 to-indigo-600/70 shadow-lg' : 'hover:bg-slate-700'
             }`}>
-              <FaUserCircle className="text-lg" />
+              <FaUserCircle className="text-xl" />
               {!sidebarCollapsed && <span>Profile</span>}
             </button>
           </nav>
 
           {sidebarCollapsed && (
             <div className="mt-8 text-center">
-              <div className="text-xl font-bold text-blue-400">{stats.pendingCount}</div>
-              <div className="text-[10px] text-slate-400">Pending</div>
+              <div className={`text-2xl font-bold text-blue-400 ${textSizeClasses.title}`}>{stats.pendingCount}</div>
+              <div className="text-xs text-slate-400 mt-1">Pending</div>
               {unreadReportsCount > 0 && (
                 <div className="mt-3">
-                  <div className="text-lg font-bold text-red-400">{unreadReportsCount}</div>
-                  <div className="text-[10px] text-slate-400">Unread</div>
+                  <div className={`text-xl font-bold text-red-400 ${textSizeClasses.heading}`}>{unreadReportsCount}</div>
+                  <div className="text-xs text-slate-400 mt-1">Unread</div>
                 </div>
               )}
             </div>
           )}
         </div>
 
-        <div className={`${sidebarCollapsed ? 'py-4 px-0' : 'p-5'} border-t border-slate-700/50 mt-auto`}>
-          <button onClick={handleLogout} className={`w-full ${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} bg-transparent border border-slate-600 rounded-xl text-red-400 cursor-pointer flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-start'} gap-3 text-sm transition-all duration-200 hover:bg-red-500/10 hover:border-red-500`}>
-            <span className="text-lg">🚪</span>
+        <div className={`${sidebarCollapsed ? 'py-5 px-0' : 'p-6'} border-t border-slate-700/50 mt-auto`}>
+          <button onClick={handleLogoutClick} className={`w-full ${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-5'} bg-transparent border border-slate-600 rounded-xl text-red-400 cursor-pointer flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-start'} gap-3 ${textSizeClasses.base} transition-all duration-200 hover:bg-red-500/10 hover:border-red-500`}>
+            <span className="text-xl">🚪</span>
             {!sidebarCollapsed && <span>Logout</span>}
           </button>
         </div>
@@ -955,51 +1056,97 @@ const PharmacyDashboard = ({ user, onLogout }) => {
       {/* ==================== MAIN CONTENT ==================== */}
       <div className="flex-1 overflow-y-auto">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 py-6 px-8 shadow-xl sticky top-0 z-40">
-          <div className="max-w-[1600px] mx-auto flex justify-between items-center flex-wrap gap-4">
-            <div>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center text-2xl shadow-lg animate-glow">
-                  <FaPills className="text-white" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold text-white m-0 drop-shadow-md tracking-tight">
-                    {activeTab === 'prescriptions' && 'Pharmacy - Prescriptions'}
-                    {activeTab === 'inventory' && 'Pharmacy - Inventory'}
-                    {activeTab === 'inbox' && 'Reports - Inbox'}
-                    {activeTab === 'outbox' && 'Reports - Sent'}
-                    {activeTab === 'reports' && 'Pharmacy Statistics'}
-                    {activeTab === 'schedule' && 'My Work Schedule'}
-                    {activeTab === 'profile' && 'My Profile'}
-                  </h1>
-                  <p className="text-base text-white/90 mt-1 flex items-center gap-2 flex-wrap">
-                    <span>{user?.full_name || 'Pharmacy Staff'}</span>
-                    <span className="text-white/50">•</span>
-                    <span>{user?.hospital_name}</span>
-                    <span className="bg-white/20 px-3 py-0.5 rounded-full text-xs font-medium backdrop-blur">Pharmacy Department</span>
-                  </p>
+        <div className="bg-gradient-to-r from-blue-600/80 to-indigo-600/80 backdrop-blur-sm py-8 px-10 shadow-xl sticky top-0 z-40">
+          <div className="max-w-[1600px] mx-auto flex justify-between items-center flex-wrap gap-5">
+            <div className="flex items-center gap-5">
+              {/* Back Button */}
+              <button
+                onClick={handleGoBack}
+                className="bg-white/20 backdrop-blur p-3 rounded-xl text-white hover:bg-white/30 transition-all duration-200 shadow-lg flex items-center gap-2 group"
+                title="Go Back"
+              >
+                <FaUndo className="text-white text-lg" />
+                <span className={`hidden sm:inline ${textSizeClasses.base}`}>Back</span>
+              </button>
+              
+              <div>
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center text-3xl shadow-lg animate-glow">
+                    <FaPills className="text-white" />
+                  </div>
+                  <div>
+                    <h1 className={`font-bold text-white m-0 drop-shadow-md tracking-tight ${textSizeClasses.title}`}>
+                      {activeTab === 'prescriptions' && !showScheduleView && 'Pharmacy - Prescriptions'}
+                      {activeTab === 'inventory' && !showScheduleView && 'Pharmacy - Inventory'}
+                      {activeTab === 'inbox' && !showScheduleView && 'Reports - Inbox'}
+                      {activeTab === 'outbox' && !showScheduleView && 'Reports - Sent'}
+                      {activeTab === 'reports' && !showScheduleView && 'Pharmacy Statistics'}
+                      {showScheduleView && 'My Work Schedule'}
+                      {activeTab === 'profile' && !showScheduleView && 'My Profile'}
+                    </h1>
+                    <p className={`text-white/90 mt-2 flex items-center gap-3 flex-wrap ${textSizeClasses.base}`}>
+                      <span>{user?.full_name || 'Pharmacy Staff'}</span>
+                      <span className="text-white/50 text-lg">•</span>
+                      <span>{user?.hospital_name}</span>
+                      <span className="bg-white/20 px-4 py-1 rounded-full text-sm font-medium backdrop-blur">Pharmacy Department</span>
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3 flex-wrap">
+            
+            <div className="flex items-center gap-4 flex-wrap">
+              {/* Text Size Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowTextSizeMenu(!showTextSizeMenu)}
+                  className="bg-white/20 backdrop-blur px-4 py-3 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg"
+                  title="Adjust Text Size"
+                >
+                  <FaTextHeight className="text-lg" />
+                  <span className={`hidden md:inline ${textSizeClasses.base}`}>Text Size</span>
+                </button>
+                
+                {showTextSizeMenu && (
+                  <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden z-50">
+                    <button onClick={() => { setTextSize('small'); setShowTextSizeMenu(false); }} className={`w-full px-5 py-3 text-left hover:bg-gray-50 transition flex items-center justify-between ${textSize === 'small' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'} ${textSizeClasses.base}`}>
+                      <span>Small</span>
+                      {textSize === 'small' && <FaCheck className="text-blue-500" />}
+                    </button>
+                    <button onClick={() => { setTextSize('normal'); setShowTextSizeMenu(false); }} className={`w-full px-5 py-3 text-left hover:bg-gray-50 transition flex items-center justify-between ${textSize === 'normal' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'} ${textSizeClasses.base}`}>
+                      <span>Normal</span>
+                      {textSize === 'normal' && <FaCheck className="text-blue-500" />}
+                    </button>
+                    <button onClick={() => { setTextSize('large'); setShowTextSizeMenu(false); }} className={`w-full px-5 py-3 text-left hover:bg-gray-50 transition flex items-center justify-between ${textSize === 'large' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'} ${textSizeClasses.base}`}>
+                      <span>Large</span>
+                      {textSize === 'large' && <FaCheck className="text-blue-500" />}
+                    </button>
+                    <button onClick={() => { setTextSize('xlarge'); setShowTextSizeMenu(false); }} className={`w-full px-5 py-3 text-left hover:bg-gray-50 transition flex items-center justify-between ${textSize === 'xlarge' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'} ${textSizeClasses.base}`}>
+                      <span>Extra Large</span>
+                      {textSize === 'xlarge' && <FaCheck className="text-blue-500" />}
+                    </button>
+                  </div>
+                )}
+              </div>
+              
               <SocketStatusIndicator />
-              <button onClick={() => { setShowSendReportModal(true); fetchHospitalAdmins(); }} className="bg-white/20 backdrop-blur px-4 py-2.5 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg text-sm font-medium">
-                <FaPaperPlane className="text-sm" /> Send Report
+              <button onClick={() => { setShowSendReportModal(true); fetchHospitalAdmins(); }} className="bg-white/20 backdrop-blur px-5 py-3 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg font-medium">
+                <FaPaperPlane className="text-base" /> Send Report
               </button>
-              <div className="flex gap-4 bg-white/10 backdrop-blur py-2 px-5 rounded-full">
+              <div className="flex gap-5 bg-white/10 backdrop-blur py-3 px-6 rounded-full">
                 <div className="text-center">
-                  <div className="text-xl font-bold text-white">{stats.dispensedToday}</div>
-                  <div className="text-[10px] text-white/70 uppercase tracking-wider">Dispensed</div>
+                  <div className={`font-bold text-white ${textSizeClasses.title}`}>{stats.dispensedToday}</div>
+                  <div className="text-xs text-white/70 uppercase tracking-wider mt-1">Dispensed</div>
                 </div>
-                <div className="w-px h-8 bg-white/30" />
+                <div className="w-px h-10 bg-white/30" />
                 <div className="text-center">
-                  <div className="text-xl font-bold text-white">{stats.pendingCount}</div>
-                  <div className="text-[10px] text-white/70 uppercase tracking-wider">Pending</div>
+                  <div className={`font-bold text-white ${textSizeClasses.title}`}>{stats.pendingCount}</div>
+                  <div className="text-xs text-white/70 uppercase tracking-wider mt-1">Pending</div>
                 </div>
-                <div className="w-px h-8 bg-white/30" />
+                <div className="w-px h-10 bg-white/30" />
                 <div className="text-center">
-                  <div className="text-xl font-bold text-red-300">{lowStockItems.length}</div>
-                  <div className="text-[10px] text-white/70 uppercase tracking-wider">Low Stock</div>
+                  <div className={`font-bold text-red-300 ${textSizeClasses.title}`}>{lowStockItems.length}</div>
+                  <div className="text-xs text-white/70 uppercase tracking-wider mt-1">Low Stock</div>
                 </div>
               </div>
             </div>
@@ -1007,43 +1154,43 @@ const PharmacyDashboard = ({ user, onLogout }) => {
         </div>
 
         {/* Main Content */}
-        <div className="max-w-[1600px] mx-auto p-8">
+        <div className="max-w-[1600px] mx-auto p-10">
           {/* Message Display */}
           {message.text && (
-            <div className={`mb-6 p-4 rounded-xl border-l-4 ${message.type === 'error' ? 'bg-red-50 border-red-500 text-red-700' : 'bg-green-50 border-green-500 text-green-700'} flex justify-between items-center`}>
+            <div className={`mb-6 p-5 rounded-xl border-l-4 ${message.type === 'error' ? 'bg-red-50 border-red-500 text-red-700' : 'bg-green-50 border-green-500 text-green-700'} flex justify-between items-center ${textSizeClasses.base}`}>
               <span>{message.text}</span>
-              <button onClick={() => setMessage({ type: '', text: '' })} className="text-lg hover:opacity-70">×</button>
+              <button onClick={() => setMessage({ type: '', text: '' })} className="text-xl hover:opacity-70">×</button>
             </div>
           )}
 
           {/* Prescriptions Tab */}
           {activeTab === 'prescriptions' && !showScheduleView && (
-            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-              <div className="flex justify-between items-center mb-6">
+            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8">
+              <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg">
-                    <FaPrescription className="text-white text-lg" />
+                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500/70 to-indigo-500/70 rounded-xl flex items-center justify-center shadow-lg">
+                    <FaPrescription className="text-white text-xl" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-800">Pending Prescriptions</h2>
-                    <p className="text-sm text-gray-500">Review and dispense medications</p>
+                    <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>Pending Prescriptions</h2>
+                    <p className={`text-gray-500 ${textSizeClasses.base}`}>Review and dispense medications</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="relative w-64">
-                    <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="relative w-72">
+                    <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
                       type="text"
                       placeholder="Search by patient or prescription..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm"
+                      className={`w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
                     />
                   </div>
                   <select
                     value={filterPriority}
                     onChange={(e) => setFilterPriority(e.target.value)}
-                    className="px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={`px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 ${textSizeClasses.base}`}
                   >
                     <option value="all">All Priorities</option>
                     <option value="low">Low</option>
@@ -1053,7 +1200,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
                   </select>
                   <button
                     onClick={() => fetchPrescriptions()}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition flex items-center gap-2 text-sm"
+                    className={`px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition flex items-center gap-2 ${textSizeClasses.base}`}
                   >
                     <FaSync className={loading ? 'animate-spin' : ''} /> Refresh
                   </button>
@@ -1061,41 +1208,41 @@ const PharmacyDashboard = ({ user, onLogout }) => {
               </div>
 
               {loading ? (
-                <div className="text-center py-16"><FaSpinner className="animate-spin text-3xl text-blue-600 mx-auto mb-3" /><p className="text-gray-500">Loading prescriptions...</p></div>
+                <div className="text-center py-20"><FaSpinner className="animate-spin text-4xl text-blue-600 mx-auto mb-4" /><p className={`text-gray-500 ${textSizeClasses.base}`}>Loading prescriptions...</p></div>
               ) : filteredPrescriptions.length === 0 ? (
-                <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                  <FaPrescription className="text-5xl text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500 text-sm">No pending prescriptions</p>
+                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                  <FaPrescription className="text-6xl text-gray-300 mx-auto mb-4" />
+                  <p className={`text-gray-500 ${textSizeClasses.base}`}>No pending prescriptions</p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-5">
                   {filteredPrescriptions.map(prescription => (
-                    <div key={prescription.id} className="border border-gray-200 rounded-xl p-5 hover:shadow-md transition-all">
-                      <div className="flex justify-between items-start mb-3">
+                    <div key={prescription.id} className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all">
+                      <div className="flex justify-between items-start mb-4 flex-wrap gap-3">
                         <div>
-                          <div className="flex items-center gap-3 mb-2">
-                            <span className="font-mono text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                          <div className="flex items-center gap-3 mb-2 flex-wrap">
+                            <span className="font-mono text-base text-blue-600 bg-blue-50 px-3 py-1 rounded">
                               {prescription.prescription_number}
                             </span>
-                            <span className={`px-2 py-1 rounded-full text-xs ${getStatusBadge(prescription.status)}`}>
+                            <span className={`px-3 py-1 rounded-full text-sm ${getStatusBadge(prescription.status)}`}>
                               {prescription.status}
                             </span>
-                            <span className={`text-xs px-3 py-1 rounded-full ${getPriorityBadge(prescription.priority)}`}>
+                            <span className={`text-sm px-3 py-1 rounded-full ${getPriorityBadge(prescription.priority)}`}>
                               {getPriorityIcon(prescription.priority)} {prescription.priority}
                             </span>
                           </div>
-                          <h3 className="font-bold text-gray-800 text-lg">
+                          <h3 className={`font-bold text-gray-800 ${textSizeClasses.title}`}>
                             {prescription.patient_name}
                           </h3>
-                          <p className="text-sm text-gray-500 mt-1">
+                          <p className={`text-gray-500 mt-1 ${textSizeClasses.base}`}>
                             Prescribed by: {prescription.doctor_name} • Ward: {prescription.ward}
                           </p>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-3">
                           {prescription.status === 'pending' && (
                             <button
                               onClick={() => preparePrescription(prescription.id)}
-                              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition"
+                              className={`px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition ${textSizeClasses.base}`}
                             >
                               Prepare
                             </button>
@@ -1103,7 +1250,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
                           {prescription.status === 'prepared' && (
                             <button
                               onClick={() => dispensePrescription(prescription.id)}
-                              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition"
+                              className={`px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition ${textSizeClasses.base}`}
                             >
                               Dispense
                             </button>
@@ -1113,18 +1260,18 @@ const PharmacyDashboard = ({ user, onLogout }) => {
                               setSelectedPrescription(prescription);
                               setShowPrescriptionModal(true);
                             }}
-                            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 transition"
+                            className={`px-5 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition ${textSizeClasses.base}`}
                           >
                             View Details
                           </button>
                         </div>
                       </div>
                       
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        <p className="text-sm font-medium text-gray-700 mb-2">Medications:</p>
+                      <div className="mt-4 pt-4 border-t border-gray-100">
+                        <p className={`font-medium text-gray-700 mb-3 ${textSizeClasses.base}`}>Medications:</p>
                         <div className="flex flex-wrap gap-2">
                           {prescription.items?.map((item, idx) => (
-                            <span key={idx} className="text-xs bg-gray-100 px-2 py-1 rounded-full">
+                            <span key={idx} className={`bg-gray-100 px-3 py-1 rounded-full ${textSizeClasses.base}`}>
                               {item.name} {item.dosage ? `(${item.dosage})` : ''} - {item.quantity}
                             </span>
                           ))}
@@ -1139,31 +1286,31 @@ const PharmacyDashboard = ({ user, onLogout }) => {
 
           {/* Inventory Tab */}
           {activeTab === 'inventory' && !showScheduleView && (
-            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-              <div className="flex justify-between items-center mb-6">
+            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8">
+              <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg">
-                    <FaBoxes className="text-white text-lg" />
+                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500/70 to-indigo-500/70 rounded-xl flex items-center justify-center shadow-lg">
+                    <FaBoxes className="text-white text-xl" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-800">Inventory Management</h2>
-                    <p className="text-sm text-gray-500">Manage medication stock and supplies</p>
+                    <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>Inventory Management</h2>
+                    <p className={`text-gray-500 ${textSizeClasses.base}`}>Manage medication stock and supplies</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="relative w-64">
-                    <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="relative w-72">
+                    <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
                       type="text"
                       placeholder="Search inventory..."
                       value={inventorySearch}
                       onChange={(e) => setInventorySearch(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm"
+                      className={`w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
                     />
                   </div>
                   <button
                     onClick={() => setShowAddInventoryModal(true)}
-                    className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition flex items-center gap-2 text-sm"
+                    className={`px-5 py-3 bg-gradient-to-r from-blue-600/80 to-indigo-600/80 text-white rounded-xl hover:shadow-lg transition flex items-center gap-2 ${textSizeClasses.base}`}
                   >
                     <FaPlus /> Add Item
                   </button>
@@ -1172,15 +1319,15 @@ const PharmacyDashboard = ({ user, onLogout }) => {
 
               {/* Low Stock Alert */}
               {lowStockItems.length > 0 && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
-                  <div className="flex items-center gap-2 mb-2">
-                    <FaExclamationTriangle className="text-red-500" />
-                    <h3 className="font-semibold text-red-800">Low Stock Alert</h3>
-                    <span className="text-xs bg-red-200 text-red-800 px-2 py-0.5 rounded-full">{lowStockItems.length} items</span>
+                <div className="mb-6 p-5 bg-red-50 border border-red-200 rounded-xl">
+                  <div className="flex items-center gap-3 mb-3">
+                    <FaExclamationTriangle className="text-red-500 text-xl" />
+                    <h3 className={`font-semibold text-red-800 ${textSizeClasses.heading}`}>Low Stock Alert</h3>
+                    <span className={`bg-red-200 text-red-800 px-3 py-1 rounded-full ${textSizeClasses.base}`}>{lowStockItems.length} items</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {lowStockItems.map(item => (
-                      <span key={item.id} className="text-sm bg-red-100 text-red-700 px-3 py-1 rounded-full">
+                      <span key={item.id} className={`bg-red-100 text-red-700 px-3 py-1 rounded-full ${textSizeClasses.base}`}>
                         {item.name}: {item.current_stock} {item.unit} left
                       </span>
                     ))}
@@ -1189,23 +1336,23 @@ const PharmacyDashboard = ({ user, onLogout }) => {
               )}
 
               {filteredInventory.length === 0 ? (
-                <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                  <FaBoxes className="text-5xl text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500 text-sm">No inventory items found</p>
-                  <button onClick={() => setShowAddInventoryModal(true)} className="mt-4 px-5 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition">Add First Item</button>
+                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                  <FaBoxes className="text-6xl text-gray-300 mx-auto mb-4" />
+                  <p className={`text-gray-500 ${textSizeClasses.base}`}>No inventory items found</p>
+                  <button onClick={() => setShowAddInventoryModal(true)} className={`mt-4 px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition ${textSizeClasses.base}`}>Add First Item</button>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item Name</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reorder Level</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        <th className={`px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider ${textSizeClasses.base}`}>Item Name</th>
+                        <th className={`px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider ${textSizeClasses.base}`}>Category</th>
+                        <th className={`px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider ${textSizeClasses.base}`}>Stock</th>
+                        <th className={`px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider ${textSizeClasses.base}`}>Unit</th>
+                        <th className={`px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider ${textSizeClasses.base}`}>Reorder Level</th>
+                        <th className={`px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider ${textSizeClasses.base}`}>Status</th>
+                        <th className={`px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider ${textSizeClasses.base}`}>Actions</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -1213,20 +1360,20 @@ const PharmacyDashboard = ({ user, onLogout }) => {
                         const isLowStock = item.current_stock <= item.reorder_level;
                         return (
                           <tr key={item.id} className="hover:bg-gray-50 transition">
-                            <td className="px-4 py-3 font-medium text-gray-900">{item.name}</td>
-                            <td className="px-4 py-3 text-sm text-gray-500 capitalize">{item.category}</td>
+                            <td className={`px-4 py-3 font-medium text-gray-900 ${textSizeClasses.base}`}>{item.name}</td>
+                            <td className={`px-4 py-3 text-gray-500 capitalize ${textSizeClasses.base}`}>{item.category}</td>
                             <td className="px-4 py-3">
-                              <span className={`font-semibold ${isLowStock ? 'text-red-600' : 'text-gray-900'}`}>
+                              <span className={`font-semibold ${isLowStock ? 'text-red-600' : 'text-gray-900'} ${textSizeClasses.base}`}>
                                 {item.current_stock}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-500">{item.unit}</td>
-                            <td className="px-4 py-3 text-sm text-gray-500">{item.reorder_level}</td>
+                            <td className={`px-4 py-3 text-gray-500 ${textSizeClasses.base}`}>{item.unit}</td>
+                            <td className={`px-4 py-3 text-gray-500 ${textSizeClasses.base}`}>{item.reorder_level}</td>
                             <td className="px-4 py-3">
                               {isLowStock ? (
-                                <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-700">Low Stock</span>
+                                <span className={`px-2 py-1 rounded-full bg-red-100 text-red-700 ${textSizeClasses.base}`}>Low Stock</span>
                               ) : (
-                                <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">In Stock</span>
+                                <span className={`px-2 py-1 rounded-full bg-green-100 text-green-700 ${textSizeClasses.base}`}>In Stock</span>
                               )}
                             </td>
                             <td className="px-4 py-3">
@@ -1237,7 +1384,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
                                     updateInventory(item.id, parseInt(newStock));
                                   }
                                 }}
-                                className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 transition"
+                                className={`px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition ${textSizeClasses.base}`}
                               >
                                 Update Stock
                               </button>
@@ -1254,31 +1401,31 @@ const PharmacyDashboard = ({ user, onLogout }) => {
 
           {/* Inbox Tab */}
           {activeTab === 'inbox' && !showScheduleView && (
-            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
+            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8">
               <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-xl font-bold text-gray-800">📬 Inbox</h2>
-                  {unreadReportsCount > 0 && <span className="px-3 py-1 bg-red-500 text-white text-xs rounded-full animate-pulse">{unreadReportsCount} unread</span>}
+                <div className="flex items-center gap-4">
+                  <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>📬 Inbox</h2>
+                  {unreadReportsCount > 0 && <span className={`px-3 py-1 bg-red-500 text-white rounded-full animate-pulse ${textSizeClasses.base}`}>{unreadReportsCount} unread</span>}
                 </div>
-                <button onClick={() => { setShowSendReportModal(true); fetchHospitalAdmins(); }} className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition text-sm font-medium">New Report</button>
+                <button onClick={() => { setShowSendReportModal(true); fetchHospitalAdmins(); }} className={`px-5 py-2 bg-gradient-to-r from-blue-600/80 to-indigo-600/80 text-white rounded-xl hover:shadow-lg transition font-medium ${textSizeClasses.base}`}>New Report</button>
               </div>
               {reportsLoading && reportsInbox.length === 0 ? (
-                <div className="text-center py-12"><FaSpinner className="animate-spin text-3xl text-gray-400 mx-auto mb-3" /><p className="text-gray-500">Loading reports...</p></div>
+                <div className="text-center py-16"><FaSpinner className="animate-spin text-4xl text-gray-400 mx-auto mb-4" /><p className={`text-gray-500 ${textSizeClasses.base}`}>Loading reports...</p></div>
               ) : reportsInbox.length === 0 ? (
-                <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200"><FaInbox className="text-5xl text-gray-300 mx-auto mb-3" /><p className="text-gray-500 text-sm">No reports in inbox</p></div>
+                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200"><FaInbox className="text-6xl text-gray-300 mx-auto mb-4" /><p className={`text-gray-500 ${textSizeClasses.base}`}>No reports in inbox</p></div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-5">
                   {reportsInbox.map(report => (
-                    <div key={report.id} className={`border rounded-xl p-5 cursor-pointer hover:shadow-md transition-all ${!report.is_opened ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-white'}`} onClick={() => viewReportDetails(report)}>
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex items-center gap-3">
-                          {!report.is_opened ? <FaEnvelope className="text-blue-500" /> : <FaEnvelopeOpen className="text-gray-400" />}
-                          <h3 className="font-semibold text-gray-800">{report.title}</h3>
+                    <div key={report.id} className={`border rounded-xl p-6 cursor-pointer hover:shadow-md transition-all ${!report.is_opened ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-white'}`} onClick={() => viewReportDetails(report)}>
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-4">
+                          {!report.is_opened ? <FaEnvelope className="text-blue-500 text-xl" /> : <FaEnvelopeOpen className="text-gray-400 text-xl" />}
+                          <h3 className={`font-semibold text-gray-800 ${textSizeClasses.heading}`}>{report.title}</h3>
                         </div>
-                        <span className={`text-xs px-3 py-1 rounded-full ${getPriorityBadge(report.priority)}`}>{getPriorityIcon(report.priority)} {report.priority}</span>
+                        <span className={`text-sm px-3 py-1 rounded-full ${getPriorityBadge(report.priority)}`}>{getPriorityIcon(report.priority)} {report.priority}</span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{report.body}</p>
-                      <div className="flex justify-between items-center text-xs text-gray-500">
+                      <p className={`text-gray-600 mb-3 line-clamp-2 ${textSizeClasses.base}`}>{report.body}</p>
+                      <div className={`flex justify-between items-center text-gray-500 ${textSizeClasses.base}`}>
                         <span>From: {report.sender_full_name}</span>
                         <span>{new Date(report.sent_at).toLocaleString()}</span>
                       </div>
@@ -1291,29 +1438,29 @@ const PharmacyDashboard = ({ user, onLogout }) => {
 
           {/* Outbox Tab */}
           {activeTab === 'outbox' && !showScheduleView && (
-            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
+            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-gray-800">📤 Sent Reports</h2>
-                <button onClick={() => fetchReportsOutbox()} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition text-sm font-medium">Refresh</button>
+                <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>📤 Sent Reports</h2>
+                <button onClick={() => fetchReportsOutbox()} className={`px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition font-medium ${textSizeClasses.base}`}>Refresh</button>
               </div>
               {reportsLoading && reportsOutbox.length === 0 ? (
-                <div className="text-center py-12"><FaSpinner className="animate-spin text-3xl text-gray-400 mx-auto mb-3" /><p className="text-gray-500">Loading sent reports...</p></div>
+                <div className="text-center py-16"><FaSpinner className="animate-spin text-4xl text-gray-400 mx-auto mb-4" /><p className={`text-gray-500 ${textSizeClasses.base}`}>Loading sent reports...</p></div>
               ) : reportsOutbox.length === 0 ? (
-                <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200"><FaPaperPlane className="text-5xl text-gray-300 mx-auto mb-3" /><p className="text-gray-500 text-sm">No sent reports</p></div>
+                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200"><FaPaperPlane className="text-6xl text-gray-300 mx-auto mb-4" /><p className={`text-gray-500 ${textSizeClasses.base}`}>No sent reports</p></div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-5">
                   {reportsOutbox.map(report => (
-                    <div key={report.id} className="border border-gray-200 rounded-xl p-5 cursor-pointer hover:shadow-md bg-white" onClick={() => viewReportDetails(report)}>
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex items-center gap-3"><FaPaperPlane className="text-gray-400" /><h3 className="font-semibold text-gray-800">{report.title}</h3></div>
-                        <span className={`text-xs px-3 py-1 rounded-full ${getPriorityBadge(report.priority)}`}>{getPriorityIcon(report.priority)} {report.priority}</span>
+                    <div key={report.id} className="border border-gray-200 rounded-xl p-6 cursor-pointer hover:shadow-md bg-white" onClick={() => viewReportDetails(report)}>
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-4"><FaPaperPlane className="text-gray-400 text-xl" /><h3 className={`font-semibold text-gray-800 ${textSizeClasses.heading}`}>{report.title}</h3></div>
+                        <span className={`text-sm px-3 py-1 rounded-full ${getPriorityBadge(report.priority)}`}>{getPriorityIcon(report.priority)} {report.priority}</span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{report.body}</p>
-                      <div className="flex justify-between items-center text-xs text-gray-500">
+                      <p className={`text-gray-600 mb-3 line-clamp-2 ${textSizeClasses.base}`}>{report.body}</p>
+                      <div className={`flex justify-between items-center text-gray-500 ${textSizeClasses.base}`}>
                         <span>To: {report.recipient_full_name}</span>
                         <span>Sent: {new Date(report.sent_at).toLocaleString()}</span>
                       </div>
-                      <div className="mt-3"><span className={`text-xs ${report.is_opened ? 'text-green-600' : 'text-gray-400'}`}>{report.is_opened ? '✓ Opened by recipient' : '✗ Not opened yet'}</span></div>
+                      <div className="mt-3"><span className={`${report.is_opened ? 'text-green-600' : 'text-gray-400'} ${textSizeClasses.base}`}>{report.is_opened ? '✓ Opened by recipient' : '✗ Not opened yet'}</span></div>
                     </div>
                   ))}
                 </div>
@@ -1323,44 +1470,44 @@ const PharmacyDashboard = ({ user, onLogout }) => {
 
           {/* Statistics Tab */}
           {activeTab === 'reports' && !showScheduleView && (
-            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-6">📊 Pharmacy Statistics</h2>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
-                <div className="bg-gradient-to-br from-blue-500 to-indigo-500 rounded-2xl p-5 text-white shadow-lg">
-                  <p className="text-sm opacity-90 mb-1">Dispensed Today</p>
-                  <p className="text-3xl font-bold">{stats.dispensedToday}</p>
+            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8">
+              <h2 className={`font-bold text-gray-800 mb-6 ${textSizeClasses.heading}`}>📊 Pharmacy Statistics</h2>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div className="bg-gradient-to-br from-blue-500/70 to-indigo-500/70 rounded-2xl p-6 text-white shadow-lg">
+                  <p className={`opacity-90 mb-2 ${textSizeClasses.base}`}>Dispensed Today</p>
+                  <p className={`font-bold ${textSizeClasses.title}`}>{stats.dispensedToday}</p>
                 </div>
-                <div className="bg-gradient-to-br from-yellow-500 to-orange-500 rounded-2xl p-5 text-white shadow-lg">
-                  <p className="text-sm opacity-90 mb-1">Pending Prescriptions</p>
-                  <p className="text-3xl font-bold">{stats.pendingCount}</p>
+                <div className="bg-gradient-to-br from-yellow-500/70 to-orange-500/70 rounded-2xl p-6 text-white shadow-lg">
+                  <p className={`opacity-90 mb-2 ${textSizeClasses.base}`}>Pending Prescriptions</p>
+                  <p className={`font-bold ${textSizeClasses.title}`}>{stats.pendingCount}</p>
                 </div>
-                <div className="bg-gradient-to-br from-red-500 to-rose-500 rounded-2xl p-5 text-white shadow-lg">
-                  <p className="text-sm opacity-90 mb-1">Low Stock Items</p>
-                  <p className="text-3xl font-bold">{lowStockItems.length}</p>
+                <div className="bg-gradient-to-br from-red-500/70 to-rose-500/70 rounded-2xl p-6 text-white shadow-lg">
+                  <p className={`opacity-90 mb-2 ${textSizeClasses.base}`}>Low Stock Items</p>
+                  <p className={`font-bold ${textSizeClasses.title}`}>{lowStockItems.length}</p>
                 </div>
-                <div className="bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl p-5 text-white shadow-lg">
-                  <p className="text-sm opacity-90 mb-1">Total Inventory</p>
-                  <p className="text-3xl font-bold">{inventory.length}</p>
+                <div className="bg-gradient-to-br from-green-500/70 to-emerald-500/70 rounded-2xl p-6 text-white shadow-lg">
+                  <p className={`opacity-90 mb-2 ${textSizeClasses.base}`}>Total Inventory</p>
+                  <p className={`font-bold ${textSizeClasses.title}`}>{inventory.length}</p>
                 </div>
               </div>
-              <div className="bg-gray-50 rounded-xl p-6 text-center">
-                <p className="text-gray-500">Today's Summary: {stats.dispensedToday} prescriptions dispensed</p>
-                <p className="text-xs text-gray-400 mt-2">Pending prescriptions: {stats.pendingCount}</p>
+              <div className="bg-gray-50 rounded-xl p-8 text-center">
+                <p className={`text-gray-500 ${textSizeClasses.base}`}>Today's Summary: {stats.dispensedToday} prescriptions dispensed</p>
+                <p className={`text-gray-400 mt-2 ${textSizeClasses.base}`}>Pending prescriptions: {stats.pendingCount}</p>
               </div>
             </div>
           )}
 
           {/* My Schedule View */}
           {showScheduleView && (
-            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
+            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8">
               <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg">
-                    <FaCalendarAlt className="text-white text-lg" />
+                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500/70 to-indigo-500/70 rounded-xl flex items-center justify-center shadow-lg">
+                    <FaCalendarAlt className="text-white text-xl" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-800">My Work Schedule</h2>
-                    <p className="text-sm text-gray-500">View your upcoming shifts and weekly schedule</p>
+                    <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>My Work Schedule</h2>
+                    <p className={`text-gray-500 ${textSizeClasses.base}`}>View your upcoming shifts and weekly schedule</p>
                   </div>
                 </div>
                 <button 
@@ -1368,7 +1515,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
                     const event = new CustomEvent('refreshSchedule');
                     window.dispatchEvent(event);
                   }}
-                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition text-sm font-medium flex items-center gap-2"
+                  className={`px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition font-medium flex items-center gap-2 ${textSizeClasses.base}`}
                 >
                   <FaSync className="text-sm" /> Refresh
                 </button>
@@ -1380,64 +1527,64 @@ const PharmacyDashboard = ({ user, onLogout }) => {
           {/* Profile Tab */}
           {activeTab === 'profile' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-10">
-                <div className="flex items-center gap-6">
+              <div className="bg-gradient-to-r from-blue-600/70 to-indigo-600/70 px-10 py-12">
+                <div className="flex items-center gap-8">
                   <div className="relative">
-                    <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-xl">
-                      <FaUserCircle className="text-blue-600 text-6xl" />
+                    <div className="w-28 h-28 bg-white rounded-full flex items-center justify-center shadow-xl">
+                      <FaUserCircle className="text-blue-600 text-7xl" />
                     </div>
                   </div>
                   <div className="text-white">
-                    <h2 className="text-2xl font-bold mb-1">
+                    <h2 className={`font-bold mb-2 ${textSizeClasses.title}`}>
                       {profileData.first_name} {profileData.middle_name ? profileData.middle_name + ' ' : ''}{profileData.last_name}
                     </h2>
-                    <p className="text-blue-100 flex items-center gap-2">
-                      <FaPills className="text-sm" /> {profileData.department || 'Pharmacy'} Staff
+                    <p className={`text-blue-100 flex items-center gap-3 ${textSizeClasses.base}`}>
+                      <FaPills className="text-lg" /> {profileData.department || 'Pharmacy'} Staff
                     </p>
-                    <p className="text-blue-100 text-sm mt-1 opacity-80">{user?.hospital_name}</p>
+                    <p className={`text-blue-100 mt-2 opacity-80 ${textSizeClasses.base}`}>{user?.hospital_name}</p>
                   </div>
                 </div>
               </div>
               
-              <div className="p-8">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-bold text-gray-800">Professional Information</h3>
+              <div className="p-10">
+                <div className="flex justify-between items-center mb-8">
+                  <h3 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>Professional Information</h3>
                   {!isEditingProfile ? (
                     <button onClick={() => setIsEditingProfile(true)} 
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition text-sm font-medium">
+                      className={`flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-medium ${textSizeClasses.base}`}>
                       <FaEdit /> Edit Profile
                     </button>
                   ) : (
-                    <div className="flex gap-2">
+                    <div className="flex gap-3">
                       <button onClick={() => setIsEditingProfile(false)} 
-                        className="px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition">
+                        className={`px-5 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition ${textSizeClasses.base}`}>
                         Cancel
                       </button>
                       <button onClick={updateProfile} 
-                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition">
+                        className={`flex items-center gap-2 px-5 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition ${textSizeClasses.base}`}>
                         <FaSave /> Save
                       </button>
                     </div>
                   )}
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-gray-50 rounded-xl p-5">
-                    <h4 className="font-semibold text-blue-600 mb-4 flex items-center gap-2"><FaUserCircle /> Personal Info</h4>
-                    <div className="space-y-3">
-                      <div><label className="text-xs text-gray-500">First Name</label>{isEditingProfile ? (<input type="text" value={profileData.first_name} onChange={(e) => setProfileData({...profileData, first_name: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" />) : (<p className="text-gray-800">{profileData.first_name || 'Not set'}</p>)}</div>
-                      <div><label className="text-xs text-gray-500">Middle Name</label>{isEditingProfile ? (<input type="text" value={profileData.middle_name} onChange={(e) => setProfileData({...profileData, middle_name: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" />) : (<p className="text-gray-800">{profileData.middle_name || '—'}</p>)}</div>
-                      <div><label className="text-xs text-gray-500">Last Name</label>{isEditingProfile ? (<input type="text" value={profileData.last_name} onChange={(e) => setProfileData({...profileData, last_name: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" />) : (<p className="text-gray-800">{profileData.last_name || 'Not set'}</p>)}</div>
-                      <div className="grid grid-cols-2 gap-3"><div><label className="text-xs text-gray-500">Gender</label>{isEditingProfile ? (<select value={profileData.gender} onChange={(e) => setProfileData({...profileData, gender: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm"><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select>) : (<p className="text-gray-800">{profileData.gender || 'Not set'}</p>)}</div><div><label className="text-xs text-gray-500">Age</label>{isEditingProfile ? (<input type="number" value={profileData.age} onChange={(e) => setProfileData({...profileData, age: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" />) : (<p className="text-gray-800">{profileData.age ? `${profileData.age} years` : 'Not set'}</p>)}</div></div>
-                      <div><label className="text-xs text-gray-500">Phone</label>{isEditingProfile ? (<input type="tel" value={profileData.phone} onChange={(e) => setProfileData({...profileData, phone: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" />) : (<p className="text-gray-800">{profileData.phone || 'Not set'}</p>)}</div>
-                      <div><label className="text-xs text-gray-500">Email</label><p className="text-gray-800">{profileData.email || 'Not set'}</p></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <h4 className={`font-semibold text-blue-600 mb-5 flex items-center gap-2 ${textSizeClasses.base}`}><FaUserCircle /> Personal Info</h4>
+                    <div className="space-y-4">
+                      <div><label className={`text-gray-500 ${textSizeClasses.base}`}>First Name</label>{isEditingProfile ? (<input type="text" value={profileData.first_name} onChange={(e) => setProfileData({...profileData, first_name: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.first_name || 'Not set'}</p>)}</div>
+                      <div><label className={`text-gray-500 ${textSizeClasses.base}`}>Middle Name</label>{isEditingProfile ? (<input type="text" value={profileData.middle_name} onChange={(e) => setProfileData({...profileData, middle_name: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.middle_name || '—'}</p>)}</div>
+                      <div><label className={`text-gray-500 ${textSizeClasses.base}`}>Last Name</label>{isEditingProfile ? (<input type="text" value={profileData.last_name} onChange={(e) => setProfileData({...profileData, last_name: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.last_name || 'Not set'}</p>)}</div>
+                      <div className="grid grid-cols-2 gap-4"><div><label className={`text-gray-500 ${textSizeClasses.base}`}>Gender</label>{isEditingProfile ? (<select value={profileData.gender} onChange={(e) => setProfileData({...profileData, gender: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`}><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select>) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.gender || 'Not set'}</p>)}</div><div><label className={`text-gray-500 ${textSizeClasses.base}`}>Age</label>{isEditingProfile ? (<input type="number" value={profileData.age} onChange={(e) => setProfileData({...profileData, age: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.age ? `${profileData.age} years` : 'Not set'}</p>)}</div></div>
+                      <div><label className={`text-gray-500 ${textSizeClasses.base}`}>Phone</label>{isEditingProfile ? (<input type="tel" value={profileData.phone} onChange={(e) => setProfileData({...profileData, phone: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.phone || 'Not set'}</p>)}</div>
+                      <div><label className={`text-gray-500 ${textSizeClasses.base}`}>Email</label><p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.email || 'Not set'}</p></div>
                     </div>
                   </div>
                   
-                  <div className="bg-gray-50 rounded-xl p-5">
-                    <h4 className="font-semibold text-blue-600 mb-4 flex items-center gap-2"><FaKey /> Account Settings</h4>
-                    <button onClick={() => setShowPasswordModal(true)} className="flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 rounded-xl hover:bg-blue-50 transition text-sm font-medium w-full justify-center"><FaKey /> Change Password</button>
-                    <div className="mt-6 pt-4 border-t border-gray-200"><h5 className="text-sm font-medium text-gray-700 mb-2">Account Info</h5><div className="space-y-2 text-sm"><div className="flex justify-between"><span className="text-gray-500">Role:</span><span className="text-gray-800 font-medium">Pharmacy Staff</span></div><div className="flex justify-between"><span className="text-gray-500">Department:</span><span className="text-gray-800">{profileData.department || 'Pharmacy'}</span></div><div className="flex justify-between"><span className="text-gray-500">Status:</span><span className="text-green-600">● Active</span></div></div></div>
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <h4 className={`font-semibold text-blue-600 mb-5 flex items-center gap-2 ${textSizeClasses.base}`}><FaKey /> Account Settings</h4>
+                    <button onClick={() => setShowPasswordModal(true)} className={`flex items-center gap-2 px-5 py-3 border border-blue-600 text-blue-600 rounded-xl hover:bg-blue-50 transition font-medium w-full justify-center ${textSizeClasses.base}`}><FaKey /> Change Password</button>
+                    <div className="mt-8 pt-6 border-t border-gray-200"><h5 className={`font-medium text-gray-700 mb-3 ${textSizeClasses.base}`}>Account Info</h5><div className={`space-y-3 ${textSizeClasses.base}`}><div className="flex justify-between"><span className="text-gray-500">Role:</span><span className="text-gray-800 font-medium">Pharmacy Staff</span></div><div className="flex justify-between"><span className="text-gray-500">Department:</span><span className="text-gray-800">{profileData.department || 'Pharmacy'}</span></div><div className="flex justify-between"><span className="text-gray-500">Status:</span><span className="text-green-600 text-base">● Active</span></div></div></div>
                   </div>
                 </div>
               </div>
@@ -1450,54 +1597,54 @@ const PharmacyDashboard = ({ user, onLogout }) => {
       {showPrescriptionModal && selectedPrescription && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
+            <div className="p-8">
+              <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg">
-                    <FaPrescription className="text-white" />
+                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500/70 to-indigo-500/70 rounded-xl flex items-center justify-center shadow-lg">
+                    <FaPrescription className="text-white text-xl" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-800">Prescription Details</h3>
+                  <h3 className={`font-bold text-gray-800 ${textSizeClasses.title}`}>Prescription Details</h3>
                 </div>
-                <button onClick={() => { setShowPrescriptionModal(false); setSelectedPrescription(null); }} className="p-2 hover:bg-gray-100 rounded-full">×</button>
+                <button onClick={() => { setShowPrescriptionModal(false); setSelectedPrescription(null); }} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <div className="grid grid-cols-2 gap-4">
-                  <div><p className="text-xs text-gray-500">Prescription Number</p><p className="font-semibold">{selectedPrescription.prescription_number}</p></div>
-                  <div><p className="text-xs text-gray-500">Status</p><span className={`px-2 py-1 rounded-full text-xs ${getStatusBadge(selectedPrescription.status)}`}>{selectedPrescription.status}</span></div>
-                  <div><p className="text-xs text-gray-500">Patient Name</p><p className="font-semibold">{selectedPrescription.patient_name}</p></div>
-                  <div><p className="text-xs text-gray-500">Doctor</p><p className="font-semibold">{selectedPrescription.doctor_name}</p></div>
-                  <div><p className="text-xs text-gray-500">Ward</p><p className="font-semibold">{selectedPrescription.ward}</p></div>
-                  <div><p className="text-xs text-gray-500">Priority</p><span className={`text-xs px-2 py-1 rounded-full ${getPriorityBadge(selectedPrescription.priority)}`}>{selectedPrescription.priority}</span></div>
-                  <div><p className="text-xs text-gray-500">Prescribed At</p><p className="text-sm">{new Date(selectedPrescription.prescribed_at).toLocaleString()}</p></div>
-                  {selectedPrescription.prepared_at && <div><p className="text-xs text-gray-500">Prepared At</p><p className="text-sm">{new Date(selectedPrescription.prepared_at).toLocaleString()}</p></div>}
-                  {selectedPrescription.dispensed_at && <div><p className="text-xs text-gray-500">Dispensed At</p><p className="text-sm">{new Date(selectedPrescription.dispensed_at).toLocaleString()}</p></div>}
+                  <div><p className={`text-gray-500 ${textSizeClasses.base}`}>Prescription Number</p><p className={`font-semibold ${textSizeClasses.base}`}>{selectedPrescription.prescription_number}</p></div>
+                  <div><p className={`text-gray-500 ${textSizeClasses.base}`}>Status</p><span className={`px-3 py-1 rounded-full text-sm ${getStatusBadge(selectedPrescription.status)}`}>{selectedPrescription.status}</span></div>
+                  <div><p className={`text-gray-500 ${textSizeClasses.base}`}>Patient Name</p><p className={`font-semibold ${textSizeClasses.base}`}>{selectedPrescription.patient_name}</p></div>
+                  <div><p className={`text-gray-500 ${textSizeClasses.base}`}>Doctor</p><p className={`font-semibold ${textSizeClasses.base}`}>{selectedPrescription.doctor_name}</p></div>
+                  <div><p className={`text-gray-500 ${textSizeClasses.base}`}>Ward</p><p className={`font-semibold ${textSizeClasses.base}`}>{selectedPrescription.ward}</p></div>
+                  <div><p className={`text-gray-500 ${textSizeClasses.base}`}>Priority</p><span className={`text-sm px-3 py-1 rounded-full ${getPriorityBadge(selectedPrescription.priority)}`}>{selectedPrescription.priority}</span></div>
+                  <div><p className={`text-gray-500 ${textSizeClasses.base}`}>Prescribed At</p><p className={`${textSizeClasses.base}`}>{new Date(selectedPrescription.prescribed_at).toLocaleString()}</p></div>
+                  {selectedPrescription.prepared_at && <div><p className={`text-gray-500 ${textSizeClasses.base}`}>Prepared At</p><p className={`${textSizeClasses.base}`}>{new Date(selectedPrescription.prepared_at).toLocaleString()}</p></div>}
+                  {selectedPrescription.dispensed_at && <div><p className={`text-gray-500 ${textSizeClasses.base}`}>Dispensed At</p><p className={`${textSizeClasses.base}`}>{new Date(selectedPrescription.dispensed_at).toLocaleString()}</p></div>}
                 </div>
 
-                <div className="border-t pt-4">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Medications:</p>
-                  <div className="space-y-2">
+                <div className="border-t pt-5">
+                  <p className={`font-medium text-gray-700 mb-3 ${textSizeClasses.base}`}>Medications:</p>
+                  <div className="space-y-3">
                     {selectedPrescription.items?.map((item, idx) => (
-                      <div key={idx} className="bg-gray-50 p-3 rounded-lg flex justify-between items-center">
-                        <div><p className="font-medium">{item.name}</p><p className="text-xs text-gray-500">{item.dosage} • {item.frequency}</p></div>
-                        <div className="text-right"><p className="font-semibold">Qty: {item.quantity}</p><p className="text-xs text-gray-500">{item.duration}</p></div>
+                      <div key={idx} className="bg-gray-50 p-4 rounded-lg flex justify-between items-center">
+                        <div><p className={`font-medium ${textSizeClasses.base}`}>{item.name}</p><p className={`text-gray-500 ${textSizeClasses.base}`}>{item.dosage} • {item.frequency}</p></div>
+                        <div className="text-right"><p className={`font-semibold ${textSizeClasses.base}`}>Qty: {item.quantity}</p><p className={`text-gray-500 ${textSizeClasses.base}`}>{item.duration}</p></div>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 {selectedPrescription.notes && (
-                  <div className="border-t pt-4"><p className="text-sm font-medium text-gray-700 mb-1">Notes:</p><p className="text-sm text-gray-600">{selectedPrescription.notes}</p></div>
+                  <div className="border-t pt-5"><p className={`font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Notes:</p><p className={`text-gray-600 ${textSizeClasses.base}`}>{selectedPrescription.notes}</p></div>
                 )}
 
-                <div className="flex justify-end gap-3 pt-4 border-t">
+                <div className="flex justify-end gap-4 pt-5 border-t">
                   {selectedPrescription.status === 'pending' && (
-                    <button onClick={() => { preparePrescription(selectedPrescription.id); setShowPrescriptionModal(false); }} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Prepare</button>
+                    <button onClick={() => { preparePrescription(selectedPrescription.id); setShowPrescriptionModal(false); }} className={`px-5 py-2 bg-blue-600 text-white rounded-lg ${textSizeClasses.base}`}>Prepare</button>
                   )}
                   {selectedPrescription.status === 'prepared' && (
-                    <button onClick={() => { dispensePrescription(selectedPrescription.id); setShowPrescriptionModal(false); }} className="px-4 py-2 bg-green-600 text-white rounded-lg">Dispense</button>
+                    <button onClick={() => { dispensePrescription(selectedPrescription.id); setShowPrescriptionModal(false); }} className={`px-5 py-2 bg-green-600 text-white rounded-lg ${textSizeClasses.base}`}>Dispense</button>
                   )}
-                  <button onClick={() => setShowPrescriptionModal(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Close</button>
+                  <button onClick={() => setShowPrescriptionModal(false)} className={`px-5 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 ${textSizeClasses.base}`}>Close</button>
                 </div>
               </div>
             </div>
@@ -1509,20 +1656,20 @@ const PharmacyDashboard = ({ user, onLogout }) => {
       {showAddInventoryModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-gray-800">Add Inventory Item</h3>
-                <button onClick={() => setShowAddInventoryModal(false)} className="p-2 hover:bg-gray-100 rounded-full">×</button>
+            <div className="p-8">
+              <div className="flex justify-between items-center mb-5">
+                <h3 className={`font-bold text-gray-800 ${textSizeClasses.title}`}>Add Inventory Item</h3>
+                <button onClick={() => setShowAddInventoryModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
               </div>
-              <div className="space-y-4">
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Item Name *</label><input type="text" value={newInventoryItem.name} onChange={(e) => setNewInventoryItem({...newInventoryItem, name: e.target.value})} className="w-full p-3 border rounded-xl" /></div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Category</label><select value={newInventoryItem.category} onChange={(e) => setNewInventoryItem({...newInventoryItem, category: e.target.value})} className="w-full p-3 border rounded-xl">{categories.map(c => (<option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>))}</select></div>
-                <div className="grid grid-cols-2 gap-3"><div><label className="block text-sm font-medium text-gray-700 mb-1">Stock Quantity</label><input type="number" value={newInventoryItem.current_stock} onChange={(e) => setNewInventoryItem({...newInventoryItem, current_stock: parseInt(e.target.value) || 0})} className="w-full p-3 border rounded-xl" /></div><div><label className="block text-sm font-medium text-gray-700 mb-1">Unit *</label><input type="text" value={newInventoryItem.unit} onChange={(e) => setNewInventoryItem({...newInventoryItem, unit: e.target.value})} placeholder="e.g., tablet, ml, bottle" className="w-full p-3 border rounded-xl" /></div></div>
-                <div className="grid grid-cols-2 gap-3"><div><label className="block text-sm font-medium text-gray-700 mb-1">Reorder Level</label><input type="number" value={newInventoryItem.reorder_level} onChange={(e) => setNewInventoryItem({...newInventoryItem, reorder_level: parseInt(e.target.value) || 10})} className="w-full p-3 border rounded-xl" /></div><div><label className="block text-sm font-medium text-gray-700 mb-1">Manufacturer</label><input type="text" value={newInventoryItem.manufacturer} onChange={(e) => setNewInventoryItem({...newInventoryItem, manufacturer: e.target.value})} className="w-full p-3 border rounded-xl" /></div></div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label><input type="date" value={newInventoryItem.expiry_date} onChange={(e) => setNewInventoryItem({...newInventoryItem, expiry_date: e.target.value})} className="w-full p-3 border rounded-xl" /></div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Notes</label><textarea value={newInventoryItem.notes} onChange={(e) => setNewInventoryItem({...newInventoryItem, notes: e.target.value})} rows="2" className="w-full p-3 border rounded-xl" /></div>
+              <div className="space-y-5">
+                <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Item Name *</label><input type="text" value={newInventoryItem.name} onChange={(e) => setNewInventoryItem({...newInventoryItem, name: e.target.value})} className={`w-full p-3 border rounded-xl ${textSizeClasses.base}`} /></div>
+                <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Category</label><select value={newInventoryItem.category} onChange={(e) => setNewInventoryItem({...newInventoryItem, category: e.target.value})} className={`w-full p-3 border rounded-xl ${textSizeClasses.base}`}>{categories.map(c => (<option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>))}</select></div>
+                <div className="grid grid-cols-2 gap-4"><div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Stock Quantity</label><input type="number" value={newInventoryItem.current_stock} onChange={(e) => setNewInventoryItem({...newInventoryItem, current_stock: parseInt(e.target.value) || 0})} className={`w-full p-3 border rounded-xl ${textSizeClasses.base}`} /></div><div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Unit *</label><input type="text" value={newInventoryItem.unit} onChange={(e) => setNewInventoryItem({...newInventoryItem, unit: e.target.value})} placeholder="e.g., tablet, ml, bottle" className={`w-full p-3 border rounded-xl ${textSizeClasses.base}`} /></div></div>
+                <div className="grid grid-cols-2 gap-4"><div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Reorder Level</label><input type="number" value={newInventoryItem.reorder_level} onChange={(e) => setNewInventoryItem({...newInventoryItem, reorder_level: parseInt(e.target.value) || 10})} className={`w-full p-3 border rounded-xl ${textSizeClasses.base}`} /></div><div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Manufacturer</label><input type="text" value={newInventoryItem.manufacturer} onChange={(e) => setNewInventoryItem({...newInventoryItem, manufacturer: e.target.value})} className={`w-full p-3 border rounded-xl ${textSizeClasses.base}`} /></div></div>
+                <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Expiry Date</label><input type="date" value={newInventoryItem.expiry_date} onChange={(e) => setNewInventoryItem({...newInventoryItem, expiry_date: e.target.value})} className={`w-full p-3 border rounded-xl ${textSizeClasses.base}`} /></div>
+                <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Notes</label><textarea value={newInventoryItem.notes} onChange={(e) => setNewInventoryItem({...newInventoryItem, notes: e.target.value})} rows="3" className={`w-full p-3 border rounded-xl ${textSizeClasses.base}`} /></div>
               </div>
-              <div className="flex justify-end gap-3 mt-6"><button onClick={() => setShowAddInventoryModal(false)} className="px-4 py-2 border rounded-lg">Cancel</button><button onClick={addInventoryItem} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Add Item</button></div>
+              <div className="flex justify-end gap-4 mt-8"><button onClick={() => setShowAddInventoryModal(false)} className={`px-5 py-2 border rounded-lg ${textSizeClasses.base}`}>Cancel</button><button onClick={addInventoryItem} className={`px-5 py-2 bg-blue-600 text-white rounded-lg ${textSizeClasses.base}`}>Add Item</button></div>
             </div>
           </div>
         </div>
@@ -1531,16 +1678,16 @@ const PharmacyDashboard = ({ user, onLogout }) => {
       {/* Send Report Modal */}
       {showSendReportModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
-            <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold">Send Report</h2><button onClick={() => setShowSendReportModal(false)} className="p-2 hover:bg-gray-100 rounded-full">×</button></div>
-            <form onSubmit={handleSendReport} className="space-y-4">
-              <div><label className="block text-sm font-medium text-gray-700 mb-2">Recipient *</label><select value={sendReportForm.recipient_id} onChange={(e) => setSendReportForm({...sendReportForm, recipient_id: e.target.value})} className="w-full p-3 border rounded-xl" required><option value="">Select Hospital Admin...</option>{hospitalAdmins.map(admin => (<option key={admin.id} value={admin.id}>{admin.full_name} - {admin.hospital_name}</option>))}</select></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-2">Priority</label><select value={sendReportForm.priority} onChange={(e) => setSendReportForm({...sendReportForm, priority: e.target.value})} className="w-full p-3 border rounded-xl"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-2">Title *</label><input type="text" value={sendReportForm.title} onChange={(e) => setSendReportForm({...sendReportForm, title: e.target.value})} className="w-full p-3 border rounded-xl" required /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-2">Message *</label><textarea value={sendReportForm.body} onChange={(e) => setSendReportForm({...sendReportForm, body: e.target.value})} rows="5" className="w-full p-3 border rounded-xl" required /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-2">Attachments</label><input type="file" ref={fileInputRef} onChange={handleAttachmentChange} multiple className="w-full p-2 border rounded-xl" /></div>
-              {attachmentPreview.length > 0 && (<div className="space-y-1">{attachmentPreview.map((file, idx) => (<div key={idx} className="flex justify-between text-xs bg-gray-50 p-2 rounded"><span>{file.name} ({file.size})</span><button type="button" onClick={() => removeAttachment(idx)} className="text-red-500">Remove</button></div>))}</div>)}
-              <div className="flex justify-end gap-3"><button type="button" onClick={() => setShowSendReportModal(false)} className="px-4 py-2 border rounded-lg">Cancel</button><button type="submit" disabled={loading} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Send</button></div>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-8">
+            <div className="flex justify-between items-center mb-5"><h2 className={`font-bold text-gray-800 ${textSizeClasses.title}`}>Send Report</h2><button onClick={() => setShowSendReportModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button></div>
+            <form onSubmit={handleSendReport} className="space-y-5">
+              <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Recipient *</label><select value={sendReportForm.recipient_id} onChange={(e) => setSendReportForm({...sendReportForm, recipient_id: e.target.value})} className={`w-full p-3 border rounded-xl ${textSizeClasses.base}`} required><option value="">Select Hospital Admin...</option>{hospitalAdmins.map(admin => (<option key={admin.id} value={admin.id}>{admin.full_name} - {admin.hospital_name}</option>))}</select></div>
+              <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Priority</label><select value={sendReportForm.priority} onChange={(e) => setSendReportForm({...sendReportForm, priority: e.target.value})} className={`w-full p-3 border rounded-xl ${textSizeClasses.base}`}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>
+              <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Title *</label><input type="text" value={sendReportForm.title} onChange={(e) => setSendReportForm({...sendReportForm, title: e.target.value})} className={`w-full p-3 border rounded-xl ${textSizeClasses.base}`} required /></div>
+              <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Message *</label><textarea value={sendReportForm.body} onChange={(e) => setSendReportForm({...sendReportForm, body: e.target.value})} rows="5" className={`w-full p-3 border rounded-xl ${textSizeClasses.base}`} required /></div>
+              <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Attachments</label><input type="file" ref={fileInputRef} onChange={handleAttachmentChange} multiple className={`w-full p-2 border rounded-xl ${textSizeClasses.base}`} /></div>
+              {attachmentPreview.length > 0 && (<div className="space-y-2">{attachmentPreview.map((file, idx) => (<div key={idx} className="flex justify-between items-center bg-gray-50 p-3 rounded"><span className={`${textSizeClasses.base}`}>{file.name} ({file.size})</span><button type="button" onClick={() => removeAttachment(idx)} className="text-red-500 text-xl">×</button></div>))}</div>)}
+              <div className="flex justify-end gap-4 pt-5"><button type="button" onClick={() => setShowSendReportModal(false)} className={`px-5 py-2 border rounded-lg ${textSizeClasses.base}`}>Cancel</button><button type="submit" disabled={loading} className={`px-5 py-2 bg-blue-600 text-white rounded-lg ${textSizeClasses.base}`}>Send</button></div>
             </form>
           </div>
         </div>
@@ -1549,9 +1696,9 @@ const PharmacyDashboard = ({ user, onLogout }) => {
       {/* Report Detail Modal */}
       {showReportDetailModal && selectedReport && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6">
-            <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold">{selectedReport.title}</h2><button onClick={() => setShowReportDetailModal(false)} className="p-2 hover:bg-gray-100 rounded-full">×</button></div>
-            <div className="space-y-4"><div className="flex justify-between"><div><p className="text-sm text-gray-500">From</p><p className="font-semibold">{selectedReport.sender_full_name}</p></div><div><p className="text-sm text-gray-500">Priority</p><span className={`px-2 py-1 rounded-full text-xs ${getPriorityBadge(selectedReport.priority)}`}>{selectedReport.priority}</span></div></div><div><p className="text-sm text-gray-500">Date</p><p className="text-sm">{new Date(selectedReport.sent_at).toLocaleString()}</p></div><div className="bg-gray-50 p-4 rounded-xl"><p className="whitespace-pre-wrap">{selectedReport.body}</p></div><div className="flex gap-3"><button onClick={() => { setShowReportDetailModal(false); setShowReplyModal(true); }} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg"><FaReply /> Reply</button><button onClick={() => setShowReportDetailModal(false)} className="flex-1 px-4 py-2 border rounded-lg">Close</button></div></div>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-8">
+            <div className="flex justify-between items-center mb-5"><h2 className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{selectedReport.title}</h2><button onClick={() => setShowReportDetailModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button></div>
+            <div className="space-y-5"><div className="flex justify-between"><div><p className={`text-gray-500 ${textSizeClasses.base}`}>From</p><p className={`font-semibold ${textSizeClasses.base}`}>{selectedReport.sender_full_name}</p></div><div><p className={`text-gray-500 ${textSizeClasses.base}`}>Priority</p><span className={`px-3 py-1 rounded-full text-sm ${getPriorityBadge(selectedReport.priority)}`}>{selectedReport.priority}</span></div></div><div><p className={`text-gray-500 ${textSizeClasses.base}`}>Date</p><p className={`${textSizeClasses.base}`}>{new Date(selectedReport.sent_at).toLocaleString()}</p></div><div className="bg-gray-50 p-5 rounded-xl"><p className={`whitespace-pre-wrap ${textSizeClasses.base}`}>{selectedReport.body}</p></div><div className="flex gap-4"><button onClick={() => { setShowReportDetailModal(false); setShowReplyModal(true); }} className={`flex-1 px-5 py-2 bg-blue-600 text-white rounded-lg flex items-center justify-center gap-2 ${textSizeClasses.base}`}><FaReply /> Reply</button><button onClick={() => setShowReportDetailModal(false)} className={`flex-1 px-5 py-2 border rounded-lg ${textSizeClasses.base}`}>Close</button></div></div>
           </div>
         </div>
       )}
@@ -1559,12 +1706,12 @@ const PharmacyDashboard = ({ user, onLogout }) => {
       {/* Reply Modal */}
       {showReplyModal && selectedReport && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6">
-            <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold">Reply to Report</h2><button onClick={() => setShowReplyModal(false)} className="p-2 hover:bg-gray-100 rounded-full">×</button></div>
-            <div className="mb-4 p-3 bg-gray-50 rounded-lg"><p className="text-xs text-gray-500">Original: {selectedReport.title}</p></div>
-            <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} rows="5" placeholder="Type your reply..." className="w-full p-3 border rounded-xl" />
-            <div className="mt-3"><input type="file" onChange={(e) => setReplyAttachment(e.target.files[0])} className="w-full p-2 border rounded-xl" /></div>
-            <div className="flex gap-3 mt-4"><button onClick={() => setShowReplyModal(false)} className="flex-1 px-4 py-2 border rounded-lg">Cancel</button><button onClick={handleSendReply} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg">Send Reply</button></div>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8">
+            <div className="flex justify-between items-center mb-5"><h2 className={`font-bold text-gray-800 ${textSizeClasses.title}`}>Reply to Report</h2><button onClick={() => setShowReplyModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button></div>
+            <div className="mb-5 p-4 bg-gray-50 rounded-xl"><p className={`text-gray-500 ${textSizeClasses.base}`}>Original: {selectedReport.title}</p></div>
+            <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} rows="5" placeholder="Type your reply..." className={`w-full p-3 border rounded-xl ${textSizeClasses.base}`} />
+            <div className="mt-4"><input type="file" onChange={(e) => setReplyAttachment(e.target.files[0])} className={`w-full p-2 border rounded-xl ${textSizeClasses.base}`} /></div>
+            <div className="flex gap-4 mt-6"><button onClick={() => setShowReplyModal(false)} className={`flex-1 px-5 py-2 border rounded-lg ${textSizeClasses.base}`}>Cancel</button><button onClick={handleSendReply} className={`flex-1 px-5 py-2 bg-blue-600 text-white rounded-lg ${textSizeClasses.base}`}>Send Reply</button></div>
           </div>
         </div>
       )}
@@ -1572,9 +1719,9 @@ const PharmacyDashboard = ({ user, onLogout }) => {
       {/* Change Password Modal */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-            <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold">Change Password</h2><button onClick={() => setShowPasswordModal(false)} className="p-2 hover:bg-gray-100 rounded-full">×</button></div>
-            <div className="space-y-4"><input type="password" placeholder="Current Password" value={passwordData.current_password} onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})} className="w-full p-3 border rounded-xl" /><input type="password" placeholder="New Password" value={passwordData.new_password} onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})} className="w-full p-3 border rounded-xl" /><input type="password" placeholder="Confirm Password" value={passwordData.confirm_password} onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})} className="w-full p-3 border rounded-xl" /><div className="flex gap-3"><button onClick={() => setShowPasswordModal(false)} className="flex-1 px-4 py-2 border rounded-lg">Cancel</button><button onClick={changePassword} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg">Change</button></div></div>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+            <div className="flex justify-between items-center mb-5"><h2 className={`font-bold text-gray-800 ${textSizeClasses.title}`}>Change Password</h2><button onClick={() => setShowPasswordModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button></div>
+            <div className="space-y-5"><input type="password" placeholder="Current Password" value={passwordData.current_password} onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})} className={`w-full p-3 border rounded-xl ${textSizeClasses.base}`} /><input type="password" placeholder="New Password" value={passwordData.new_password} onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})} className={`w-full p-3 border rounded-xl ${textSizeClasses.base}`} /><input type="password" placeholder="Confirm Password" value={passwordData.confirm_password} onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})} className={`w-full p-3 border rounded-xl ${textSizeClasses.base}`} /><div className="flex gap-4 pt-5"><button onClick={() => setShowPasswordModal(false)} className={`flex-1 px-5 py-2 border rounded-lg ${textSizeClasses.base}`}>Cancel</button><button onClick={changePassword} className={`flex-1 px-5 py-2 bg-blue-600 text-white rounded-lg ${textSizeClasses.base}`}>Change</button></div></div>
           </div>
         </div>
       )}

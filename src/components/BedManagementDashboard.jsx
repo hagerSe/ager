@@ -106,8 +106,8 @@ const BedManagementDashboard = ({
   const [realTimeNotification, setRealTimeNotification] = useState(null);
 
   const navigate = useNavigate();
-  const API_URL = 'http://localhost:5001';
-  const SOCKET_URL = 'http://localhost:5001';
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+  const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001';
   const isSelectionMode = selectionMode;
 
   const wards = ['OPD', 'EME', 'ANC'];

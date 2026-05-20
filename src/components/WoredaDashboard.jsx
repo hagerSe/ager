@@ -78,8 +78,8 @@ const WoredaDashboard = ({ user, onLogout }) => {
   const [recipients, setRecipients] = useState({ zones: [], kebeles: [] });
 
   const navigate = useNavigate();
-  const API_URL = 'http://localhost:5001';
-  const SOCKET_URL = 'http://localhost:5001';
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+  const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001';
 
   // Get file icon based on mime type
   const getFileIcon = (mimeType) => {

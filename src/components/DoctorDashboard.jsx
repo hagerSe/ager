@@ -18,13 +18,14 @@ import {
   FaKey, FaCamera, FaTrash, FaPaperclip, FaCalendar, FaBell as FaBellIcon,
   FaRegClock, FaChartLine, FaFileExport, FaCalendarWeek, FaHeartbeat,
   FaPills, FaFlask, FaXRay, FaBaby, FaBed, FaUserTie, FaCreditCard,
-  FaPlus, FaUpload
+  FaPlus, FaUpload, FaArrowLeft, FaHome
 } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import ScheduleViewer from '../components/ScheduleViewer';
+
 const DoctorDashboard = ({ user, onLogout }) => {
   // ==================== STATE MANAGEMENT ====================
   const [patients, setPatients] = useState([]);
@@ -42,6 +43,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
   const [availableBedsList, setAvailableBedsList] = useState([]);
   const [notification, setNotification] = useState(null);
   const [showDischargeList, setShowDischargeList] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [stats, setStats] = useState({
     waiting: 0,
     completed: 0,
@@ -54,7 +56,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
   const [connectionStatus, setConnectionStatus] = useState('connecting');
 
   // ==================== REPORT STATES ====================
-  const [reportMainTab, setReportMainTab] = useState('queue'); // 'queue', 'inbox', 'sent'
+  const [reportMainTab, setReportMainTab] = useState('queue'); // 'queue', 'inbox', 'sent', 'profile', 'schedule'
   const [reportsInbox, setReportsInbox] = useState([]);
   const [reportsOutbox, setReportsOutbox] = useState([]);
   const [unreadReportsCount, setUnreadReportsCount] = useState(0);
@@ -136,8 +138,8 @@ const DoctorDashboard = ({ user, onLogout }) => {
   const [realTimeNotification, setRealTimeNotification] = useState(null); 
 
   // API Configuration
-  const API_URL = 'http://localhost:5001';
-  const SOCKET_URL = 'http://localhost:5001';
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+  const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001';
 
   // Consultation data
   const [diagnosis, setDiagnosis] = useState({
@@ -207,6 +209,23 @@ const DoctorDashboard = ({ user, onLogout }) => {
     return 'Doctor';
   };
 
+  // Handle back to main menu
+  const handleBackToMain = () => {
+    setShowDischargeList(false);
+    setReportMainTab('queue');
+  };
+
+  // Handle logout with confirmation
+  const handleLogoutWithConfirm = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
+    if (socket.current) socket.current.disconnect();
+    if (onLogout) onLogout();
+    navigate('/login');
+  };
+
   // ==================== REPORT FUNCTIONS ====================
 
   // Fetch reports inbox
@@ -266,72 +285,74 @@ const DoctorDashboard = ({ user, onLogout }) => {
       console.error('Error fetching hospital admins:', error);
     }
   };
-// ==================== REAL-TIME NOTIFICATION COMPONENT ====================
-const RealTimeNotification = () => {
-  if (!realTimeNotification) return null;
-  
-  const priorityColors = {
-    low: 'border-teal-500 bg-teal-50',
-    medium: 'border-yellow-500 bg-yellow-50',
-    high: 'border-orange-500 bg-orange-50',
-    urgent: 'border-red-500 bg-red-50 animate-pulse'
-  };
-  
-  const priorityIcons = {
-    low: '🟢',
-    medium: '🟡',
-    high: '🟠',
-    urgent: '🔴'
-  };
-  
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: 100, scale: 0.9 }}
-      animate={{ opacity: 1, x: 0, scale: 1 }}
-      exit={{ opacity: 0, x: 100, scale: 0.9 }}
-      className={`fixed bottom-6 right-6 z-[10000] max-w-md bg-white rounded-2xl shadow-2xl border-l-4 ${priorityColors[realTimeNotification.priority] || 'border-teal-500'} overflow-hidden`}
-    >
-      <div className="p-4">
-        <div className="flex items-start gap-3">
-          <div className="flex-shrink-0">
-            <div className="w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-purple-100">
-              {realTimeNotification.type === 'reply' ? '💬' : '📬'}
-            </div>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-sm font-bold text-gray-900">
-                {realTimeNotification.title}
-              </p>
-              <span className="text-xs text-gray-400 ml-2">
-                {priorityIcons[realTimeNotification.priority]} {realTimeNotification.priority}
-              </span>
-            </div>
-            <p className="text-sm text-gray-600 mb-2">
-              {realTimeNotification.message}
-            </p>
-            <div className="flex items-center gap-3 text-xs text-gray-400">
-              <span>🕒 {new Date(realTimeNotification.timestamp).toLocaleTimeString()}</span>
-              <span>👨‍⚕️ {realTimeNotification.sender}</span>
-            </div>
-          </div>
-          <button
-            onClick={() => setRealTimeNotification(null)}
-            className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <FaTimes className="text-sm" />
-          </button>
-        </div>
-      </div>
+
+  // ==================== REAL-TIME NOTIFICATION COMPONENT ====================
+  const RealTimeNotification = () => {
+    if (!realTimeNotification) return null;
+    
+    const priorityColors = {
+      low: 'border-teal-500 bg-teal-50',
+      medium: 'border-yellow-500 bg-yellow-50',
+      high: 'border-orange-500 bg-orange-50',
+      urgent: 'border-red-500 bg-red-50 animate-pulse'
+    };
+    
+    const priorityIcons = {
+      low: '🟢',
+      medium: '🟡',
+      high: '🟠',
+      urgent: '🔴'
+    };
+    
+    return (
       <motion.div
-        initial={{ width: '100%' }}
-        animate={{ width: '0%' }}
-        transition={{ duration: 6, ease: 'linear' }}
-        className={`h-1 ${realTimeNotification.priority === 'urgent' ? 'bg-red-500' : 'bg-teal-500'}`}
-      />
-    </motion.div>
-  );
-};
+        initial={{ opacity: 0, x: 100, scale: 0.9 }}
+        animate={{ opacity: 1, x: 0, scale: 1 }}
+        exit={{ opacity: 0, x: 100, scale: 0.9 }}
+        className={`fixed bottom-6 right-6 z-[10000] max-w-md bg-white rounded-2xl shadow-2xl border-l-4 ${priorityColors[realTimeNotification.priority] || 'border-teal-500'} overflow-hidden`}
+      >
+        <div className="p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-purple-100">
+                {realTimeNotification.type === 'reply' ? '💬' : '📬'}
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-sm font-bold text-gray-900">
+                  {realTimeNotification.title}
+                </p>
+                <span className="text-xs text-gray-400 ml-2">
+                  {priorityIcons[realTimeNotification.priority]} {realTimeNotification.priority}
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 mb-2">
+                {realTimeNotification.message}
+              </p>
+              <div className="flex items-center gap-3 text-xs text-gray-400">
+                <span>🕒 {new Date(realTimeNotification.timestamp).toLocaleTimeString()}</span>
+                <span>👨‍⚕️ {realTimeNotification.sender}</span>
+              </div>
+            </div>
+            <button
+              onClick={() => setRealTimeNotification(null)}
+              className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <FaTimes className="text-sm" />
+            </button>
+          </div>
+        </div>
+        <motion.div
+          initial={{ width: '100%' }}
+          animate={{ width: '0%' }}
+          transition={{ duration: 6, ease: 'linear' }}
+          className={`h-1 ${realTimeNotification.priority === 'urgent' ? 'bg-red-500' : 'bg-teal-500'}`}
+        />
+      </motion.div>
+    );
+  };
+
   // Fetch staff members for sending reports
   const fetchStaffMembers = async () => {
     try {
@@ -1234,98 +1255,89 @@ const RealTimeNotification = () => {
     socket.current.on('joined_room', (data) => {
       console.log('✅ Successfully joined room:', data);
     });
-    // Add this inside the socket.current.on section
 
-// Add this after socket.current.on('joined_room', ...)
+    socket.current.emit('join_staff', { 
+      staffId: user.id, 
+      hospitalId: user.hospital_id 
+    });
+    console.log(`📡 Joined staff room: hospital_${user.hospital_id}_staff_${user.id}`);
 
-// Join staff personal room for schedule updates
-// Join staff personal room for schedule updates - FIXED
-socket.current.emit('join_staff', { 
-  staffId: user.id, 
-  hospitalId: user.hospital_id 
-});
-console.log(`📡 Joined staff room: hospital_${user.hospital_id}_staff_${user.id}`);
+    socket.current.on('weekly_schedule_ready', (data) => {
+      console.log('📅 Weekly schedule ready event received:', data);
+      setRealTimeNotification({
+        id: Date.now(),
+        type: 'weekly_schedule',
+        title: 'Weekly Schedule Ready',
+        message: `Your schedule for ${data.week_range} is ready. ${data.schedules_count} shifts, ${data.total_hours} hours.`,
+        priority: 'high',
+        timestamp: new Date()
+      });
+      
+      if (reportMainTab === 'schedule') {
+        const event = new CustomEvent('refreshSchedule');
+        window.dispatchEvent(event);
+      }
+      
+      setTimeout(() => setRealTimeNotification(null), 10000);
+    });
 
-// Listen for weekly schedule ready
-socket.current.on('weekly_schedule_ready', (data) => {
-  console.log('📅 Weekly schedule ready event received:', data);
-  setRealTimeNotification({
-    id: Date.now(),
-    type: 'weekly_schedule',
-    title: 'Weekly Schedule Ready',
-    message: `Your schedule for ${data.week_range} is ready. ${data.schedules_count} shifts, ${data.total_hours} hours.`,
-    priority: 'high',
-    timestamp: new Date()
-  });
-  
-  // Refresh schedule viewer if visible
-  if (reportMainTab === 'schedule') {
-    const event = new CustomEvent('refreshSchedule');
-    window.dispatchEvent(event);
-  }
-  
-  setTimeout(() => setRealTimeNotification(null), 10000);
-});
+    socket.current.on('new_schedule_assigned', (data) => {
+      console.log('📅 New schedule assigned event:', data);
+      setRealTimeNotification({
+        id: Date.now(),
+        type: 'schedule',
+        title: 'New Schedule Assigned',
+        message: `${data.shift} Shift on ${data.date} in ${data.ward} Ward`,
+        priority: 'high',
+        timestamp: new Date()
+      });
+      
+      if (reportMainTab === 'schedule') {
+        const event = new CustomEvent('refreshSchedule');
+        window.dispatchEvent(event);
+      }
+      
+      setTimeout(() => setRealTimeNotification(null), 8000);
+    });
 
-// Listen for new schedule assigned
-socket.current.on('new_schedule_assigned', (data) => {
-  console.log('📅 New schedule assigned event:', data);
-  setRealTimeNotification({
-    id: Date.now(),
-    type: 'schedule',
-    title: 'New Schedule Assigned',
-    message: `${data.shift} Shift on ${data.date} in ${data.ward} Ward`,
-    priority: 'high',
-    timestamp: new Date()
-  });
-  
-  if (reportMainTab === 'schedule') {
-    const event = new CustomEvent('refreshSchedule');
-    window.dispatchEvent(event);
-  }
-  
-  setTimeout(() => setRealTimeNotification(null), 8000);
-});
+    socket.current.on('schedule_updated_notification', (data) => {
+      console.log('📅 Schedule updated event:', data);
+      setRealTimeNotification({
+        id: Date.now(),
+        type: 'schedule_update',
+        title: 'Schedule Updated',
+        message: `Your ${data.shift} shift on ${data.date} has been ${data.status || 'updated'}`,
+        priority: 'medium',
+        timestamp: new Date()
+      });
+      
+      if (reportMainTab === 'schedule') {
+        const event = new CustomEvent('refreshSchedule');
+        window.dispatchEvent(event);
+      }
+      
+      setTimeout(() => setRealTimeNotification(null), 6000);
+    });
 
-// Listen for schedule update
-socket.current.on('schedule_updated_notification', (data) => {
-  console.log('📅 Schedule updated event:', data);
-  setRealTimeNotification({
-    id: Date.now(),
-    type: 'schedule_update',
-    title: 'Schedule Updated',
-    message: `Your ${data.shift} shift on ${data.date} has been ${data.status || 'updated'}`,
-    priority: 'medium',
-    timestamp: new Date()
-  });
-  
-  if (reportMainTab === 'schedule') {
-    const event = new CustomEvent('refreshSchedule');
-    window.dispatchEvent(event);
-  }
-  
-  setTimeout(() => setRealTimeNotification(null), 6000);
-});
+    socket.current.on('schedule_cancelled', (data) => {
+      console.log('❌ Schedule cancelled event:', data);
+      setRealTimeNotification({
+        id: Date.now(),
+        type: 'schedule_cancel',
+        title: 'Schedule Cancelled',
+        message: `Your ${data.shift} shift on ${data.date} has been cancelled.`,
+        priority: 'urgent',
+        timestamp: new Date()
+      });
+      
+      if (reportMainTab === 'schedule') {
+        const event = new CustomEvent('refreshSchedule');
+        window.dispatchEvent(event);
+      }
+      
+      setTimeout(() => setRealTimeNotification(null), 8000);
+    });
 
-// Listen for schedule cancelled
-socket.current.on('schedule_cancelled', (data) => {
-  console.log('❌ Schedule cancelled event:', data);
-  setRealTimeNotification({
-    id: Date.now(),
-    type: 'schedule_cancel',
-    title: 'Schedule Cancelled',
-    message: `Your ${data.shift} shift on ${data.date} has been cancelled.`,
-    priority: 'urgent',
-    timestamp: new Date()
-  });
-  
-  if (reportMainTab === 'schedule') {
-    const event = new CustomEvent('refreshSchedule');
-    window.dispatchEvent(event);
-  }
-  
-  setTimeout(() => setRealTimeNotification(null), 8000);
-});
     socket.current.on('report_reply_from_hospital', (data) => {
       console.log('💬 New reply received from Hospital Admin:', data);
       setNotification({
@@ -2194,17 +2206,11 @@ socket.current.on('schedule_cancelled', (data) => {
     stool: ['Stool Culture', 'Stool Ova & Parasites', 'Stool Occult Blood', 'Stool Antigen', 'Stool Microscopy']
   };
 
-  const handleLogout = () => {
-    if (socket.current) socket.current.disconnect();
-    if (onLogout) onLogout();
-    navigate('/login');
-  };
-
   // ==================== RENDER ====================
   return (
     <div className="font-sans bg-gradient-to-br from-emerald-50 to-teal-50 min-h-screen flex">
       <ConnectionStatusBanner />
-        <RealTimeNotification /> 
+      <RealTimeNotification /> 
       <style>{`
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -2321,43 +2327,44 @@ socket.current.on('schedule_cancelled', (data) => {
                 </span>
               )}
             </div>
-{/* Sent Reports */}
-<div
-  onClick={() => { setShowDischargeList(false); setReportMainTab('sent'); fetchReportsOutbox(); }}
-  className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${reportMainTab === 'sent' && !showDischargeList ? 'bg-gradient-to-r from-teal-600 to-emerald-600 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all duration-200 group`}
->
-  <span className="text-xl">📤</span>
-  {!sidebarCollapsed && (
-    <span className="flex-1 text-sm font-medium">Sent Reports</span>
-  )}
-</div>
 
-{/* ==================== MY SCHEDULE ==================== */}
-<div
-  onClick={() => { setShowDischargeList(false); setReportMainTab('schedule'); }}
-  className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${reportMainTab === 'schedule' && !showDischargeList ? 'bg-gradient-to-r from-teal-600 to-emerald-600 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all duration-200 group`}
->
-  <span className="text-xl">📅</span>
-  {!sidebarCollapsed && (
-    <span className="flex-1 text-sm font-medium">My Schedule</span>
-  )}
-</div>
+            {/* Sent Reports */}
+            <div
+              onClick={() => { setShowDischargeList(false); setReportMainTab('sent'); fetchReportsOutbox(); }}
+              className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${reportMainTab === 'sent' && !showDischargeList ? 'bg-gradient-to-r from-teal-600 to-emerald-600 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all duration-200 group`}
+            >
+              <span className="text-xl">📤</span>
+              {!sidebarCollapsed && (
+                <span className="flex-1 text-sm font-medium">Sent Reports</span>
+              )}
+            </div>
 
-{/* Divider */}
-{!sidebarCollapsed && (
-  <div className="h-px bg-slate-700/50 my-4 mx-3"></div>
-)}
+            {/* My Schedule */}
+            <div
+              onClick={() => { setShowDischargeList(false); setReportMainTab('schedule'); }}
+              className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${reportMainTab === 'schedule' && !showDischargeList ? 'bg-gradient-to-r from-teal-600 to-emerald-600 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all duration-200 group`}
+            >
+              <span className="text-xl">📅</span>
+              {!sidebarCollapsed && (
+                <span className="flex-1 text-sm font-medium">My Schedule</span>
+              )}
+            </div>
 
-{/* Profile */}
-<div
-  onClick={() => { setShowDischargeList(false); setReportMainTab('profile'); }}
-  className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${reportMainTab === 'profile' && !showDischargeList ? 'bg-gradient-to-r from-teal-600 to-emerald-600 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all duration-200 group`}
->
-  <span className="text-xl">👤</span>
-  {!sidebarCollapsed && (
-    <span className="flex-1 text-sm font-medium">Profile</span>
-  )}
-</div>
+            {/* Divider */}
+            {!sidebarCollapsed && (
+              <div className="h-px bg-slate-700/50 my-4 mx-3"></div>
+            )}
+
+            {/* Profile */}
+            <div
+              onClick={() => { setShowDischargeList(false); setReportMainTab('profile'); }}
+              className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${reportMainTab === 'profile' && !showDischargeList ? 'bg-gradient-to-r from-teal-600 to-emerald-600 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all duration-200 group`}
+            >
+              <span className="text-xl">👤</span>
+              {!sidebarCollapsed && (
+                <span className="flex-1 text-sm font-medium">Profile</span>
+              )}
+            </div>
 
             {/* Stats for collapsed sidebar */}
             {sidebarCollapsed && (
@@ -2373,41 +2380,12 @@ socket.current.on('schedule_cancelled', (data) => {
               </div>
             )}
           </div>
-
-          {/* Quick Stats in Sidebar - Only when expanded */}
-          {!sidebarCollapsed && (
-            <div className="px-4 mt-auto">
-              <p className="text-[10px] text-slate-500 mb-3 uppercase tracking-wider">Today'! Stats</p>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-slate-800/50 p-3 rounded-xl">
-                  <div className="text-xl font-bold text-emerald-400">{stats.completed}</div>
-                  <div className="text-[10px] text-slate-400">Completed</div>
-                </div>
-                <div className="bg-slate-800/50 p-3 rounded-xl">
-                  <div className="text-xl font-bold text-amber-400">{stats.pendingLabs}</div>
-                  <div className="text-[10px] text-slate-400">Pending Labs</div>
-                </div>
-                <div className="bg-slate-800/50 p-3 rounded-xl">
-                  <div className="text-xl font-bold text-violet-400">{stats.pendingRadiology}</div>
-                  <div className="text-[10px] text-slate-400">Pending Rad</div>
-                </div>
-                <div className="bg-slate-800/50 p-3 rounded-xl">
-                  <div className="text-xl font-bold text-blue-400">{stats.admitted}</div>
-                  <div className="text-[10px] text-slate-400">Admitted</div>
-                </div>
-                <div className="col-span-2 bg-slate-800/50 p-3 rounded-xl">
-                  <div className="text-xl font-bold text-pink-400">{stats.pendingPharmacy || 0}</div>
-                  <div className="text-[10px] text-slate-400">Pending Pharmacy</div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Logout Button */}
         <div className={`${sidebarCollapsed ? 'py-4 px-0' : 'p-5'} border-t border-slate-700/50`}>
           <button
-            onClick={handleLogout}
+            onClick={handleLogoutWithConfirm}
             className={`w-full ${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} bg-transparent border border-slate-600 rounded-xl text-red-400 cursor-pointer flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-start'} gap-3 text-sm transition-all duration-200 hover:bg-red-500/10 hover:border-red-500 group`}
           >
             <span className="text-lg">🚪</span>
@@ -2418,12 +2396,12 @@ socket.current.on('schedule_cancelled', (data) => {
 
       {/* ==================== MAIN CONTENT ==================== */}
       <div className="flex-1 overflow-y-auto">
-        {/* Header */}
-        <div className={`bg-gradient-to-r ${currentWard.bgGradient} py-6 px-8 shadow-xl sticky top-0 z-40`}>
-          <div className="max-w-[1600px] mx-auto flex justify-between items-center flex-wrap gap-4">
-            <div>
+        {/* Header with Stats moved from sidebar */}
+        <div className={`bg-gradient-to-r ${currentWard.bgGradient} py-8 px-8 shadow-xl sticky top-0 z-40`}>
+          <div className="max-w-[1600px] mx-auto">
+            <div className="flex justify-between items-center flex-wrap gap-4 mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center text-2xl shadow-lg animate-glow">
+                <div className="w-14 h-14 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center text-3xl shadow-lg animate-glow">
                   <span>{currentWard.icon}</span>
                 </div>
                 <div>
@@ -2432,6 +2410,7 @@ socket.current.on('schedule_cancelled', (data) => {
                      reportMainTab === 'inbox' ? 'Reports - Inbox' : 
                      reportMainTab === 'sent' ? 'Reports - Sent' : 
                      reportMainTab === 'profile' ? 'My Profile' : 
+                     reportMainTab === 'schedule' ? 'My Schedule' :
                      currentWard.title}
                   </h1>
                   <p className="text-base text-white/90 mt-1 flex items-center gap-2 flex-wrap">
@@ -2444,53 +2423,79 @@ socket.current.on('schedule_cancelled', (data) => {
                   </p>
                 </div>
               </div>
+              
+              <div className="flex items-center gap-3 flex-wrap">
+                {/* Google Search Button */}
+                <button
+                  onClick={() => setShowSearchBar(!showSearchBar)}
+                  className="bg-white/20 backdrop-blur px-4 py-2.5 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg text-sm font-medium"
+                >
+                  <FaSearch className="text-sm" /> <span className="hidden sm:inline">Medical Search</span>
+                </button>
+                
+                {/* Generate Report Button */}
+                <button
+                  onClick={() => setShowReportModal(true)}
+                  className="bg-white/20 backdrop-blur px-4 py-2.5 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg text-sm font-medium"
+                >
+                  <FaFileAlt className="text-sm" /> <span className="hidden sm:inline">Generate Report</span>
+                </button>
+
+                {/* Send Report Button */}
+                <button
+                  onClick={() => { setShowSendReportModal(true); fetchHospitalAdmins(); fetchStaffMembers(); }}
+                  className="bg-white/20 backdrop-blur px-4 py-2.5 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg text-sm font-medium"
+                >
+                  <FaPaperPlane className="text-sm" /> <span className="hidden sm:inline">Send Report</span>
+                </button>
+              </div>
             </div>
             
-            <div className="flex items-center gap-3 flex-wrap">
-              {/* Google Search Button */}
-              <button
-                onClick={() => setShowSearchBar(!showSearchBar)}
-                className="bg-white/20 backdrop-blur px-4 py-2.5 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg text-sm font-medium"
-              >
-                <FaSearch className="text-sm" /> <span className="hidden sm:inline">Medical Search</span>
-              </button>
-              
-              {/* Generate Report Button */}
-              <button
-                onClick={() => setShowReportModal(true)}
-                className="bg-white/20 backdrop-blur px-4 py-2.5 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg text-sm font-medium"
-              >
-                <FaFileAlt className="text-sm" /> <span className="hidden sm:inline">Generate Report</span>
-              </button>
-
-              {/* Send Report Button */}
-              <button
-                onClick={() => { setShowSendReportModal(true); fetchHospitalAdmins(); fetchStaffMembers(); }}
-                className="bg-white/20 backdrop-blur px-4 py-2.5 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg text-sm font-medium"
-              >
-                <FaPaperPlane className="text-sm" /> <span className="hidden sm:inline">Send Report</span>
-              </button>
-              
-              {/* Stats Display */}
-              <div className="flex gap-4 bg-white/10 backdrop-blur py-2 px-5 rounded-full">
-                <div className="text-center">
-                  <div className="text-xl font-bold text-white">{!showDischargeList && reportMainTab === 'inbox' ? reportsInbox.length : queuePatients.length}</div>
-                  <div className="text-[10px] text-white/70 uppercase tracking-wider">{!showDischargeList && reportMainTab === 'inbox' ? 'Reports' : 'Queue'}</div>
-                </div>
-                <div className="w-px h-8 bg-white/30" />
-                <div className="text-center">
-                  <div className="text-xl font-bold text-white">{stats.completed}</div>
-                  <div className="text-[10px] text-white/70 uppercase tracking-wider">Completed</div>
-                </div>
-                <div className="w-px h-8 bg-white/30" />
-                <div className="text-center">
-                  <div className="text-xl font-bold text-white">{stats.pendingLabs + stats.pendingRadiology}</div>
-                  <div className="text-[10px] text-white/70 uppercase tracking-wider">Pending</div>
-                </div>
+            {/* Stats Cards - Moved from sidebar to header */}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mt-4">
+              <div className="bg-white/15 backdrop-blur rounded-xl p-3 text-center">
+                <div className="text-2xl font-bold text-white">{queuePatients.length}</div>
+                <div className="text-xs text-white/80">Waiting</div>
+              </div>
+              <div className="bg-white/15 backdrop-blur rounded-xl p-3 text-center">
+                <div className="text-2xl font-bold text-white">{stats.completed}</div>
+                <div className="text-xs text-white/80">Completed</div>
+              </div>
+              <div className="bg-white/15 backdrop-blur rounded-xl p-3 text-center">
+                <div className="text-2xl font-bold text-white">{stats.pendingLabs}</div>
+                <div className="text-xs text-white/80">Pending Labs</div>
+              </div>
+              <div className="bg-white/15 backdrop-blur rounded-xl p-3 text-center">
+                <div className="text-2xl font-bold text-white">{stats.pendingRadiology}</div>
+                <div className="text-xs text-white/80">Pending Rad</div>
+              </div>
+              <div className="bg-white/15 backdrop-blur rounded-xl p-3 text-center">
+                <div className="text-2xl font-bold text-white">{stats.admitted}</div>
+                <div className="text-xs text-white/80">Admitted</div>
+              </div>
+              <div className="bg-white/15 backdrop-blur rounded-xl p-3 text-center">
+                <div className="text-2xl font-bold text-white">{stats.pendingPharmacy || 0}</div>
+                <div className="text-xs text-white/80">Pharmacy</div>
+              </div>
+              <div className="bg-white/15 backdrop-blur rounded-xl p-3 text-center">
+                <div className="text-2xl font-bold text-white">{selectedPatient ? 1 : 0}</div>
+                <div className="text-xs text-white/80">In Consult</div>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Back Button - Show when not in main queue */}
+        {(showDischargeList || reportMainTab !== 'queue') && (
+          <div className="max-w-[1600px] mx-auto px-8 pt-6">
+            <button
+              onClick={handleBackToMain}
+              className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl shadow-md hover:shadow-lg transition-all text-teal-600 font-medium border border-gray-200"
+            >
+              <FaArrowLeft className="text-sm" /> Back to Main Dashboard
+            </button>
+          </div>
+        )}
 
         {/* Google Search Bar - Animated */}
         <AnimatePresence>
@@ -2592,7 +2597,7 @@ socket.current.on('schedule_cancelled', (data) => {
           )}
         </AnimatePresence>
 
-        {/* Send Report Modal */}
+        {/* Send Report Modal - Keep existing */}
         <AnimatePresence>
           {showSendReportModal && (
             <motion.div
@@ -2786,7 +2791,7 @@ socket.current.on('schedule_cancelled', (data) => {
           )}
         </AnimatePresence>
 
-        {/* Report Detail Modal */}
+        {/* Report Detail Modal - Keep existing */}
         <AnimatePresence>
           {showReportDetailModal && selectedReport && (
             <motion.div
@@ -2893,7 +2898,7 @@ socket.current.on('schedule_cancelled', (data) => {
           )}
         </AnimatePresence>
 
-        {/* Reply Modal */}
+        {/* Reply Modal - Keep existing */}
         <AnimatePresence>
           {showReplyModal && selectedReport && (
             <motion.div
@@ -2970,35 +2975,37 @@ socket.current.on('schedule_cancelled', (data) => {
             </motion.div>
           )}
         </AnimatePresence>
-{/* My Schedule View */}
-{!showDischargeList && reportMainTab === 'schedule' && (
-  <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-    <div className="flex justify-between items-center mb-6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-gradient-to-r from-teal-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
-          <FaCalendarAlt className="text-white text-lg" />
-        </div>
-        <div>
-          <h2 className="text-xl font-bold text-gray-800">My Work Schedule</h2>
-          <p className="text-sm text-gray-500">View your upcoming shifts and weekly schedule</p>
-        </div>
-      </div>
-      <button 
-        onClick={() => {
-          const event = new CustomEvent('refreshSchedule');
-          window.dispatchEvent(event);
-        }}
-        className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition text-sm font-medium flex items-center gap-2"
-      >
-        <FaSync className="text-sm" /> Refresh
-      </button>
-    </div>
-    
-    {/* Schedule Viewer Component */}
-    <ScheduleViewer user={user} compact={false} />
-  </div>
-)}
-        {/* Reminder Modal */}
+
+        {/* My Schedule View */}
+        {!showDischargeList && reportMainTab === 'schedule' && (
+          <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 m-8">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-r from-teal-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
+                  <FaCalendarAlt className="text-white text-lg" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-800">My Work Schedule</h2>
+                  <p className="text-sm text-gray-500">View your upcoming shifts and weekly schedule</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  const event = new CustomEvent('refreshSchedule');
+                  window.dispatchEvent(event);
+                }}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition text-sm font-medium flex items-center gap-2"
+              >
+                <FaSync className="text-sm" /> Refresh
+              </button>
+            </div>
+            
+            {/* Schedule Viewer Component */}
+            <ScheduleViewer user={user} compact={false} />
+          </div>
+        )}
+
+        {/* Reminder Modal - Keep existing */}
         <AnimatePresence>
           {showReminderModal && (
             <motion.div
@@ -3089,7 +3096,51 @@ socket.current.on('schedule_cancelled', (data) => {
           )}
         </AnimatePresence>
 
-        {/* Notification Banner */}
+        {/* Logout Confirmation Modal */}
+        <AnimatePresence>
+          {showLogoutConfirm && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10000]"
+              onClick={() => setShowLogoutConfirm(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.9, y: 20 }}
+                className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="text-center mb-4">
+                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <FaSignOutAlt className="text-red-600 text-2xl" />
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-800 mb-2">Confirm Logout</h2>
+                  <p className="text-gray-500">Are you sure you want to logout?</p>
+                </div>
+                
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowLogoutConfirm(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmLogout}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition font-medium shadow-md"
+                  >
+                    Yes, Logout
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Notification Banner - Keep existing */}
         <AnimatePresence>
           {notification && (
             <motion.div
@@ -3111,7 +3162,7 @@ socket.current.on('schedule_cancelled', (data) => {
           )}
         </AnimatePresence>
 
-        {/* Message Toast */}
+        {/* Message Toast - Keep existing */}
         {message.text && (
           <div className={`fixed bottom-8 right-8 z-[1000] ${message.type === 'error' ? 'bg-red-100 text-red-800 border-red-400' : 'bg-green-100 text-green-800 border-green-400'} py-3 px-6 rounded-lg shadow-md animate-slide-in border-l-4`}>
             {message.text}
@@ -3120,81 +3171,15 @@ socket.current.on('schedule_cancelled', (data) => {
 
         {/* Main Content Area */}
         <div className="max-w-[1600px] mx-auto p-8">
-          {/* Patient Queue View */}
+          {/* Patient Queue View - Keep existing */}
           {!showDischargeList && reportMainTab === 'queue' && (
             <>
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5 mb-8">
-                <div className="bg-white rounded-2xl p-5 shadow-md border border-gray-100 hover:shadow-lg transition-all duration-200">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-sm text-gray-500 m-0 mb-2">Waiting in Queue</p>
-                      <p className="text-3xl font-bold text-teal-600 m-0">{queuePatients.length}</p>
-                    </div>
-                    <div className="w-12 h-12 rounded-xl bg-teal-100 flex items-center justify-center">
-                      <span className="text-2xl">👥</span>
-                    </div>
-                  </div>
-                  <div className="mt-3 text-sm text-gray-500">
-                    {queuePatients.filter(p => p.triage_info?.priority === 'critical').length} Critical
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-2xl p-5 shadow-md border border-gray-100 hover:shadow-lg transition-all duration-200">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-sm text-gray-500 m-0 mb-2">In Consultation</p>
-                      <p className="text-3xl font-bold text-teal-600 m-0">{selectedPatient ? 1 : 0}</p>
-                    </div>
-                    <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
-                      <span className="text-2xl">👨‍⚕️</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-2xl p-5 shadow-md border border-gray-100 hover:shadow-lg transition-all duration-200">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-sm text-gray-500 m-0 mb-2">Completed Today</p>
-                      <p className="text-3xl font-bold text-emerald-600 m-0">{stats.completed}</p>
-                    </div>
-                    <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
-                      <span className="text-2xl">✅</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-2xl p-5 shadow-md border border-gray-100 hover:shadow-lg transition-all duration-200">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-sm text-gray-500 m-0 mb-2">Pending Results</p>
-                      <p className="text-3xl font-bold text-amber-600 m-0">{stats.pendingLabs + stats.pendingRadiology}</p>
-                    </div>
-                    <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
-                      <span className="text-2xl">🔬</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-2xl p-5 shadow-md border border-gray-100 hover:shadow-lg transition-all duration-200">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-sm text-gray-500 m-0 mb-2">Pending Pharmacy</p>
-                      <p className="text-3xl font-bold text-pink-600 m-0">{stats.pendingPharmacy || 0}</p>
-                    </div>
-                    <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
-                      <span className="text-2xl">💊</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Patient Queue Table */}
+              {/* Patient Queue Table - Increased card size and text size */}
               <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100">
                 <div className="flex justify-between items-center mb-6">
                   <div className="flex items-center gap-3">
-                    <h2 className="text-xl font-semibold text-gray-900 m-0">{currentWard.queueTitle}</h2>
-                    <span className={`px-3 py-1 rounded-full text-sm font-semibold text-white bg-gradient-to-r ${currentWard.bgGradient}`}>
+                    <h2 className="text-2xl font-semibold text-gray-900 m-0">{currentWard.queueTitle}</h2>
+                    <span className={`px-4 py-1.5 rounded-full text-base font-semibold text-white bg-gradient-to-r ${currentWard.bgGradient}`}>
                       {queuePatients.length} waiting
                     </span>
                   </div>
@@ -3205,13 +3190,13 @@ socket.current.on('schedule_cancelled', (data) => {
                 </div>
                 
                 {queuePatients.length === 0 ? (
-                  <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                    <span className="text-5xl block mb-4">🛋️</span>
-                    <p className="text-lg text-gray-500 mb-2">No patients waiting</p>
-                    <p className="text-sm text-gray-400">Patients from triage will appear here automatically</p>
+                  <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                    <span className="text-6xl block mb-4">🛋️</span>
+                    <p className="text-xl text-gray-500 mb-2">No patients waiting</p>
+                    <p className="text-base text-gray-400">Patients from triage will appear here automatically</p>
                   </div>
                 ) : (
-                  <div className="grid gap-4">
+                  <div className="grid gap-5">
                     {queuePatients.map(patient => {
                       const priority = getPriorityColor(patient.triage_info?.priority || 'routine');
                       const criticalBP = getCriticalFlag('bp', patient.vitals?.blood_pressure);
@@ -3223,89 +3208,89 @@ socket.current.on('schedule_cancelled', (data) => {
                       return (
                         <div 
                           key={patient.id} 
-                          className={`${hasCritical ? 'border-2 border-red-500 bg-red-50' : 'border border-gray-200 bg-white'} rounded-xl p-5 flex justify-between items-center shadow-sm transition-all cursor-pointer animate-fade-in hover:shadow-lg`}
+                          className={`${hasCritical ? 'border-2 border-red-500 bg-red-50' : 'border border-gray-200 bg-white'} rounded-xl p-6 flex justify-between items-center shadow-sm transition-all cursor-pointer animate-fade-in hover:shadow-lg`}
                           onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.1)'}
                           onMouseLeave={(e) => e.currentTarget.style.boxShadow = hasCritical ? '0 4px 12px rgba(239,68,68,0.1)' : 'none'}
                         >
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-3 flex-wrap">
-                              <span className="font-mono text-sm px-2 py-1 rounded bg-teal-50 text-teal-700">
+                              <span className="font-mono text-sm px-3 py-1.5 rounded bg-teal-50 text-teal-700 font-medium">
                                 {patient.card_number}
                               </span>
-                              <span className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${priority.bg} ${priority.color}`}>
+                              <span className={`px-3 py-1.5 rounded-full text-sm font-semibold flex items-center gap-1.5 ${priority.bg} ${priority.color}`}>
                                 <span>{priority.icon}</span>
                                 {priority.text}
                               </span>
                               {hasCritical && (
-                                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800 animate-pulse">
+                                <span className="px-3 py-1.5 rounded-full text-sm font-semibold bg-red-100 text-red-800 animate-pulse">
                                   ⚠️ CRITICAL VITALS
                                 </span>
                               )}
                               {patient.has_new_results && (
-                                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-500 text-white flex items-center gap-1">
+                                <span className="px-3 py-1.5 rounded-full text-sm font-semibold bg-blue-500 text-white flex items-center gap-1.5">
                                   <span>🔬</span> New Results
                                 </span>
                               )}
                             </div>
                             
-                            <div className="flex items-center gap-4 mb-2 flex-wrap">
-                              <h3 className="text-lg font-semibold m-0 text-gray-800">
+                            <div className="flex items-center gap-4 mb-3 flex-wrap">
+                              <h3 className="text-xl font-semibold m-0 text-gray-800">
                                 {patient.first_name} {patient.middle_name} {patient.last_name}
                               </h3>
-                              <span className="text-sm text-gray-500">
+                              <span className="text-base text-gray-500">
                                 {patient.age} yrs, {patient.gender}
                               </span>
                             </div>
                             
-                            <p className="text-sm text-gray-600 m-0 mb-3">
+                            <p className="text-base text-gray-600 m-0 mb-3">
                               <span className="font-semibold">Complaint:</span> {patient.vitals?.chief_complaint || 'Not recorded'}
                             </p>
                             
                             {patient.vitals ? (
-                              <div className="flex gap-6 text-sm flex-wrap">
+                              <div className="flex gap-8 text-base flex-wrap">
                                 <div>
                                   <span className="text-gray-500">BP:</span>{' '}
-                                  <span className={`font-semibold ${criticalBP ? 'text-red-500' : 'text-gray-900'}`}>
+                                  <span className={`font-semibold ${criticalBP ? 'text-red-500' : 'text-gray-900'} text-base`}>
                                     {patient.vitals?.blood_pressure || 'N/A'}
                                     {criticalBP && ' ⚠️'}
                                   </span>
                                 </div>
                                 <div>
                                   <span className="text-gray-500">Temp:</span>{' '}
-                                  <span className={`font-semibold ${criticalTemp ? 'text-red-500' : 'text-gray-900'}`}>
+                                  <span className={`font-semibold ${criticalTemp ? 'text-red-500' : 'text-gray-900'} text-base`}>
                                     {patient.vitals?.temperature || 'N/A'}°C
                                     {criticalTemp && ' ⚠️'}
                                   </span>
                                 </div>
                                 <div>
                                   <span className="text-gray-500">HR:</span>{' '}
-                                  <span className={`font-semibold ${criticalHR ? 'text-red-500' : 'text-gray-900'}`}>
+                                  <span className={`font-semibold ${criticalHR ? 'text-red-500' : 'text-gray-900'} text-base`}>
                                     {patient.vitals?.heart_rate || 'N/A'}
                                     {criticalHR && ' ⚠️'}
                                   </span>
                                 </div>
                                 <div>
                                   <span className="text-gray-500">O2:</span>{' '}
-                                  <span className={`font-semibold ${criticalO2 ? 'text-red-500' : 'text-gray-900'}`}>
+                                  <span className={`font-semibold ${criticalO2 ? 'text-red-500' : 'text-gray-900'} text-base`}>
                                     {patient.vitals?.oxygen_saturation || 'N/A'}%
                                     {criticalO2 && ' ⚠️'}
                                   </span>
                                 </div>
                                 <div>
                                   <span className="text-gray-500">Pain:</span>{' '}
-                                  <span className="font-semibold text-gray-900">
+                                  <span className="font-semibold text-gray-900 text-base">
                                     {patient.vitals?.pain_level || '0'}/10
                                   </span>
                                 </div>
                               </div>
                             ) : (
-                              <p className="text-xs text-gray-400">No vitals recorded yet</p>
+                              <p className="text-sm text-gray-400">No vitals recorded yet</p>
                             )}
                           </div>
                           
                           <button
                             onClick={() => handleTakePatient(patient)}
-                            className={`py-3 px-7 text-white border-none rounded-xl cursor-pointer text-base font-semibold transition-all shadow-md ml-5 whitespace-nowrap hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r ${currentWard.bgGradient}`}
+                            className={`py-3.5 px-8 text-white border-none rounded-xl cursor-pointer text-base font-semibold transition-all shadow-md ml-5 whitespace-nowrap hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r ${currentWard.bgGradient}`}
                             disabled={loading}
                           >
                             {hasCritical ? '🚨 Take Now' : 'Start Consultation'}
@@ -3319,9 +3304,9 @@ socket.current.on('schedule_cancelled', (data) => {
             </>
           )}
 
-          {/* Reports Inbox View */}
+          {/* Reports Inbox View - Keep existing */}
           {!showDischargeList && reportMainTab === 'inbox' && (
-            <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100">
+            <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 m-8">
               <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-3">
                   <h2 className="text-xl font-semibold text-gray-900 m-0">📬 Reports Inbox</h2>
@@ -3403,9 +3388,9 @@ socket.current.on('schedule_cancelled', (data) => {
             </div>
           )}
 
-          {/* Sent Reports View */}
+          {/* Sent Reports View - Keep existing */}
           {!showDischargeList && reportMainTab === 'sent' && (
-            <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100">
+            <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 m-8">
               <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-3">
                   <h2 className="text-xl font-semibold text-gray-900 m-0">📤 Sent Reports</h2>
@@ -3463,9 +3448,9 @@ socket.current.on('schedule_cancelled', (data) => {
             </div>
           )}
 
-          {/* Profile View */}
+          {/* Profile View - Keep existing */}
           {!showDischargeList && reportMainTab === 'profile' && (
-            <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden m-8">
               {/* Profile Header */}
               <div className="bg-gradient-to-r from-teal-600 to-emerald-600 px-8 py-10">
                 <div className="flex items-center gap-6">
@@ -3668,7 +3653,7 @@ socket.current.on('schedule_cancelled', (data) => {
                   <button onClick={() => setShowPasswordModal(true)} className="flex items-center gap-2 px-5 py-2.5 border border-teal-600 text-teal-600 rounded-xl hover:bg-teal-50 transition text-sm font-medium">
                     <FaKey /> Change Password
                   </button>
-                  <button onClick={handleLogout} className="flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition text-sm font-medium shadow-md">
+                  <button onClick={handleLogoutWithConfirm} className="flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition text-sm font-medium shadow-md">
                     <FaSignOutAlt /> Logout
                   </button>
                 </div>
@@ -3676,20 +3661,22 @@ socket.current.on('schedule_cancelled', (data) => {
             </div>
           )}
 
-          {/* Discharge List View */}
+          {/* Discharge List View - Keep existing */}
           {showDischargeList && (
-            <DischargeList 
-              hospitalId={user?.hospital_id}
-              ward={user?.ward}
-              dischargedPatients={dischargedPatients}
-              onRefresh={fetchDischargedPatients}
-            />
+            <div className="m-8">
+              <DischargeList 
+                hospitalId={user?.hospital_id}
+                ward={user?.ward}
+                dischargedPatients={dischargedPatients}
+                onRefresh={fetchDischargedPatients}
+              />
+            </div>
           )}
         </div>
 
-        {/* Patient Consultation Modal - Keeping all existing functionality */}
+        {/* Patient Consultation Modal - Keep existing (too long to re-write, but it's there) */}
         {showPatientModal && selectedPatient && (
-          // ... (Keep your existing patient consultation modal code here - it's too long but works)
+          // ... Keep existing modal code (unchanged)
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2000] backdrop-blur-sm">
             <div className="bg-white rounded-3xl p-8 max-w-6xl w-[95%] max-h-[90vh] overflow-auto shadow-2xl">
               {/* Modal Header */}
@@ -3710,8 +3697,8 @@ socket.current.on('schedule_cancelled', (data) => {
                 </button>
               </div>
 
-              {/* Patient Info Card */}
-              <div className="bg-gray-50 rounded-2xl p-5 mb-6 grid grid-cols-4 gap-4">
+              {/* Patient Info Card - Increased size */}
+              <div className="bg-gray-50 rounded-2xl p-6 mb-6 grid grid-cols-4 gap-5">
                 <div>
                   <p className="text-xs text-gray-500 m-0 mb-1">Age / Gender</p>
                   <p className="text-base font-semibold m-0">
@@ -3741,7 +3728,7 @@ socket.current.on('schedule_cancelled', (data) => {
                 </div>
               </div>
 
-              {/* Tabs */}
+              {/* Tabs - Increased size */}
               <div className="flex gap-2 mb-6 border-b-2 border-gray-200 pb-3 overflow-x-auto whitespace-nowrap">
                 {[
                   { id: 'details', label: '📋 Diagnosis', icon: '📋' },
@@ -3768,7 +3755,7 @@ socket.current.on('schedule_cancelled', (data) => {
                 ))}
               </div>
 
-              {/* Diagnosis Tab */}
+              {/* Diagnosis Tab - Keep existing content */}
               {activeTab === 'details' && (
                 <div>
                   <h3 className="text-lg font-semibold mb-5">Diagnosis</h3>
@@ -3838,6 +3825,7 @@ socket.current.on('schedule_cancelled', (data) => {
                 </div>
               )}
 
+              {/* Other tabs remain the same - keeping the original code for brevity since they're unchanged */}
               {/* Vitals Tab */}
               {activeTab === 'vitals' && vitals && (
                 <div>
@@ -3880,7 +3868,6 @@ socket.current.on('schedule_cancelled', (data) => {
                 <div>
                   <h3 className="text-lg font-semibold mb-5">Prescriptions</h3>
                   
-                  {/* Add New Medication Form */}
                   <div className="bg-gray-50 p-5 rounded-xl mb-6">
                     <h4 className="text-base font-semibold mb-4">Add Medication</h4>
                     <div className="grid grid-cols-4 gap-3">
@@ -4025,7 +4012,6 @@ socket.current.on('schedule_cancelled', (data) => {
                     </button>
                   </div>
 
-                  {/* Current Prescriptions List */}
                   {prescriptions.length > 0 ? (
                     <div>
                       <h4 className="text-base font-semibold mb-4">Current Prescriptions ({prescriptions.length} items)</h4>
@@ -4381,118 +4367,131 @@ socket.current.on('schedule_cancelled', (data) => {
 
                   {/* Radiology Results Section */}
                   {radiologyResults && radiologyResults.length > 0 ? (
-                    <div className="mt-6">
-                      <h4 className="text-base font-semibold mb-4 flex items-center gap-2">
-                        <span>📷</span> Radiology Results
-                        {radiologyResults.some(r => r.critical) && (
-                          <span className="px-2 py-0.5 bg-red-500 text-white rounded-full text-xs animate-pulse">
-                            Contains Critical Findings
-                          </span>
-                        )}
-                      </h4>
-                      <div className="grid gap-3">
-                        {radiologyResults.map(result => {
-                          console.log('📷 Rendering radiology result:', {
-                            id: result.id,
-                            exam_type: result.exam_type,
-                            images_count: result.images?.length || 0,
-                            images: result.images
+  <div className="mt-6">
+    <h4 className="text-base font-semibold mb-4 flex items-center gap-2">
+      <span>📷</span> Radiology Results
+      {radiologyResults.some(r => r.critical) && (
+        <span className="px-2 py-0.5 bg-red-500 text-white rounded-full text-xs animate-pulse">
+          Contains Critical Findings
+        </span>
+      )}
+    </h4>
+    <div className="grid gap-3">
+      {radiologyResults.map((result, index) => {
+        console.log('📷 Rendering radiology result:', {
+          id: result.id,
+          unique_key: result.unique_key || `rad_${result.request_id}`,
+          exam_type: result.exam_type,
+          images_count: result.images?.length || 0
+        });
+        
+        // ✅ FIX: Use a proper unique key - never use null
+        const uniqueKey = result.id || result.unique_key || `rad_${result.request_id || index}`;
+        
+        return (
+          <div 
+            key={uniqueKey} 
+            className={`border rounded-lg p-4 ${result.critical ? 'border-red-500 bg-red-50' : 'border-gray-200 bg-white'}`}
+          >
+            <div className="flex justify-between items-start mb-2">
+              <div>
+                <p className="font-semibold m-0">
+                  {result.exam_type || result.examType || 'Radiology Exam'}
+                </p>
+                <p className="text-sm text-gray-600 m-0">
+                  Body Part: {result.body_part || result.bodyPart || 'Not specified'}
+                </p>
+              </div>
+              {result.critical && (
+                <span className="bg-red-600 text-white px-3 py-1 rounded-full text-xs font-semibold animate-pulse">
+                  ⚠️ CRITICAL
+                </span>
+              )}
+            </div>
+            
+            <div className="mt-3">
+              <p className="text-sm font-medium text-gray-700 mb-1">Findings:</p>
+              <p className="text-sm m-0 mb-2 whitespace-pre-wrap">
+                {result.findings || result.report?.findings || 'No findings recorded'}
+              </p>
+            </div>
+            
+            {result.impression && (
+              <div className="mt-2">
+                <p className="text-sm font-medium text-gray-700 mb-1">Impression:</p>
+                <p className="text-sm m-0 mb-2">{result.impression}</p>
+              </div>
+            )}
+            
+            {result.recommendations && (
+              <div className="mt-2">
+                <p className="text-sm font-medium text-gray-700 mb-1">Recommendations:</p>
+                <p className="text-sm m-0 mb-2">{result.recommendations}</p>
+              </div>
+            )}
+            
+            {/* IMAGE GALLERY */}
+            {result.images && result.images.length > 0 ? (
+              <div className="mt-3">
+                <p className="text-xs font-medium text-gray-600 mb-2">
+                  📷 Images ({result.images.length}):
+                </p>
+                <div className="flex gap-3 flex-wrap">
+                  {result.images.map((img, idx) => {
+                    let imageUrl = img.url || img;
+                    if (imageUrl && !imageUrl.startsWith('http')) {
+                      imageUrl = `${API_URL}${imageUrl.startsWith('/') ? imageUrl : '/' + imageUrl}`;
+                    }
+                    return (
+                      <div 
+                        key={`${uniqueKey}_img_${idx}`}
+                        className="relative group cursor-pointer"
+                        onClick={() => {
+                          console.log('🔍 Opening image:', imageUrl);
+                          setSelectedImage({
+                            url: imageUrl,
+                            filename: img.filename || img.originalName || `radiology-image-${idx + 1}`,
+                            uploaded_at: img.uploaded_at,
+                            original: img
                           });
-                          
-                          return (
-                            <div key={result.id} className={`border rounded-lg p-4 ${result.critical ? 'border-red-500 bg-red-50' : 'border-gray-200 bg-white'}`}>
-                              <div className="flex justify-between items-start mb-2">
-                                <div>
-                                  <p className="font-semibold m-0">
-                                    {result.exam_type || result.examType || 'Radiology Exam'}
-                                  </p>
-                                  <p className="text-sm text-gray-600 m-0">
-                                    Body Part: {result.body_part || result.bodyPart || 'Not specified'}
-                                  </p>
-                                </div>
-                                {result.critical && (
-                                  <span className="bg-red-600 text-white px-3 py-1 rounded-full text-xs font-semibold animate-pulse">
-                                    ⚠️ CRITICAL
-                                  </span>
-                                )}
-                              </div>
-                              
-                              <div className="mt-3">
-                                <p className="text-sm font-medium text-gray-700 mb-1">Findings:</p>
-                                <p className="text-sm m-0 mb-2 whitespace-pre-wrap">
-                                  {result.findings || result.report?.findings || 'No findings recorded'}
-                                </p>
-                              </div>
-                              
-                              {result.impression && (
-                                <div className="mt-2">
-                                  <p className="text-sm font-medium text-gray-700 mb-1">Impression:</p>
-                                  <p className="text-sm m-0 mb-2">{result.impression}</p>
-                                </div>
-                              )}
-                              
-                              {/* IMAGE GALLERY - FIXED FOR B2 */}
-                              {result.images && result.images.length > 0 ? (
-                                <div className="mt-3">
-                                  <p className="text-xs font-medium text-gray-600 mb-2">
-                                    📷 Images ({result.images.length}):
-                                  </p>
-                                  <div className="flex gap-3 flex-wrap">
-                                    {result.images.map((img, idx) => {
-                                      let imageUrl = img.url || img;
-                                      if (imageUrl && !imageUrl.startsWith('http')) {
-                                        imageUrl = `${API_URL}${imageUrl.startsWith('/') ? imageUrl : '/' + imageUrl}`;
-                                      }
-                                      return (
-                                        <div 
-                                          key={idx} 
-                                          className="relative group cursor-pointer"
-                                          onClick={() => {
-                                            console.log('🔍 Opening image:', imageUrl);
-                                            setSelectedImage({
-                                              url: imageUrl,
-                                              filename: img.filename || img.originalName || `radiology-image-${idx + 1}`,
-                                              uploaded_at: img.uploaded_at,
-                                              original: img
-                                            });
-                                            setShowImageModal(true);
-                                          }}
-                                        >
-                                          <img
-                                            src={imageUrl}
-                                            alt={`Radiology ${idx + 1}`}
-                                            className="w-24 h-24 object-cover rounded-lg border-2 border-gray-200 hover:border-pink-500 transition-all hover:shadow-lg"
-                                            onError={(e) => {
-                                              console.error('❌ Failed to load image:', imageUrl);
-                                              e.target.onerror = null;
-                                              e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="%23ef4444" stroke-width="1.5"%3E%3Crect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"%3E%3C/rect%3E%3Ccircle cx="8.5" cy="8.5" r="1.5"%3E%3C/circle%3E%3Cpolyline points="21 15 16 10 5 21"%3E%3C/polyline%3E%3C/svg%3E';
-                                              e.target.style.objectFit = 'contain';
-                                              e.target.style.padding = '20px';
-                                            }}
-                                          />
-                                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-                                            <span className="text-white text-xs font-medium">🔍 Click to view</span>
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="mt-3 p-3 bg-gray-50 rounded-lg text-center">
-                                  <p className="text-xs text-gray-500">No images attached to this report</p>
-                                </div>
-                              )}
-                              
-                              <p className="text-[11px] text-gray-400 mt-3">
-                                Reported by: {result.reported_by || 'Unknown'} at {result.reported_at ? new Date(result.reported_at).toLocaleString() : 'N/A'}
-                              </p>
-                            </div>
-                          );
-                        })}
+                          setShowImageModal(true);
+                        }}
+                      >
+                        <img
+                          src={imageUrl}
+                          alt={`Radiology ${idx + 1}`}
+                          className="w-24 h-24 object-cover rounded-lg border-2 border-gray-200 hover:border-pink-500 transition-all hover:shadow-lg"
+                          onError={(e) => {
+                            console.error('❌ Failed to load image:', imageUrl);
+                            e.target.onerror = null;
+                            e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="%23ef4444" stroke-width="1.5"%3E%3Crect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"%3E%3C/rect%3E%3Ccircle cx="8.5" cy="8.5" r="1.5"%3E%3C/circle%3E%3Cpolyline points="21 15 16 10 5 21"%3E%3C/polyline%3E%3C/svg%3E';
+                            e.target.style.objectFit = 'contain';
+                            e.target.style.padding = '20px';
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                          <span className="text-white text-xs font-medium">🔍 Click to view</span>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="mt-3 p-3 bg-gray-50 rounded-lg text-center">
+                <p className="text-xs text-gray-500">No images attached to this report</p>
+              </div>
+            )}
+            
+            <p className="text-[11px] text-gray-400 mt-3">
+              Reported by: {result.reported_by || 'Unknown'} at {result.reported_at ? new Date(result.reported_at).toLocaleString() : 'N/A'}
+            </p>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+) : null} : (
                     <div className="mt-6 p-8 bg-gray-50 rounded-lg text-center border-2 border-dashed border-gray-200">
                       <span className="text-4xl block mb-3">📷</span>
                       <p className="text-gray-500">No radiology results available yet</p>
@@ -4625,7 +4624,7 @@ socket.current.on('schedule_cancelled', (data) => {
           </div>
         )}
 
-        {/* Discharge Location Modal */}
+        {/* Discharge Location Modal - Keep existing */}
         {showDischargeLocationModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2100] backdrop-blur-sm">
             <div className="bg-white rounded-3xl p-8 max-w-md w-[90%]">
@@ -4680,7 +4679,7 @@ socket.current.on('schedule_cancelled', (data) => {
           </div>
         )}
 
-        {/* Referral Modal */}
+        {/* Referral Modal - Keep existing */}
         {showReferralModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2100] backdrop-blur-sm">
             <div className="bg-white rounded-3xl p-8 max-w-lg w-[90%] max-h-[80vh] overflow-auto">
@@ -4824,7 +4823,7 @@ socket.current.on('schedule_cancelled', (data) => {
           </div>
         )}
 
-        {/* Bed Selection Notification Modal */}
+        {/* Bed Selection Notification Modal - Keep existing */}
         {showBedListNotification && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2100] backdrop-blur-sm">
             <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
@@ -4903,7 +4902,7 @@ socket.current.on('schedule_cancelled', (data) => {
           </div>
         )}
 
-        {/* Image Viewer Modal */}
+        {/* Image Viewer Modal - Keep existing */}
         {showImageModal && selectedImage && (
           <div 
             className="fixed inset-0 bg-black/95 flex items-center justify-center z-[9999] backdrop-blur-sm"
@@ -4984,7 +4983,7 @@ socket.current.on('schedule_cancelled', (data) => {
           </div>
         )}
 
-        {/* Change Password Modal */}
+        {/* Change Password Modal - Keep existing */}
         {showPasswordModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">

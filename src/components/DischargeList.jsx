@@ -8,7 +8,7 @@ const DischargeList = ({ hospitalId, ward, dischargedPatients = [], onRefresh })
   const [localDischarges, setLocalDischarges] = useState([]);
   const [expandedPatient, setExpandedPatient] = useState(null);
 
-  const API_URL = 'http://localhost:5001';
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
   // Use either props or fetch locally
   useEffect(() => {

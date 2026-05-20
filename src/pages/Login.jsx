@@ -8,7 +8,6 @@ import {
 } from 'react-icons/fa';
 
 // ==================== BACKEND URL ====================
-// Automatically uses localhost in development, deployed URL in production
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 
   (import.meta.env.PROD ? 'https://health-backend-2-gqv6.onrender.com' : 'http://localhost:5001');
 const API_URL = `${BACKEND_URL}/api`;
@@ -272,13 +271,6 @@ const Login = () => {
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 via-blue-50 to-gray-200 relative overflow-hidden">
-      
-      {/* Show current API URL in development */}
-      {process.env.NODE_ENV !== 'production' && (
-        <div className="fixed top-16 left-0 right-0 z-50 bg-yellow-500 text-black text-center py-1 px-4 text-xs">
-          API: {API_URL}
-        </div>
-      )}
       
       <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${
         scrolled 
