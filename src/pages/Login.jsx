@@ -8,10 +8,8 @@ import {
 } from 'react-icons/fa';
 
 // ==================== BACKEND URL ====================
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 
-  (import.meta.env.PROD ? 'https://health-backend-2-gqv6.onrender.com' : 'http://localhost:5001');
+const BACKEND_URL = 'https://health-backend-2-gqv6.onrender.com';
 const API_URL = `${BACKEND_URL}/api`;
-
 const Login = () => {
   const [scrolled, setScrolled] = useState(false);
   const [email, setEmail] = useState('');
@@ -217,7 +215,7 @@ const Login = () => {
       const response = await axios.post(`${API_URL}/auth/forgot-password`, {
         email: resetEmail
       });
-      
+       
       if (response.data.success) {
         setResetMessage("✅ Password reset link sent to your email!");
         setTimeout(() => {
