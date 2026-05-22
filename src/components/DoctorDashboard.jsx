@@ -4499,7 +4499,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
                         Results will appear here when radiology department completes the exam
                       </p>
                     </div>
-                  )}
+                  )
                 </div>
               )}
 
