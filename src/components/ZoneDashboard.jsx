@@ -737,13 +737,13 @@ const ZoneDashboard = ({ user, onLogout }) => {
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.1, type: 'spring' }}
-                className="w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-purple-100"
+                className="w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-blue-100"
               >
                 {realTimeNotification.type === 'reply' ? '💬' : '📬'}
               </motion.div>
             </div>
             <div className="flex-1">
-              <p className="text-sm font-bold text-gray-900">{realTimeNotification.title}</p>
+              <p className="text-base font-bold text-gray-900">{realTimeNotification.title}</p>
               <p className="text-sm text-gray-600">{realTimeNotification.message}</p>
               <p className="text-xs text-gray-400 mt-1">{new Date(realTimeNotification.timestamp).toLocaleTimeString()}</p>
             </div>
@@ -756,14 +756,14 @@ const ZoneDashboard = ({ user, onLogout }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-indigo-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-blue-50">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           className="text-center"
         >
-          <FaSpinner className="animate-spin text-4xl text-purple-600 mx-auto mb-3" />
+          <FaSpinner className="animate-spin text-4xl text-blue-600 mx-auto mb-3" />
           <p className="text-gray-600 text-lg">Loading Dashboard...</p>
         </motion.div>
       </div>
@@ -771,7 +771,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-50 flex">
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-blue-50 flex">
       <RealTimeNotification />
 
       {/* Logout Confirmation Modal */}
@@ -814,12 +814,12 @@ const ZoneDashboard = ({ user, onLogout }) => {
         )}
       </AnimatePresence>
 
-      {/* Sidebar - Purple/Indigo Colors Only (3 colors) */}
+      {/* Sidebar - Blue/Black Color */}
       <motion.div 
         initial={{ x: -250 }}
         animate={{ x: 0 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className={`bg-gradient-to-b from-purple-800 to-purple-700 text-white transition-all duration-300 ${sidebarCollapsed ? 'w-20' : 'w-64'} shadow-2xl relative z-10`}
+        className={`bg-gradient-to-b from-gray-900 to-blue-900 text-white transition-all duration-300 ${sidebarCollapsed ? 'w-20' : 'w-64'} shadow-2xl relative z-10`}
       >
         <div className="p-4">
           <div className="flex items-center justify-between mb-8">
@@ -829,16 +829,16 @@ const ZoneDashboard = ({ user, onLogout }) => {
                 animate={{ opacity: 1 }}
                 className="flex items-center gap-2"
               >
-                <div className="w-8 h-8 bg-gradient-to-r from-purple-400 to-indigo-400 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
                   <FaCity className="text-white text-sm" />
                 </div>
                 <span className="font-bold text-base">Zone Admin</span>
               </motion.div>
             )}
-            {sidebarCollapsed && <div className="w-8 h-8 bg-gradient-to-r from-purple-400 to-indigo-400 rounded-lg flex items-center justify-center mx-auto"><FaCity className="text-white text-sm" /></div>}
+            {sidebarCollapsed && <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mx-auto"><FaCity className="text-white text-sm" /></div>}
             <button 
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)} 
-              className="p-2 hover:bg-purple-600 rounded-lg transition"
+              className="p-2 hover:bg-blue-800 rounded-lg transition"
             >
               {sidebarCollapsed ? <FaChevronRight className="text-lg" /> : <FaChevronLeft className="text-lg" />}
             </button>
@@ -846,19 +846,19 @@ const ZoneDashboard = ({ user, onLogout }) => {
           <nav className="space-y-1">
             <button 
               onClick={() => { setActiveTab('dashboard'); setShowConversationView(false); }} 
-              className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition ${activeTab === 'dashboard' ? 'bg-gradient-to-r from-purple-500 to-indigo-500 shadow-lg' : 'hover:bg-purple-600'}`}
+              className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition ${activeTab === 'dashboard' ? 'bg-gradient-to-r from-blue-600 to-cyan-600 shadow-lg' : 'hover:bg-blue-800'}`}
             >
               <FaHome className="text-lg" /> {!sidebarCollapsed && <span className="text-sm font-medium">Dashboard</span>}
             </button>
             <button 
               onClick={() => { setActiveTab('woredas'); setShowConversationView(false); }} 
-              className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition ${activeTab === 'woredas' ? 'bg-gradient-to-r from-purple-500 to-indigo-500 shadow-lg' : 'hover:bg-purple-600'}`}
+              className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition ${activeTab === 'woredas' ? 'bg-gradient-to-r from-blue-600 to-cyan-600 shadow-lg' : 'hover:bg-blue-800'}`}
             >
               <FaMapMarkerAlt className="text-lg" /> {!sidebarCollapsed && <span className="text-sm font-medium">Woredas</span>}
             </button>
             <button 
               onClick={() => { setActiveTab('inbox'); fetchDashboardData(); setShowConversationView(false); }} 
-              className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition relative ${activeTab === 'inbox' ? 'bg-gradient-to-r from-purple-500 to-indigo-500 shadow-lg' : 'hover:bg-purple-600'}`}
+              className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition relative ${activeTab === 'inbox' ? 'bg-gradient-to-r from-blue-600 to-cyan-600 shadow-lg' : 'hover:bg-blue-800'}`}
             >
               <FaInbox className="text-lg" /> {!sidebarCollapsed && <span className="text-sm font-medium">Inbox</span>}
               {unreadCount > 0 && (
@@ -873,13 +873,13 @@ const ZoneDashboard = ({ user, onLogout }) => {
             </button>
             <button 
               onClick={() => { setActiveTab('outbox'); setShowConversationView(false); }} 
-              className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition ${activeTab === 'outbox' ? 'bg-gradient-to-r from-purple-500 to-indigo-500 shadow-lg' : 'hover:bg-purple-600'}`}
+              className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition ${activeTab === 'outbox' ? 'bg-gradient-to-r from-blue-600 to-cyan-600 shadow-lg' : 'hover:bg-blue-800'}`}
             >
               <FaPaperPlane className="text-lg" /> {!sidebarCollapsed && <span className="text-sm font-medium">Sent Reports</span>}
             </button>
             <button 
               onClick={() => { setActiveTab('profile'); setShowConversationView(false); }} 
-              className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition ${activeTab === 'profile' ? 'bg-gradient-to-r from-purple-500 to-indigo-500 shadow-lg' : 'hover:bg-purple-600'}`}
+              className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition ${activeTab === 'profile' ? 'bg-gradient-to-r from-blue-600 to-cyan-600 shadow-lg' : 'hover:bg-blue-800'}`}
             >
               <FaUserCircle className="text-lg" /> {!sidebarCollapsed && <span className="text-sm font-medium">Profile</span>}
             </button>
@@ -898,11 +898,23 @@ const ZoneDashboard = ({ user, onLogout }) => {
           <div className="px-6 py-4">
             <div className="flex justify-between items-center">
               <div>
+                {/* Back Icon Button */}
+                {showConversationView && (
+                  <motion.button
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    onClick={() => { setShowConversationView(false); setConversationThread([]); setCurrentConversationId(null); }}
+                    className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition mr-4"
+                  >
+                    <FaArrowLeft className="text-xl" />
+                    <span className="text-sm font-medium">Back</span>
+                  </motion.button>
+                )}
                 <motion.h1 
                   initial={{ x: -20, opacity: 0 }}
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ delay: 0.1 }}
-                  className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent"
+                  className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent"
                 >
                   {showConversationView ? 'Conversation Thread' : (
                     activeTab === 'dashboard' ? 'Zone Dashboard' :
@@ -965,15 +977,15 @@ const ZoneDashboard = ({ user, onLogout }) => {
               exit={{ opacity: 0, y: -20 }}
               className="absolute right-6 top-20 w-80 bg-white rounded-xl shadow-2xl z-50 border border-gray-100 overflow-hidden"
             >
-              <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-purple-50 to-indigo-50">
+              <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-blue-50 to-cyan-50">
                 <h3 className="font-semibold text-gray-800">Notifications</h3>
-                <button onClick={markAllAsRead} className="text-xs text-purple-600 hover:text-purple-800">Mark all read</button>
+                <button onClick={markAllAsRead} className="text-xs text-blue-600 hover:text-blue-800">Mark all read</button>
               </div>
               <div className="max-h-80 overflow-y-auto">
                 {notifications.length > 0 ? notifications.map((notif) => (
                   <div 
                     key={notif.id} 
-                    className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition ${!notif.is_read ? 'bg-purple-50' : ''} ${notif.priority === 'urgent' ? 'border-l-4 border-red-500' : ''}`} 
+                    className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition ${!notif.is_read ? 'bg-blue-50' : ''} ${notif.priority === 'urgent' ? 'border-l-4 border-red-500' : ''}`} 
                     onClick={() => markNotificationAsRead(notif.id)}
                   >
                     <p className="text-sm font-medium text-gray-800">{notif.title}</p>
@@ -1000,7 +1012,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
               transition={{ duration: 0.5 }}
               className="mb-6"
             >
-              <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-6 text-white shadow-lg">
+              <div className="bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl p-6 text-white shadow-lg">
                 <div className="flex items-center gap-4">
                   <motion.div 
                     initial={{ scale: 0, rotate: -180 }}
@@ -1023,7 +1035,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                       initial={{ x: -20, opacity: 0 }}
                       animate={{ x: 0, opacity: 1 }}
                       transition={{ delay: 0.4 }}
-                      className="text-purple-100 text-sm"
+                      className="text-blue-100 text-sm"
                     >
                       Manage woredas, track reports, and monitor activities in {profileData.zone_name} Zone
                     </motion.p>
@@ -1041,12 +1053,12 @@ const ZoneDashboard = ({ user, onLogout }) => {
               transition={{ type: 'spring' }}
               className="bg-white rounded-2xl shadow-xl overflow-hidden"
             >
-              <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-4 flex justify-between items-center">
+              <div className="bg-gradient-to-r from-blue-600 to-cyan-600 px-6 py-4 flex justify-between items-center">
                 <button 
                   onClick={() => { setShowConversationView(false); setConversationThread([]); setCurrentConversationId(null); }} 
-                  className="text-white hover:text-purple-200 flex items-center gap-2 transition"
+                  className="text-white hover:text-blue-200 flex items-center gap-2 transition"
                 >
-                  <FaArrowLeft /> Back
+                  <FaArrowLeft className="text-lg" /> Back
                 </button>
                 <h2 className="text-white font-semibold text-lg">Conversation</h2>
                 <div className="w-20"></div>
@@ -1063,7 +1075,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                     transition={{ delay: idx * 0.05 }}
                     className={`flex ${msg.sender_type === 'zone' ? 'justify-end' : 'justify-start'}`}
                   >
-                    <div className={`max-w-[70%] ${msg.sender_type === 'zone' ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white' : 'bg-white border shadow-sm'} rounded-2xl p-4`}>
+                    <div className={`max-w-[70%] ${msg.sender_type === 'zone' ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white' : 'bg-white border shadow-sm'} rounded-2xl p-4`}>
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-xs font-medium">{msg.sender_name}</span>
                         <span className={`text-xs px-2 py-0.5 rounded-full ${msg.priority === 'urgent' ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-700'}`}>
@@ -1118,7 +1130,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                     value={conversationReplyText} 
                     onChange={(e) => setConversationReplyText(e.target.value)} 
                     placeholder="Type your reply..." 
-                    className="flex-1 px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-purple-500 resize-none" 
+                    className="flex-1 px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 resize-none" 
                     rows="2" 
                   />
                   <div className="flex flex-col gap-2">
@@ -1133,7 +1145,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                     <button 
                       onClick={sendConversationReply} 
                       disabled={uploadingAttachment} 
-                      className="p-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition disabled:opacity-50"
+                      className="p-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:shadow-lg transition disabled:opacity-50"
                     >
                       {uploadingAttachment ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}
                     </button>
@@ -1147,14 +1159,14 @@ const ZoneDashboard = ({ user, onLogout }) => {
             </motion.div>
           )}
 
-          {/* Dashboard Tab - Stats Cards with Purple/Indigo/Teal colors only */}
+          {/* Dashboard Tab - Stats Cards */}
           {activeTab === 'dashboard' && !showConversationView && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
                 {[
-                  { label: 'Inbox', value: stats?.inbox || 0, color: 'purple', icon: <FaInbox /> },
-                  { label: 'Sent Reports', value: stats?.outbox || 0, color: 'indigo', icon: <FaPaperPlane /> },
-                  { label: 'Woredas', value: stats?.totalWoredas || 0, color: 'teal', icon: <FaMapMarkerAlt /> },
+                  { label: 'Inbox', value: stats?.inbox || 0, color: 'blue', icon: <FaInbox /> },
+                  { label: 'Sent Reports', value: stats?.outbox || 0, color: 'cyan', icon: <FaPaperPlane /> },
+                  { label: 'Woredas', value: stats?.totalWoredas || 0, color: 'green', icon: <FaMapMarkerAlt /> },
                   { label: 'Unread', value: unreadCount, color: 'amber', icon: <FaEnvelope /> },
                   { label: 'Urgent', value: urgentCount, color: 'red', icon: <FaExclamationTriangle /> }
                 ].map((item, idx) => (
@@ -1199,7 +1211,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => { setShowReportModal(true); fetchRecipients(); }} 
-                    className="p-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition text-sm font-medium flex items-center justify-center gap-2"
+                    className="p-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:shadow-lg transition text-sm font-medium flex items-center justify-center gap-2"
                   >
                     <FaPaperPlane /> New Report
                   </motion.button>
@@ -1207,7 +1219,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setShowWoredaModal(true)} 
-                    className="p-4 bg-gradient-to-r from-teal-600 to-teal-600 text-white rounded-xl hover:shadow-lg transition text-sm font-medium flex items-center justify-center gap-2"
+                    className="p-4 bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-xl hover:shadow-lg transition text-sm font-medium flex items-center justify-center gap-2"
                   >
                     <FaPlus /> Add Woreda
                   </motion.button>
@@ -1215,7 +1227,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setActiveTab('woredas')} 
-                    className="p-4 bg-gradient-to-r from-indigo-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition text-sm font-medium flex items-center justify-center gap-2"
+                    className="p-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition text-sm font-medium flex items-center justify-center gap-2"
                   >
                     <FaMapMarkerAlt /> View Woredas
                   </motion.button>
@@ -1223,7 +1235,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setActiveTab('inbox')} 
-                    className="p-4 bg-gradient-to-r from-purple-600 to-purple-600 text-white rounded-xl hover:shadow-lg transition text-sm font-medium flex items-center justify-center gap-2"
+                    className="p-4 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-xl hover:shadow-lg transition text-sm font-medium flex items-center justify-center gap-2"
                   >
                     <FaInbox /> View Inbox
                   </motion.button>
@@ -1241,7 +1253,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
             >
               <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
                 <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                  <FaMapMarkerAlt className="text-purple-600" /> Woreda Administration
+                  <FaMapMarkerAlt className="text-blue-600" /> Woreda Administration
                 </h2>
                 <div className="flex gap-3">
                   <div className="relative">
@@ -1250,11 +1262,11 @@ const ZoneDashboard = ({ user, onLogout }) => {
                       placeholder="Search woredas..." 
                       value={searchTerm} 
                       onChange={(e) => setSearchTerm(e.target.value)} 
-                      className="pl-10 pr-4 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-purple-500 w-64" 
+                      className="pl-10 pr-4 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 w-64" 
                     />
                     <FaSearch className="absolute left-3 top-3 text-gray-400 text-sm" />
                   </div>
-                  <button onClick={() => setShowWoredaModal(true)} className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition text-sm font-medium flex items-center gap-2">
+                  <button onClick={() => setShowWoredaModal(true)} className="px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:shadow-lg transition text-sm font-medium flex items-center gap-2">
                     <FaPlus /> Add Woreda
                   </button>
                 </div>
@@ -1265,7 +1277,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                   <div className="text-center py-12">
                     <FaMapMarkerAlt className="text-6xl text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-500">No woredas found</p>
-                    <button onClick={() => setShowWoredaModal(true)} className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                    <button onClick={() => setShowWoredaModal(true)} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                       Add Your First Woreda
                     </button>
                   </div>
@@ -1280,12 +1292,12 @@ const ZoneDashboard = ({ user, onLogout }) => {
                     className="border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition"
                   >
                     <div 
-                      className="bg-gradient-to-r from-gray-50 to-purple-50 p-5 cursor-pointer hover:from-gray-100 hover:to-purple-100 transition flex justify-between items-center"
+                      className="bg-gradient-to-r from-gray-50 to-blue-50 p-5 cursor-pointer hover:from-gray-100 hover:to-blue-100 transition flex justify-between items-center"
                       onClick={() => fetchWoredaKebeles(woreda.id)}
                     >
                       <div className="flex items-center gap-4">
                         <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-md">
-                          <FaMapMarkerAlt className="text-purple-600 text-2xl" />
+                          <FaMapMarkerAlt className="text-blue-600 text-2xl" />
                         </div>
                         <div>
                           <h3 className="font-bold text-gray-800 text-lg">{woreda.woreda_name}</h3>
@@ -1301,11 +1313,11 @@ const ZoneDashboard = ({ user, onLogout }) => {
                       <div className="flex items-center gap-3">
                         {woredaKebeles[woreda.id] && (
                           <div className="text-right">
-                            <p className="text-sm font-bold text-purple-600">{woredaKebeles[woreda.id].totalKebeles} Kebeles</p>
+                            <p className="text-sm font-bold text-blue-600">{woredaKebeles[woreda.id].totalKebeles} Kebeles</p>
                           </div>
                         )}
                         {loadingKebeles[woreda.id] ? (
-                          <FaSpinner className="animate-spin text-purple-600 text-xl" />
+                          <FaSpinner className="animate-spin text-blue-600 text-xl" />
                         ) : (
                           expandedWoreda === woreda.id ? <FaChevronUp className="text-gray-500 text-xl" /> : <FaChevronDown className="text-gray-500 text-xl" />
                         )}
@@ -1320,7 +1332,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                         className="p-5 bg-gray-50 border-t"
                       >
                         <h4 className="font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                          <FaCity className="text-purple-600" /> Kebeles in {woreda.woreda_name}
+                          <FaCity className="text-blue-600" /> Kebeles in {woreda.woreda_name}
                         </h4>
                         {woredaKebeles[woreda.id].kebeles.length === 0 && (
                           <div className="text-center py-8">
@@ -1338,13 +1350,13 @@ const ZoneDashboard = ({ user, onLogout }) => {
                               className="bg-white rounded-xl p-4 shadow-sm border hover:shadow-md transition"
                             >
                               <div className="flex items-start gap-3">
-                                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-100 to-indigo-100 flex items-center justify-center">
-                                  <FaCity className="text-purple-600 text-xl" />
+                                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-100 to-cyan-100 flex items-center justify-center">
+                                  <FaCity className="text-blue-600 text-xl" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <h4 className="font-semibold text-gray-800 truncate">{kebele.kebele_name}</h4>
                                   <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                    <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                                    <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
                                       {kebele.status === 'active' ? 'Active' : 'Inactive'}
                                     </span>
                                   </div>
@@ -1361,7 +1373,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                         <div className="flex justify-end mt-4 pt-4 border-t">
                           <button 
                             onClick={(e) => { e.stopPropagation(); viewWoredaDetails(woreda); }}
-                            className="px-4 py-2 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:shadow-md transition flex items-center gap-2"
+                            className="px-4 py-2 text-sm bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:shadow-md transition flex items-center gap-2"
                           >
                             <FaEye /> View Woreda Details
                           </button>
@@ -1370,7 +1382,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                     )}
                     {expandedWoreda === woreda.id && loadingKebeles[woreda.id] && (
                       <div className="p-8 text-center bg-gray-50">
-                        <FaSpinner className="animate-spin text-2xl text-purple-600 mx-auto mb-2" />
+                        <FaSpinner className="animate-spin text-2xl text-blue-600 mx-auto mb-2" />
                         <p className="text-sm text-gray-500">Loading kebeles...</p>
                       </div>
                     )}
@@ -1389,9 +1401,9 @@ const ZoneDashboard = ({ user, onLogout }) => {
             >
               <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
                 <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                  <FaInbox className="text-purple-600" /> Inbox
+                  <FaInbox className="text-blue-600" /> Inbox
                 </h2>
-                <button onClick={() => { setShowReportModal(true); fetchRecipients(); }} className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition text-sm font-medium flex items-center gap-2">
+                <button onClick={() => { setShowReportModal(true); fetchRecipients(); }} className="px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:shadow-lg transition text-sm font-medium flex items-center gap-2">
                   <FaPlus /> New Report
                 </button>
               </div>
@@ -1408,12 +1420,12 @@ const ZoneDashboard = ({ user, onLogout }) => {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: idx * 0.05 }}
-                    className={`border rounded-xl p-5 cursor-pointer hover:shadow-md transition ${!report.is_opened ? 'border-purple-300 bg-purple-50' : 'border-gray-200 bg-white'}`} 
+                    className={`border rounded-xl p-5 cursor-pointer hover:shadow-md transition ${!report.is_opened ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-white'}`} 
                     onClick={() => viewReportDetails(report)}
                   >
                     <div className="flex justify-between items-start flex-wrap gap-2">
                       <div className="flex items-center gap-2">
-                        {!report.is_opened ? <FaEnvelope className="text-purple-500" /> : <FaEnvelopeOpen className="text-gray-400" />}
+                        {!report.is_opened ? <FaEnvelope className="text-blue-500" /> : <FaEnvelopeOpen className="text-gray-400" />}
                         <h3 className="font-semibold text-gray-800 text-lg">{report.title}</h3>
                       </div>
                       <span className={`text-xs px-2 py-1 rounded-full ${getPriorityBadge(report.priority)}`}>
@@ -1444,7 +1456,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
               className="bg-white rounded-2xl shadow-xl p-6"
             >
               <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 mb-6">
-                <FaPaperPlane className="text-purple-600" /> Sent Reports
+                <FaPaperPlane className="text-blue-600" /> Sent Reports
               </h2>
               <div className="space-y-4">
                 {outbox.length === 0 && (
@@ -1491,7 +1503,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
               animate={{ opacity: 1, scale: 1 }}
               className="bg-white rounded-2xl shadow-xl overflow-hidden"
             >
-              <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-8 py-10">
+              <div className="bg-gradient-to-r from-blue-600 to-cyan-600 px-8 py-10">
                 <div className="flex items-center gap-6">
                   <motion.div 
                     initial={{ scale: 0 }}
@@ -1500,12 +1512,12 @@ const ZoneDashboard = ({ user, onLogout }) => {
                     className="relative"
                   >
                     <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-xl">
-                      <FaUserCircle className="text-purple-600 text-6xl" />
+                      <FaUserCircle className="text-blue-600 text-6xl" />
                     </div>
                   </motion.div>
                   <div className="text-white">
                     <h2 className="text-2xl font-bold">{profileData.first_name} {profileData.last_name}</h2>
-                    <p className="text-purple-100">{profileData.zone_name} Zone</p>
+                    <p className="text-blue-100">{profileData.zone_name} Zone</p>
                   </div>
                 </div>
               </div>
@@ -1513,7 +1525,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                 <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
                   <h3 className="text-lg font-bold text-gray-800">Zone Administrator Information</h3>
                   {!isEditingProfile ? (
-                    <button onClick={() => setIsEditingProfile(true)} className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition">
+                    <button onClick={() => setIsEditingProfile(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition">
                       <FaEdit /> Edit Profile
                     </button>
                   ) : (
@@ -1521,7 +1533,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                       <button onClick={() => { setIsEditingProfile(false); setProfileErrors({}); }} className="px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition">
                         Cancel
                       </button>
-                      <button onClick={updateProfile} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition">
+                      <button onClick={updateProfile} className="flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white rounded-xl hover:bg-cyan-700 transition">
                         <FaSave /> Save
                       </button>
                     </div>
@@ -1529,7 +1541,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="bg-gray-50 rounded-xl p-6">
-                    <h4 className="font-semibold text-purple-600 mb-4">Personal Info</h4>
+                    <h4 className="font-semibold text-blue-600 mb-4">Personal Info</h4>
                     <div className="space-y-3">
                       <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -1542,7 +1554,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                                 const value = e.target.value.replace(/[^A-Za-z\s\-']/g, '');
                                 setProfileData({...profileData, first_name: value});
                               }} 
-                              className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 ${profileErrors.first_name ? 'border-red-500' : 'border-gray-300'}`}
+                              className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 ${profileErrors.first_name ? 'border-red-500' : 'border-gray-300'}`}
                             /> : 
                             <p className="font-medium text-gray-800">{profileData.first_name || 'Not set'}</p>
                           }
@@ -1558,7 +1570,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                                 const value = e.target.value.replace(/[^A-Za-z\s\-']/g, '');
                                 setProfileData({...profileData, last_name: value});
                               }} 
-                              className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 ${profileErrors.last_name ? 'border-red-500' : 'border-gray-300'}`}
+                              className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 ${profileErrors.last_name ? 'border-red-500' : 'border-gray-300'}`}
                             /> : 
                             <p className="font-medium text-gray-800">{profileData.last_name || 'Not set'}</p>
                           }
@@ -1579,7 +1591,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                               let value = e.target.value.replace(/[^\d\s\-\(\)\+]/g, '');
                               setProfileData({...profileData, phone: value});
                             }} 
-                            className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 ${profileErrors.phone ? 'border-red-500' : 'border-gray-300'}`}
+                            className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 ${profileErrors.phone ? 'border-red-500' : 'border-gray-300'}`}
                             placeholder="10-14 digits"
                           /> : 
                           <p>{profileData.phone || 'Not set'}</p>
@@ -1598,7 +1610,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                                 setProfileData({...profileData, age: value});
                               }
                             }} 
-                            className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 ${profileErrors.age ? 'border-red-500' : 'border-gray-300'}`}
+                            className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 ${profileErrors.age ? 'border-red-500' : 'border-gray-300'}`}
                             placeholder="18-100"
                           /> : 
                           <p className="font-medium text-gray-800">{profileData.age || 'Not set'}</p>
@@ -1611,7 +1623,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                           <select 
                             value={profileData.gender} 
                             onChange={(e) => setProfileData({...profileData, gender: e.target.value})}
-                            className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                            className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                           >
                             <option value="">Select Gender</option>
                             <option value="Male">Male</option>
@@ -1625,8 +1637,8 @@ const ZoneDashboard = ({ user, onLogout }) => {
                     </div>
                   </div>
                   <div className="bg-gray-50 rounded-xl p-6">
-                    <h4 className="font-semibold text-purple-600 mb-4">Account Security</h4>
-                    <button onClick={() => setShowPasswordModal(true)} className="flex items-center gap-2 px-4 py-2 border border-purple-600 text-purple-600 rounded-xl hover:bg-purple-50 transition">
+                    <h4 className="font-semibold text-blue-600 mb-4">Account Security</h4>
+                    <button onClick={() => setShowPasswordModal(true)} className="flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 rounded-xl hover:bg-blue-50 transition">
                       <FaKey /> Change Password
                     </button>
                   </div>
@@ -1668,7 +1680,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                       placeholder="e.g., Addis Ketema Woreda" 
                       value={woredaFormData.woreda_name} 
                       onChange={handleWoredaInputChange}
-                      className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-purple-500 ${woredaFormErrors.woreda_name ? 'border-red-500' : 'border-gray-300'}`}
+                      className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 ${woredaFormErrors.woreda_name ? 'border-red-500' : 'border-gray-300'}`}
                       required 
                     />
                     {woredaFormErrors.woreda_name && <p className="text-red-500 text-xs mt-1">{woredaFormErrors.woreda_name}</p>}
@@ -1682,7 +1694,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                       placeholder="First name" 
                       value={woredaFormData.first_name} 
                       onChange={handleWoredaInputChange}
-                      className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-purple-500 ${woredaFormErrors.first_name ? 'border-red-500' : 'border-gray-300'}`}
+                      className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 ${woredaFormErrors.first_name ? 'border-red-500' : 'border-gray-300'}`}
                       required 
                     />
                     {woredaFormErrors.first_name && <p className="text-red-500 text-xs mt-1">{woredaFormErrors.first_name}</p>}
@@ -1696,7 +1708,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                       placeholder="Middle name" 
                       value={woredaFormData.middle_name} 
                       onChange={handleWoredaInputChange}
-                      className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-purple-500 ${woredaFormErrors.middle_name ? 'border-red-500' : 'border-gray-300'}`}
+                      className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 ${woredaFormErrors.middle_name ? 'border-red-500' : 'border-gray-300'}`}
                     />
                     {woredaFormErrors.middle_name && <p className="text-red-500 text-xs mt-1">{woredaFormErrors.middle_name}</p>}
                   </div>
@@ -1709,7 +1721,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                       placeholder="Last name" 
                       value={woredaFormData.last_name} 
                       onChange={handleWoredaInputChange}
-                      className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-purple-500 ${woredaFormErrors.last_name ? 'border-red-500' : 'border-gray-300'}`}
+                      className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 ${woredaFormErrors.last_name ? 'border-red-500' : 'border-gray-300'}`}
                       required 
                     />
                     {woredaFormErrors.last_name && <p className="text-red-500 text-xs mt-1">{woredaFormErrors.last_name}</p>}
@@ -1721,7 +1733,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                       name="gender"
                       value={woredaFormData.gender} 
                       onChange={handleWoredaInputChange}
-                      className="w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-purple-500"
+                      className="w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500"
                       required
                     >
                       <option>Male</option>
@@ -1740,7 +1752,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                       onChange={handleWoredaInputChange}
                       min="18"
                       max="100"
-                      className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-purple-500 ${woredaFormErrors.age ? 'border-red-500' : 'border-gray-300'}`}
+                      className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 ${woredaFormErrors.age ? 'border-red-500' : 'border-gray-300'}`}
                       required 
                     />
                     {woredaFormErrors.age && <p className="text-red-500 text-xs mt-1">{woredaFormErrors.age}</p>}
@@ -1754,11 +1766,11 @@ const ZoneDashboard = ({ user, onLogout }) => {
                       placeholder="username@gmail.com" 
                       value={woredaFormData.email} 
                       onChange={handleWoredaInputChange}
-                      className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-purple-500 ${woredaFormErrors.email ? 'border-red-500' : 'border-gray-300'}`}
+                      className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 ${woredaFormErrors.email ? 'border-red-500' : 'border-gray-300'}`}
                       required 
                     />
                     {woredaFormErrors.email && <p className="text-red-500 text-xs mt-1">{woredaFormErrors.email}</p>}
-                    <p className="text-xs text-purple-500 mt-1">⚠️ Only Gmail accounts are allowed (must end with @gmail.com)</p>
+                    <p className="text-xs text-blue-500 mt-1">⚠️ Only Gmail accounts are allowed (must end with @gmail.com)</p>
                   </div>
                   
                   <div>
@@ -1769,7 +1781,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                       placeholder="0912345678 or +251912345678" 
                       value={woredaFormData.phone} 
                       onChange={handleWoredaInputChange}
-                      className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-purple-500 ${woredaFormErrors.phone ? 'border-red-500' : 'border-gray-300'}`}
+                      className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 ${woredaFormErrors.phone ? 'border-red-500' : 'border-gray-300'}`}
                     />
                     {woredaFormErrors.phone && <p className="text-red-500 text-xs mt-1">{woredaFormErrors.phone}</p>}
                     <p className="text-xs text-gray-400 mt-1">10-14 digits only</p>
@@ -1783,7 +1795,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                       placeholder="Password" 
                       value={woredaFormData.password} 
                       onChange={handleWoredaInputChange}
-                      className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-purple-500 ${woredaFormErrors.password ? 'border-red-500' : 'border-gray-300'}`}
+                      className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 ${woredaFormErrors.password ? 'border-red-500' : 'border-gray-300'}`}
                       required 
                       minLength="6"
                     />
@@ -1794,7 +1806,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                   <button type="button" onClick={() => setShowWoredaModal(false)} className="px-5 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition">
                     Cancel
                   </button>
-                  <button type="submit" className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition">
+                  <button type="submit" className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:shadow-lg transition">
                     Create Woreda
                   </button>
                 </div>
@@ -1809,7 +1821,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-800"><FaPaperPlane className="inline mr-2 text-purple-500" /> Send New Report</h2>
+              <h2 className="text-xl font-bold text-gray-800"><FaPaperPlane className="inline mr-2 text-blue-500" /> Send New Report</h2>
               <button onClick={() => setShowReportModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
             </div>
             <form onSubmit={handleSendReport} className="p-6 space-y-4">
@@ -1836,7 +1848,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
               )}
               
               {reportFormData.recipient_type === 'woreda' && (
-                <select value={reportFormData.recipient_id} onChange={(e) => setReportFormData({...reportFormData, recipient_id: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-purple-500" required>
+                <select value={reportFormData.recipient_id} onChange={(e) => setReportFormData({...reportFormData, recipient_id: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500" required>
                   <option value="">Select Woreda Admin</option>
                   {recipients.woredas.map(w => <option key={w.id} value={w.id}>{w.woreda_name} - {w.full_name}</option>)}
                 </select>
@@ -1849,14 +1861,14 @@ const ZoneDashboard = ({ user, onLogout }) => {
                 <option value="urgent">🔴 Urgent</option>
               </select>
               
-              <input type="text" placeholder="Title" value={reportFormData.title} onChange={(e) => setReportFormData({...reportFormData, title: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-purple-500" required />
+              <input type="text" placeholder="Title" value={reportFormData.title} onChange={(e) => setReportFormData({...reportFormData, title: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500" required />
               
-              <textarea placeholder="Message" value={reportFormData.body} onChange={(e) => setReportFormData({...reportFormData, body: e.target.value})} rows="5" className="w-full px-4 py-3 border rounded-xl text-sm resize-none focus:ring-2 focus:ring-purple-500" required />
+              <textarea placeholder="Message" value={reportFormData.body} onChange={(e) => setReportFormData({...reportFormData, body: e.target.value})} rows="5" className="w-full px-4 py-3 border rounded-xl text-sm resize-none focus:ring-2 focus:ring-blue-500" required />
               
               <div className="border rounded-xl p-4">
                 <div className="flex justify-between items-center mb-3">
                   <label className="text-sm font-medium text-gray-700">Attachments</label>
-                  <button type="button" onClick={() => document.getElementById('reportFileInput').click()} className="text-sm text-purple-600 hover:text-purple-800 flex items-center gap-1">
+                  <button type="button" onClick={() => document.getElementById('reportFileInput').click()} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
                     <FaPaperclip /> Add Files
                   </button>
                 </div>
@@ -1883,7 +1895,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                 <button type="button" onClick={() => setShowReportModal(false)} className="px-5 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition">
                   Cancel
                 </button>
-                <button type="submit" className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition">
+                <button type="submit" className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:shadow-lg transition">
                   Send Report
                 </button>
               </div>
@@ -1901,12 +1913,12 @@ const ZoneDashboard = ({ user, onLogout }) => {
               <button onClick={() => { setShowWoredaDetailModal(false); setSelectedWoreda(null); }} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
             </div>
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center">
-                <FaMapMarkerAlt className="text-purple-600 text-2xl" />
+              <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center">
+                <FaMapMarkerAlt className="text-blue-600 text-2xl" />
               </div>
               <div>
                 <h3 className="text-lg font-bold text-gray-800">{selectedWoreda.woreda_name}</h3>
-                <p className="text-purple-600 text-sm">Woreda</p>
+                <p className="text-blue-600 text-sm">Woreda</p>
               </div>
             </div>
             <div className="bg-gray-50 rounded-xl p-5">
@@ -1968,7 +1980,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
                 <p className="text-sm text-gray-600"><span className="font-medium">Status:</span> {selectedReport.status}</p>
               </div>
               <div className="flex gap-3 mt-6 pt-4 border-t">
-                <button onClick={() => fetchConversationThread(selectedReport.id)} className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl flex items-center justify-center gap-2 hover:shadow-lg transition">
+                <button onClick={() => fetchConversationThread(selectedReport.id)} className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl flex items-center justify-center gap-2 hover:shadow-lg transition">
                   <FaComment /> Open Chat
                 </button>
               </div>
@@ -1991,14 +2003,14 @@ const ZoneDashboard = ({ user, onLogout }) => {
                 placeholder="Current Password" 
                 value={passwordData.current_password} 
                 onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})} 
-                className="w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-purple-500" 
+                className="w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500" 
               />
               <input 
                 type="password" 
                 placeholder="New Password (min 6 characters)" 
                 value={passwordData.new_password} 
                 onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})} 
-                className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-purple-500 ${passwordErrors.new_password ? 'border-red-500' : 'border-gray-300'}`}
+                className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 ${passwordErrors.new_password ? 'border-red-500' : 'border-gray-300'}`}
               />
               {passwordErrors.new_password && <p className="text-red-500 text-xs">{passwordErrors.new_password}</p>}
               <input 
@@ -2006,12 +2018,12 @@ const ZoneDashboard = ({ user, onLogout }) => {
                 placeholder="Confirm New Password" 
                 value={passwordData.confirm_password} 
                 onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})} 
-                className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-purple-500 ${passwordErrors.confirm_password ? 'border-red-500' : 'border-gray-300'}`}
+                className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 ${passwordErrors.confirm_password ? 'border-red-500' : 'border-gray-300'}`}
               />
               {passwordErrors.confirm_password && <p className="text-red-500 text-xs">{passwordErrors.confirm_password}</p>}
               <div className="flex justify-end gap-3 pt-4 border-t">
                 <button onClick={() => setShowPasswordModal(false)} className="px-5 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition">Cancel</button>
-                <button onClick={changePassword} className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition">Change Password</button>
+                <button onClick={changePassword} className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:shadow-lg transition">Change Password</button>
               </div>
             </div>
           </div>
