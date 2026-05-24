@@ -4,17 +4,12 @@ import axios from 'axios';
 import { io } from 'socket.io-client';
 import { 
   FaHome, FaGlobe, FaBell, FaUserCircle, FaSignOutAlt,
-  FaInbox, FaPaperPlane, FaHospital, FaChartBar,
-  FaPlus, FaChevronLeft, FaChevronRight, FaEnvelope, FaEnvelopeOpen,
-  FaTimes, FaSpinner, FaUserMd, FaPhone, FaEnvelope as FaEnvelopeIcon,
-  FaHeartbeat, FaEdit, FaSave, FaKey, FaReply, FaEye,
-  FaSearch, FaArrowLeft, FaComment, FaClock, FaExclamationTriangle,
-  FaBuilding, FaCalendarAlt, FaChevronDown, FaChevronUp, 
-  FaUserNurse, FaFlask, FaXRay, FaBaby, FaPills, FaUserTie,
-  FaBed, FaCreditCard, FaVenusMars, FaMars, FaVenus, FaUsers, FaClipboardList,
-  FaSync, FaPaperclip, FaFile, FaFileImage, FaFilePdf, FaFileAlt, FaDownload, FaTrash,
-  FaUniversity, FaLandmark, FaCity, FaMapMarkerAlt, FaFilePowerpoint, FaFileExcel, FaFileWord,
-  FaCalendarWeek, FaCalendarDay, FaRegClock, FaCheckCircle, FaHourglassHalf
+  FaInbox, FaPaperPlane, FaPlus, FaChevronLeft, FaChevronRight, 
+  FaEnvelope, FaEnvelopeOpen, FaTimes, FaSpinner, FaEdit, FaSave, 
+  FaKey, FaReply, FaEye, FaSearch, FaArrowLeft, FaComment, 
+  FaExclamationTriangle, FaChevronDown, FaChevronUp, FaPaperclip, 
+  FaFile, FaFileImage, FaFilePdf, FaFileAlt, FaDownload, FaTrash,
+  FaCity, FaMapMarkerAlt, FaFilePowerpoint, FaFileExcel, FaFileWord
 } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -45,13 +40,6 @@ const FederalDashboard = ({ user, onLogout }) => {
   const [socketConnectionStatus, setSocketConnectionStatus] = useState('connecting');
   const [realTimeNotification, setRealTimeNotification] = useState(null);
   const socketRef = useRef(null);
-  
-  // Schedule states
-  const [schedules, setSchedules] = useState([]);
-  const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [scheduleFormData, setScheduleFormData] = useState({
-    title: '', description: '', date: '', time: '', priority: 'medium', recipient_id: ''
-  });
   
   // Chat-like conversation states
   const [showConversationView, setShowConversationView] = useState(false);
@@ -153,31 +141,25 @@ const FederalDashboard = ({ user, onLogout }) => {
     return Object.keys(errors).filter(key => errors[key] !== null).length === 0;
   };
 
-  // Handle region form input change with validation
   const handleRegionInputChange = (e) => {
     const { name, value } = e.target;
     let processedValue = value;
     
-    // Name fields: only allow letters
     if (name === 'first_name' || name === 'last_name' || name === 'middle_name' || name === 'region_name') {
       processedValue = value.replace(/[^A-Za-z\s\-']/g, '');
     }
-    // Age: only allow numbers
     if (name === 'age') {
       processedValue = value.replace(/[^0-9]/g, '');
     }
-    // Phone: allow numbers, spaces, dashes, plus, parentheses
     if (name === 'phone') {
       processedValue = value.replace(/[^\d\s\-\(\)\+]/g, '');
     }
-    // Email: auto lowercase
     if (name === 'email') {
       processedValue = value.toLowerCase();
     }
     
     setRegionFormData({ ...regionFormData, [name]: processedValue });
     
-    // Clear error for this field
     if (regionFormErrors[name]) {
       setRegionFormErrors({ ...regionFormErrors, [name]: null });
     }
@@ -241,13 +223,12 @@ const FederalDashboard = ({ user, onLogout }) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const [statsRes, inboxRes, outboxRes, regionsRes, notifRes, schedulesRes] = await Promise.all([
+      const [statsRes, inboxRes, outboxRes, regionsRes, notifRes] = await Promise.all([
         axios.get(`${API_URL}/api/federal/dashboard/stats`, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(`${API_URL}/api/federal/reports/inbox?page=${currentPage}&search=${searchTerm}`, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(`${API_URL}/api/federal/reports/outbox?page=${currentPage}`, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(`${API_URL}/api/federal/regions`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/federal/notifications?limit=5`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/federal/schedules`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { success: true, schedules: [] } }))
+        axios.get(`${API_URL}/api/federal/notifications?limit=5`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
 
       if (statsRes.data.success) setStats(statsRes.data.stats);
@@ -260,7 +241,6 @@ const FederalDashboard = ({ user, onLogout }) => {
       if (outboxRes.data.success) setOutbox(outboxRes.data.reports || []);
       if (regionsRes.data.success) setRegions(regionsRes.data.regions || []);
       if (notifRes.data.success) setNotifications(notifRes.data.notifications || []);
-      if (schedulesRes.data.success) setSchedules(schedulesRes.data.schedules || []);
     } catch (error) {
       console.error('Error fetching dashboard:', error);
       if (error.response?.status === 401) { localStorage.removeItem('token'); navigate('/login'); }
@@ -332,25 +312,6 @@ const FederalDashboard = ({ user, onLogout }) => {
       setExpandedRegion(regionId);
     } finally {
       setLoadingZones(prev => ({ ...prev, [regionId]: false }));
-    }
-  };
-
-  // ==================== SCHEDULE MANAGEMENT ====================
-  const handleCreateSchedule = async (e) => {
-    e.preventDefault();
-    try {
-      const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/api/federal/schedules`, scheduleFormData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.data.success) {
-        setShowScheduleModal(false);
-        setScheduleFormData({ title: '', description: '', date: '', time: '', priority: 'medium', recipient_id: '' });
-        fetchDashboardData();
-        alert('Schedule created successfully!');
-      }
-    } catch (error) {
-      alert(error.response?.data?.message || 'Error creating schedule');
     }
   };
 
@@ -685,15 +646,6 @@ const FederalDashboard = ({ user, onLogout }) => {
     return colors[priority] || colors.medium;
   };
 
-  const getStatusBadge = (status) => {
-    const colors = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      completed: 'bg-green-100 text-green-800',
-      cancelled: 'bg-red-100 text-red-800'
-    };
-    return colors[status] || colors.pending;
-  };
-
   useEffect(() => { 
     fetchDashboardData(); 
     fetchProfile(); 
@@ -751,7 +703,7 @@ const FederalDashboard = ({ user, onLogout }) => {
         </div>
       )}
 
-      {/* Sidebar - Blue/Black Color */}
+      {/* Sidebar - Blue/Black Color - NO SCHEDULES */}
       <div className={`bg-gradient-to-b from-gray-900 to-blue-900 text-white transition-all duration-300 ${sidebarCollapsed ? 'w-20' : 'w-64'} shadow-2xl`}>
         <div className="p-4">
           <div className="flex items-center justify-between mb-8">
@@ -786,10 +738,6 @@ const FederalDashboard = ({ user, onLogout }) => {
               className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition ${activeTab === 'outbox' ? 'bg-gradient-to-r from-blue-600 to-cyan-600 shadow-lg' : 'hover:bg-blue-800'}`}>
               <FaPaperPlane className="text-lg" /> {!sidebarCollapsed && <span>Sent Reports</span>}
             </button>
-            <button onClick={() => { setActiveTab('schedules'); setShowConversationView(false); }} 
-              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition ${activeTab === 'schedules' ? 'bg-gradient-to-r from-blue-600 to-cyan-600 shadow-lg' : 'hover:bg-blue-800'}`}>
-              <FaCalendarAlt className="text-lg" /> {!sidebarCollapsed && <span>Schedules</span>}
-            </button>
             <button onClick={() => { setActiveTab('profile'); setShowConversationView(false); }} 
               className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition ${activeTab === 'profile' ? 'bg-gradient-to-r from-blue-600 to-cyan-600 shadow-lg' : 'hover:bg-blue-800'}`}>
               <FaUserCircle className="text-lg" /> {!sidebarCollapsed && <span>Profile</span>}
@@ -810,7 +758,6 @@ const FederalDashboard = ({ user, onLogout }) => {
                     activeTab === 'regions' ? 'Regional Administration' :
                     activeTab === 'inbox' ? 'Inbox' :
                     activeTab === 'outbox' ? 'Sent Reports' :
-                    activeTab === 'schedules' ? 'Schedules Management' :
                     activeTab === 'profile' ? 'My Profile' : 'Federal Dashboard'
                   )}
                 </h1>
@@ -955,7 +902,6 @@ const FederalDashboard = ({ user, onLogout }) => {
           {/* Dashboard Tab */}
           {activeTab === 'dashboard' && !showConversationView && (
             <div className="space-y-6">
-              {/* Stats Cards - Improved Size */}
               <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
                 <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition border-l-4 border-blue-500">
                   <div className="flex justify-between items-center">
@@ -1014,10 +960,9 @@ const FederalDashboard = ({ user, onLogout }) => {
                 </div>
               </div>
 
-              {/* Quick Actions */}
               <div className="bg-white rounded-2xl p-6 shadow-lg">
                 <h2 className="text-lg font-bold text-gray-800 mb-4">Quick Actions</h2>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <button onClick={() => { setShowReportModal(true); fetchRecipients(); }} 
                     className="p-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:shadow-lg transition text-sm font-medium flex items-center justify-center gap-2">
                     <FaPaperPlane /> New Report
@@ -1026,52 +971,16 @@ const FederalDashboard = ({ user, onLogout }) => {
                     className="p-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition text-sm font-medium flex items-center justify-center gap-2">
                     <FaPlus /> Add Region
                   </button>
-                  <button onClick={() => { setShowScheduleModal(true); fetchRecipients(); }} 
-                    className="p-4 bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-xl hover:shadow-lg transition text-sm font-medium flex items-center justify-center gap-2">
-                    <FaCalendarAlt /> Create Schedule
-                  </button>
                   <button onClick={() => setActiveTab('regions')} 
                     className="p-4 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-xl hover:shadow-lg transition text-sm font-medium flex items-center justify-center gap-2">
                     <FaCity /> View Regions
                   </button>
                 </div>
               </div>
-
-              {/* Upcoming Schedules Preview */}
-              {schedules.length > 0 && (
-                <div className="bg-white rounded-2xl p-6 shadow-lg">
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                      <FaCalendarAlt className="text-blue-600" /> Upcoming Schedules
-                    </h2>
-                    <button onClick={() => setActiveTab('schedules')} className="text-sm text-blue-600 hover:text-blue-800">
-                      View All →
-                    </button>
-                  </div>
-                  <div className="space-y-3">
-                    {schedules.slice(0, 3).map((schedule) => (
-                      <div key={schedule.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <FaCalendarDay className="text-blue-600" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-800">{schedule.title}</p>
-                            <p className="text-xs text-gray-500">{schedule.date} at {schedule.time}</p>
-                          </div>
-                        </div>
-                        <span className={`text-xs px-2 py-1 rounded-full ${getPriorityBadge(schedule.priority)}`}>
-                          {schedule.priority}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
-          {/* REGIONS TAB - Improved UI */}
+          {/* REGIONS TAB */}
           {activeTab === 'regions' && !showConversationView && (
             <div className="bg-white rounded-2xl shadow-xl p-6">
               <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
@@ -1195,66 +1104,7 @@ const FederalDashboard = ({ user, onLogout }) => {
             </div>
           )}
 
-          {/* SCHEDULES TAB - New Feature */}
-          {activeTab === 'schedules' && !showConversationView && (
-            <div className="bg-white rounded-2xl shadow-xl p-6">
-              <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                  <FaCalendarAlt className="text-blue-600" /> Schedule Management
-                </h2>
-                <button onClick={() => { setShowScheduleModal(true); fetchRecipients(); }} 
-                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:shadow-lg transition text-sm font-medium flex items-center gap-2">
-                  <FaPlus /> Create Schedule
-                </button>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {schedules.length === 0 && (
-                  <div className="col-span-full text-center py-12">
-                    <FaCalendarAlt className="text-6xl text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500">No schedules found</p>
-                    <button onClick={() => { setShowScheduleModal(true); fetchRecipients(); }} 
-                      className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                      Create Your First Schedule
-                    </button>
-                  </div>
-                )}
-                {schedules.map((schedule) => (
-                  <div key={schedule.id} className="border rounded-xl p-5 shadow-sm hover:shadow-md transition bg-gradient-to-br from-white to-gray-50">
-                    <div className="flex justify-between items-start mb-3">
-                      <h3 className="font-bold text-gray-800 text-lg">{schedule.title}</h3>
-                      <span className={`text-xs px-2 py-1 rounded-full ${getPriorityBadge(schedule.priority)}`}>
-                        {schedule.priority}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-4">{schedule.description || 'No description'}</p>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <FaCalendarDay className="text-blue-500" />
-                        <span>{schedule.date || 'Date not set'}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <FaRegClock className="text-blue-500" />
-                        <span>{schedule.time || 'Time not set'}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <FaMapMarkerAlt className="text-blue-500" />
-                        <span>Region: {schedule.region_name || 'All Regions'}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <FaHourglassHalf className="text-blue-500" />
-                        <span className={`px-2 py-0.5 rounded-full text-xs ${getStatusBadge(schedule.status)}`}>
-                          {schedule.status || 'pending'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Inbox Tab - Improved */}
+          {/* Inbox Tab */}
           {activeTab === 'inbox' && !showConversationView && (
             <div className="bg-white rounded-2xl shadow-xl p-6">
               <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
@@ -1432,7 +1282,7 @@ const FederalDashboard = ({ user, onLogout }) => {
 
       {/* ==================== MODALS ==================== */}
 
-      {/* Add Region Modal - With Full Validation */}
+      {/* Add Region Modal */}
       {showRegionModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -1677,104 +1527,6 @@ const FederalDashboard = ({ user, onLogout }) => {
                 </button>
                 <button type="submit" className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:shadow-lg transition">
                   Send Report
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Create Schedule Modal */}
-      {showScheduleModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
-            <div className="border-b px-6 py-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-800"><FaCalendarAlt className="inline mr-2 text-blue-500" /> Create Schedule</h2>
-              <button onClick={() => setShowScheduleModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
-            </div>
-            <form onSubmit={handleCreateSchedule} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
-                <input 
-                  type="text" 
-                  placeholder="Schedule title" 
-                  value={scheduleFormData.title} 
-                  onChange={(e) => setScheduleFormData({...scheduleFormData, title: e.target.value})} 
-                  className="w-full px-4 py-3 border rounded-xl text-sm" 
-                  required 
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea 
-                  placeholder="Schedule description" 
-                  value={scheduleFormData.description} 
-                  onChange={(e) => setScheduleFormData({...scheduleFormData, description: e.target.value})} 
-                  rows="3" 
-                  className="w-full px-4 py-3 border rounded-xl text-sm resize-none" 
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
-                  <input 
-                    type="date" 
-                    value={scheduleFormData.date} 
-                    onChange={(e) => setScheduleFormData({...scheduleFormData, date: e.target.value})} 
-                    className="w-full px-4 py-3 border rounded-xl text-sm" 
-                    required 
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Time *</label>
-                  <input 
-                    type="time" 
-                    value={scheduleFormData.time} 
-                    onChange={(e) => setScheduleFormData({...scheduleFormData, time: e.target.value})} 
-                    className="w-full px-4 py-3 border rounded-xl text-sm" 
-                    required 
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-                <select 
-                  value={scheduleFormData.priority} 
-                  onChange={(e) => setScheduleFormData({...scheduleFormData, priority: e.target.value})} 
-                  className="w-full px-4 py-3 border rounded-xl text-sm"
-                >
-                  <option value="low">🟢 Low</option>
-                  <option value="medium">🟡 Medium</option>
-                  <option value="high">🟠 High</option>
-                  <option value="urgent">🔴 Urgent</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Assign to Region</label>
-                <select 
-                  value={scheduleFormData.recipient_id} 
-                  onChange={(e) => setScheduleFormData({...scheduleFormData, recipient_id: e.target.value})} 
-                  className="w-full px-4 py-3 border rounded-xl text-sm"
-                >
-                  <option value="">All Regions</option>
-                  {recipients.regions?.map(region => (
-                    <option key={region.id} value={region.id}>
-                      {region.region_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <button type="button" onClick={() => setShowScheduleModal(false)} className="px-5 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition">
-                  Cancel
-                </button>
-                <button type="submit" className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:shadow-lg transition">
-                  Create Schedule
                 </button>
               </div>
             </form>
