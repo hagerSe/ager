@@ -81,36 +81,36 @@ const FederalDashboard = ({ user, onLogout }) => {
   const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001';
 
   // ==================== VALIDATION FUNCTIONS ====================
- // 1. Validate Email Format - ONLY GMAIL accounts allowed
-// 1. Validate Email Format - ONLY GMAIL accounts allowed
-const validateEmail = (email) => {
-  if (!email) return 'Email is required';
-  if (email.includes(' ')) return 'Email cannot contain spaces';
-  if (!email.includes('@')) return 'Email must contain @ symbol';
-  
-  const normalizedEmail = email.toLowerCase().trim();
-  
-  // Check if email ends with @gmail.com
-  if (!normalizedEmail.endsWith('@gmail.com')) {
-    return 'Only Gmail accounts are allowed. Email must end with @gmail.com';
-  }
-  
-  // Validate Gmail format
-  const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
-  if (!gmailRegex.test(normalizedEmail)) {
-    return 'Invalid Gmail format. Examples: username@gmail.com, name.surname@gmail.com';
-  }
-  
-  const localPart = normalizedEmail.split('@')[0];
-  if (localPart.includes('..')) {
-    return 'Email cannot contain consecutive dots';
-  }
-  
-  if (normalizedEmail.length < 10) return 'Email is too short';
-  if (normalizedEmail.length > 50) return 'Email must be less than 50 characters';
-  
-  return null;
-};
+
+  // 1. Validate Email Format - ONLY GMAIL accounts allowed
+  const validateEmail = (email) => {
+    if (!email) return 'Email is required';
+    if (email.includes(' ')) return 'Email cannot contain spaces';
+    if (!email.includes('@')) return 'Email must contain @ symbol';
+    
+    const normalizedEmail = email.toLowerCase().trim();
+    
+    // Check if email ends with @gmail.com
+    if (!normalizedEmail.endsWith('@gmail.com')) {
+      return 'Only Gmail accounts are allowed. Email must end with @gmail.com';
+    }
+    
+    // Validate Gmail format
+    const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
+    if (!gmailRegex.test(normalizedEmail)) {
+      return 'Invalid Gmail format. Example: username@gmail.com';
+    }
+    
+    const localPart = normalizedEmail.split('@')[0];
+    if (localPart.includes('..')) {
+      return 'Email cannot contain consecutive dots';
+    }
+    
+    if (normalizedEmail.length < 10) return 'Email is too short';
+    if (normalizedEmail.length > 50) return 'Email must be less than 50 characters';
+    
+    return null;
+  };
 
   const validateName = (name, fieldName) => {
     if (!name || name.trim() === '') return `${fieldName} is required`;
@@ -1405,14 +1405,14 @@ const validateEmail = (email) => {
                   <input 
                     type="email" 
                     name="email"
-                    placeholder="admin@health.gov.et" 
+                    placeholder="username@gmail.com" 
                     value={regionFormData.email} 
                     onChange={handleRegionInputChange}
                     className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 ${regionFormErrors.email ? 'border-red-500' : 'border-gray-300'}`}
                     required 
                   />
                   {regionFormErrors.email && <p className="text-red-500 text-xs mt-1">{regionFormErrors.email}</p>}
-                  <p className="text-xs text-gray-400 mt-1">Accepts .com, .org, .gov.et, etc.</p>
+                  <p className="text-xs text-blue-500 mt-1">⚠️ Only Gmail accounts are allowed (must end with @gmail.com)</p>
                 </div>
                 
                 <div>
