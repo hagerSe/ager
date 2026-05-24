@@ -81,14 +81,36 @@ const FederalDashboard = ({ user, onLogout }) => {
   const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001';
 
   // ==================== VALIDATION FUNCTIONS ====================
-  const validateEmail = (email) => {
-    if (!email) return 'Email is required';
-    if (email.includes(' ')) return 'Email cannot contain spaces';
-    if (!email.includes('@')) return 'Email must contain @ symbol';
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (!emailRegex.test(email)) return 'Invalid email format. Examples: name@gmail.com, admin@health.gov.et';
-    return null;
-  };
+ // 1. Validate Email Format - ONLY GMAIL accounts allowed
+// 1. Validate Email Format - ONLY GMAIL accounts allowed
+const validateEmail = (email) => {
+  if (!email) return 'Email is required';
+  if (email.includes(' ')) return 'Email cannot contain spaces';
+  if (!email.includes('@')) return 'Email must contain @ symbol';
+  
+  const normalizedEmail = email.toLowerCase().trim();
+  
+  // Check if email ends with @gmail.com
+  if (!normalizedEmail.endsWith('@gmail.com')) {
+    return 'Only Gmail accounts are allowed. Email must end with @gmail.com';
+  }
+  
+  // Validate Gmail format
+  const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
+  if (!gmailRegex.test(normalizedEmail)) {
+    return 'Invalid Gmail format. Examples: username@gmail.com, name.surname@gmail.com';
+  }
+  
+  const localPart = normalizedEmail.split('@')[0];
+  if (localPart.includes('..')) {
+    return 'Email cannot contain consecutive dots';
+  }
+  
+  if (normalizedEmail.length < 10) return 'Email is too short';
+  if (normalizedEmail.length > 50) return 'Email must be less than 50 characters';
+  
+  return null;
+};
 
   const validateName = (name, fieldName) => {
     if (!name || name.trim() === '') return `${fieldName} is required`;
