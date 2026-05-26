@@ -10,6 +10,7 @@ import {
 // ==================== BACKEND URL ====================
 const BACKEND_URL = 'https://health-backend-2-gqv6.onrender.com';
 const API_URL = `${BACKEND_URL}/api`;
+
 const Login = () => {
   const [scrolled, setScrolled] = useState(false);
   const [email, setEmail] = useState('');
@@ -80,124 +81,133 @@ const Login = () => {
   }, []);
 
   // Handle Login
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+const handleLogin = async (e) => {
+  e.preventDefault();
+  setError('');
+  setLoading(true);
+  
+  if (!email || !password) {
+    setError("Please enter both email and password");
+    setLoading(false);
+    return;
+  }
+  
+  try {
+    // Normalize email: trim spaces and convert to lowercase
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPassword = password; // Don't trim passwords
     
-    if (!email || !password) {
-      setError("Please enter both email and password");
-      setLoading(false);
-      return;
-    }
+    console.log("Attempting login for:", normalizedEmail);
+    console.log("Using API URL:", `${API_URL}/auth/login`);
     
-    try {
-      console.log("Attempting login for:", email);
-      console.log("Using API URL:", `${API_URL}/auth/login`);
+    const res = await axios.post(`${API_URL}/auth/login`, { 
+      email: normalizedEmail, 
+      password: normalizedPassword 
+    }, {
+      headers: { "Content-Type": "application/json" },
+      timeout: 15000
+    });
+    
+    console.log("Login response:", res.data);
+    
+    if (res.data.success && res.data.token) {
+      const userData = {
+        ...res.data.user,
+        role: res.data.user.role,
+        userType: res.data.user.userType || res.data.user.role,
+        level: res.data.user.userType || res.data.user.role,
+        isVerified: res.data.user.is_verified
+      };
       
-      const res = await axios.post(`${API_URL}/auth/login`, { 
-        email, 
-        password 
-      }, {
-        headers: { "Content-Type": "application/json" },
-        timeout: 15000
-      });
-      
-      console.log("Login response:", res.data);
-      
-      if (res.data.success && res.data.token) {
-        const userData = {
-          ...res.data.user,
-          role: res.data.user.role,
-          userType: res.data.user.userType || res.data.user.role,
-          level: res.data.user.userType || res.data.user.role,
-          isVerified: res.data.user.is_verified
-        };
-        
-        if (!userData.isVerified) {
-          setError("⚠️ Please verify your email address first.");
-          setLoading(false);
-          return;
-        }
-        
-        localStorage.setItem("token", res.data.token);
-        localStorage.setItem("user", JSON.stringify(userData));
-        
-        axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
-        
-        const userRole = userData.userType || userData.role;
-        
-        const roleRoutes = {
-          'federal': '/federal-dashboard',
-          'Federal_Admin': '/federal-dashboard',
-          'regional': '/regional-dashboard',
-          'Regional_Admin': '/regional-dashboard',
-          'zone': '/zone-dashboard',
-          'Zone_Admin': '/zone-dashboard',
-          'woreda': '/woreda-dashboard',
-          'Woreda_Admin': '/woreda-dashboard',
-          'kebele': '/kebele-dashboard',
-          'Kebele_Admin': '/kebele-dashboard',
-          'hospital': '/hospital-dashboard',
-          'Hospital_Admin': '/hospital-dashboard',
-          'staff': '/staff-dashboard'
-        };
-        
-        const departmentRoutes = {
-          'Doctor': '/doctor-dashboard',
-          'Nurse': '/nurse-dashboard',
-          'Pharma': '/pharma-dashboard',
-          'Lab': '/lab-dashboard',
-          'Radio': '/radio-dashboard',
-          'Midwife': '/midwife-dashboard',
-          'Triage': '/triage-dashboard',
-          'Card_Office': '/card-office-dashboard',
-          'Bed_Management': '/bed-management-dashboard',
-          'Human_Resource': '/hr-dashboard'
-        };
-        
-        let redirectPath = '/';
-        if (userRole === 'staff' && userData.department) {
-          redirectPath = departmentRoutes[userData.department] || '/staff-dashboard';
-        } else if (roleRoutes[userRole]) {
-          redirectPath = roleRoutes[userRole];
-        }
-        
-        window.location.href = redirectPath;
-      } else {
-        setError("Login failed. Please check your credentials.");
+      if (!userData.isVerified) {
+        setError("⚠️ Please verify your email address first.");
+        setLoading(false);
+        return;
       }
-    } catch (err) {
-      console.error("Login error:", err);
       
-      if (err.code === 'ECONNABORTED') {
-        setError("Connection timeout. Please check your internet connection.");
-      } else if (err.response) {
-        switch (err.response.status) {
-          case 401:
-            setError("❌ Invalid email or password");
-            break;
-          case 403:
-            setError("❌ Email not verified. Please check your inbox.");
-            setTimeout(() => {
-              if (window.confirm("Would you like to resend the verification email?")) {
-                setVerifyEmail(email);
-                setShowResendVerification(true);
-              }
-            }, 500);
-            break;
-          default:
-            setError(err.response.data?.message || "Login failed");
-        }
-      } else if (err.request) {
-        setError("❌ Cannot connect to server. Backend may be down.");
+      localStorage.setItem("token", res.data.token);
+      localStorage.setItem("user", JSON.stringify(userData));
+      
+      axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
+      
+      const userRole = userData.userType || userData.role;
+      
+      const roleRoutes = {
+        'federal': '/federal-dashboard',
+        'Federal_Admin': '/federal-dashboard',
+        'regional': '/regional-dashboard',
+        'Regional_Admin': '/regional-dashboard',
+        'zone': '/zone-dashboard',
+        'Zone_Admin': '/zone-dashboard',
+        'woreda': '/woreda-dashboard',
+        'Woreda_Admin': '/woreda-dashboard',
+        'kebele': '/kebele-dashboard',
+        'Kebele_Admin': '/kebele-dashboard',
+        'hospital': '/hospital-dashboard',
+        'Hospital_Admin': '/hospital-dashboard',
+        'staff': '/staff-dashboard'
+      };
+      
+      const departmentRoutes = {
+        'Doctor': '/doctor-dashboard',
+        'Nurse': '/nurse-dashboard',
+        'Pharma': '/pharma-dashboard',
+        'Lab': '/lab-dashboard',
+        'Radio': '/radio-dashboard',
+        'Midwife': '/midwife-dashboard',
+        'Triage': '/triage-dashboard',
+        'Card_Office': '/card-office-dashboard',
+        'Bed_Management': '/bed-management-dashboard',
+        'Human_Resource': '/hr-dashboard'
+      };
+      
+      let redirectPath = '/';
+      if (userRole === 'staff' && userData.department) {
+        redirectPath = departmentRoutes[userData.department] || '/staff-dashboard';
+      } else if (roleRoutes[userRole]) {
+        redirectPath = roleRoutes[userRole];
       } else {
-        setError("An error occurred. Please try again.");
+        redirectPath = '/dashboard';
       }
-    } finally {
-      setLoading(false);
+      
+      // Use navigate instead of window.location for better React routing
+      navigate(redirectPath);
+    } else {
+      setError("Login failed. Please check your credentials.");
     }
-  };
+  } catch (err) {
+    console.error("Login error:", err);
+    
+    if (err.code === 'ECONNABORTED') {
+      setError("Connection timeout. Please check your internet connection.");
+    } else if (err.response) {
+      console.log("Error response data:", err.response.data);
+      
+      switch (err.response.status) {
+        case 401:
+          setError("❌ Invalid email or password. Please try again.");
+          break;
+        case 403:
+          setError("❌ Email not verified. Please check your inbox.");
+          setTimeout(() => {
+            if (window.confirm("Would you like to resend the verification email?")) {
+              setVerifyEmail(email);
+              setShowResendVerification(true);
+            }
+          }, 500);
+          break;
+        default:
+          setError(err.response.data?.message || "Login failed. Please try again.");
+      }
+    } else if (err.request) {
+      setError("❌ Cannot connect to server. Backend may be down.");
+    } else {
+      setError("An error occurred. Please try again.");
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleForgotPassword = async (e) => {
     e.preventDefault();
