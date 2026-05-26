@@ -14,20 +14,16 @@ const ScheduleViewer = ({ user, compact = false }) => {
   const [error, setError] = useState(null);
 
   // Doctor "view all staff" filters
-  const [viewMode, setViewMode] = useState('mine');
+  const [viewMode, setViewMode] = useState('mine'); // mine | all
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
   const [filterDepartment, setFilterDepartment] = useState('all');
   const [filterWard, setFilterWard] = useState('all');
 
-  // Clean API URL - remove trailing slash
-  let API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
-  API_URL = API_URL.replace(/\/$/, '');
-  console.log('ScheduleViewer API_URL:', API_URL);
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
   // Fetch schedule from backend
   const fetchSchedule = async () => {
     try {
-      setLoading(true);
       const token = localStorage.getItem('token');
       if (!token) {
         console.error('No token found');
@@ -52,12 +48,8 @@ const ScheduleViewer = ({ user, compact = false }) => {
         }
       }
 
-      // Also check the passed user prop
-      if (user) {
-        console.log('User prop:', user);
-      }
-
       // Determine which endpoint to use based on user role/department
+      // NOTE: API_URL already includes '/api', so don't add '/api' again
       let endpoint = '';
       
       // Doctor
@@ -93,7 +85,7 @@ const ScheduleViewer = ({ user, compact = false }) => {
         endpoint = '/cardoffice/my-schedule';
       }
       // HR
-      else if (userRole === 'hr' || userRole === 'human_resource' || userDepartment === 'Human_Resource' || userDepartment === 'Human Resource') {
+      else if (userRole === 'hr' || userDepartment === 'Human_Resource' || userDepartment === 'Human Resource') {
         endpoint = '/hr/my-schedule';
       }
       // Bed Management
@@ -105,22 +97,15 @@ const ScheduleViewer = ({ user, compact = false }) => {
         endpoint = '/hr/my-schedule';
       }
 
-      // Build URL properly - NO double slashes
       const fullUrl = `${API_URL}${endpoint}`;
       console.log('Fetching schedule from:', fullUrl);
 
-      // Build params
-      let params = {};
-      if (endpoint === '/doctor/staff-schedules') {
-        params = { date: filterDate, department: filterDepartment, ward: filterWard };
-      }
-
       const response = await axios.get(fullUrl, {
-        params,
+        params: endpoint === '/doctor/staff-schedules'
+          ? { date: filterDate, department: filterDepartment, ward: filterWard }
+          : undefined,
         headers: { Authorization: `Bearer ${token}` }
       });
-
-      console.log('Schedule response:', response.data);
 
       if (response.data.success) {
         // Transform data to match expected format
@@ -138,7 +123,7 @@ const ScheduleViewer = ({ user, compact = false }) => {
             hours: s.shift_hours || s.hours || 0,
             ward: s.ward,
             department: s.department,
-            staff_full_name: s.staff_full_name || s.staff_name,
+            staff_full_name: s.staff_full_name,
             status: s.status || 'scheduled'
           }));
         }
@@ -147,6 +132,7 @@ const ScheduleViewer = ({ user, compact = false }) => {
         if (response.data.stats) {
           formattedStats = response.data.stats;
         } else if (formattedSchedules.length > 0) {
+          // Calculate stats manually
           const today = new Date().toISOString().split('T')[0];
           const todaySchedules = formattedSchedules.filter(s => s.date === today);
           let todayHours = 0;
@@ -169,7 +155,7 @@ const ScheduleViewer = ({ user, compact = false }) => {
       }
     } catch (err) {
       console.error('Error fetching schedule:', err);
-      setError(err.response?.data?.message || err.message || 'Network error loading schedule');
+      setError(err.response?.data?.message || 'Network error loading schedule');
       setSchedules([]);
     } finally {
       setLoading(false);
@@ -271,7 +257,7 @@ const ScheduleViewer = ({ user, compact = false }) => {
     );
   }
 
-  // Error state - show retry button
+  // Error state
   if (error) {
     return (
       <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center">
@@ -353,7 +339,7 @@ const ScheduleViewer = ({ user, compact = false }) => {
         </button>
       </div>
 
-      {/* Doctor staff schedule controls - only show for doctors */}
+      {/* Doctor staff schedule controls */}
       {(() => {
         const userStr = localStorage.getItem('user');
         let userRole = '';
@@ -435,23 +421,8 @@ const ScheduleViewer = ({ user, compact = false }) => {
         );
       })()}
 
-      {/* If no schedules */}
-      {schedules.length === 0 && !error && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
-          <div className="text-5xl mb-3">📅</div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">No Schedule Found</h3>
-          <p className="text-gray-500 mb-4">Your schedule will appear here once assigned by the hospital admin.</p>
-          <button 
-            onClick={refreshData}
-            className="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm hover:bg-teal-700"
-          >
-            Check Again
-          </button>
-        </div>
-      )}
-
       {/* Schedule Stats Cards */}
-      {stats && schedules.length > 0 && (
+      {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-gradient-to-br from-teal-500 to-emerald-500 rounded-xl p-4 text-white">
             <p className="text-xs opacity-90">Today</p>
@@ -473,6 +444,21 @@ const ScheduleViewer = ({ user, compact = false }) => {
             <p className="text-2xl font-bold">{stats.upcoming?.shift_count || 0}</p>
             <p className="text-xs opacity-75">next {stats.upcoming?.shift_count || 0} shifts</p>
           </div>
+        </div>
+      )}
+
+      {/* If no schedules */}
+      {schedules.length === 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+          <div className="text-5xl mb-3">📅</div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">No Schedule Found</h3>
+          <p className="text-gray-500 mb-4">Your schedule will appear here once assigned by the hospital admin.</p>
+          <button 
+            onClick={refreshData}
+            className="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm hover:bg-teal-700"
+          >
+            Check Again
+          </button>
         </div>
       )}
 
@@ -528,6 +514,9 @@ const ScheduleViewer = ({ user, compact = false }) => {
                         {getShiftIcon(shift.shift_type)}
                         <span className="font-semibold">{shift.shift_name || shift.shift_type} Shift</span>
                       </div>
+                      {shift.status === 'ongoing' && (
+                        <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full">In Progress</span>
+                      )}
                     </div>
                     <p className="text-sm">{shift.start_time} - {shift.end_time}</p>
                     <p className="text-sm text-gray-600 mt-1">📍 {shift.ward} Ward</p>
