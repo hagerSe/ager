@@ -7,7 +7,7 @@ import BedManagement from './BedManagementDashboard';
 import BedSelection from './BedSelection';
 import PharmacyStatus from './PharmacyStatus';
 import DischargeList from './DischargeList';
-import EthiopianHierarchySelector from './EthiopianHierarchySelector';
+// External referral removed
 import { 
   FaSpinner, FaCheck, FaSearch, FaFileAlt, FaDownload, FaTimes, 
   FaInbox, FaPaperPlane, FaReply, FaEye, FaEnvelope, FaEnvelopeOpen,
@@ -191,7 +191,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
   const [showReferralModal, setShowReferralModal] = useState(false);
   const [referralType, setReferralType] = useState('internal');
   const [selectedInternalWard, setSelectedInternalWard] = useState('');
-  const [externalReferralData, setExternalReferralData] = useState(null);
+  // External referral removed
 
   // Discharge list data
   const [dischargedPatients, setDischargedPatients] = useState([]);
@@ -1072,10 +1072,6 @@ const DoctorDashboard = ({ user, onLogout }) => {
     if (referralType === 'internal') {
       if (!selectedInternalWard) {
         errors.ward = 'Please select a ward';
-      }
-    } else {
-      if (!externalReferralData || !externalReferralData.hospital) {
-        errors.hospital = 'Please select a hospital';
       }
     }
     if (!signaturePad.current || signaturePad.current.isEmpty()) {
@@ -2032,7 +2028,6 @@ const DoctorDashboard = ({ user, onLogout }) => {
     setShowReferralModal(true);
     setReferralType('internal');
     setSelectedInternalWard('');
-    setExternalReferralData(null);
     setDischargeValidation({});
   };
 
@@ -2105,71 +2100,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
     }
   };
 
-  const handleExternalRefer = async () => {
-    const errors = validateReferral();
-    setDischargeValidation(errors);
-    if (Object.keys(errors).length > 0) {
-      setMessage({ type: 'error', text: Object.values(errors)[0] });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      return;
-    }
-
-    const signature = signaturePad.current.toDataURL();
-
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      const res = await axios.post(
-        `${API_URL}/api/doctor/refer-patient`,
-        {
-          patient_id: selectedPatient.id,
-          doctor_id: user?.id,
-          doctor_name: getDoctorFullName(),
-          hospital_id: user?.hospital_id,
-          ward: user?.ward,
-          referral_type: 'external',
-          destination: externalReferralData.hospital.name,
-          external_data: externalReferralData,
-          diagnosis,
-          prescriptions,
-          lab_requests: labRequests,
-          lab_results: labResults,
-          radiology_requests: radiologyRequests,
-          radiology_results: radiologyResults,
-          signature,
-          referral_notes: diagnosis.notes
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (res.data.success) {
-        setMessage({ type: 'success', text: `Patient referred to ${externalReferralData.hospital.name}` });
-        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-        setShowPatientModal(false);
-        setShowReferralModal(false);
-        setSelectedPatient(null);
-        setPrescriptions([]);
-        setDiagnosis({ primary: '', icd10: '', secondary: '', notes: '' });
-        fetchStats();
-        if (socket.current) {
-          socket.current.emit('patient_referred', {
-            patient_id: selectedPatient.id,
-            doctor_name: getDoctorFullName(),
-            referral_type: 'external',
-            destination: externalReferralData.hospital.name,
-            ward: user?.ward,
-            hospital_id: user?.hospital_id
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error referring patient:', error);
-      setMessage({ type: 'error', text: 'Error referring patient' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // External referral removed
 
   // ==================== HELPER FUNCTIONS ====================
   const getPriorityColor = (priority) => {
@@ -2268,15 +2199,15 @@ const DoctorDashboard = ({ user, onLogout }) => {
               <p className="text-[10px] text-slate-500 mx-3 mb-3 uppercase tracking-wider">Main Menu</p>
             )}
             
-            {/* Patient Queue */}
+            {/* Dashboard */}
             <div 
               onClick={() => { setShowDischargeList(false); setReportMainTab('queue'); }}
               className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 rounded-xl ${reportMainTab === 'queue' && !showDischargeList ? 'bg-gradient-to-r from-teal-600 to-emerald-600 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all duration-200 group`}
             >
-              <span className="text-xl">👥</span>
+              <span className="text-xl">🏠</span>
               {!sidebarCollapsed && (
                 <>
-                  <span className="flex-1 text-sm font-medium">Patient Queue</span>
+                  <span className="flex-1 text-sm font-medium">Dashboard</span>
                   <span className="px-2 py-0.5 rounded-full text-xs bg-white/20 text-white">
                     {queuePatients.length}
                   </span>
@@ -2284,15 +2215,15 @@ const DoctorDashboard = ({ user, onLogout }) => {
               )}
             </div>
 
-            {/* Discharge List */}
+            {/* Discharged Patients */}
             <div
               onClick={() => { setShowDischargeList(!showDischargeList); if (!showDischargeList) fetchDischargedPatients(); }}
               className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${showDischargeList ? 'bg-gradient-to-r from-teal-600 to-emerald-600 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all duration-200 group`}
             >
-              <span className="text-xl">📋</span>
+              <span className="text-xl">✅</span>
               {!sidebarCollapsed && (
                 <>
-                  <span className="flex-1 text-sm font-medium">Discharge List</span>
+                  <span className="flex-1 text-sm font-medium">Discharged Patients</span>
                   <span className="px-2 py-0.5 rounded-full text-xs bg-amber-500/80 text-white">
                     {stats.completed}
                   </span>
@@ -2305,15 +2236,15 @@ const DoctorDashboard = ({ user, onLogout }) => {
               <div className="h-px bg-slate-700/50 my-4 mx-3"></div>
             )}
 
-            {/* Reports Inbox */}
+            {/* Messages */}
             <div
               onClick={() => { setShowDischargeList(false); setReportMainTab('inbox'); fetchReportsInbox(); }}
               className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${reportMainTab === 'inbox' && !showDischargeList ? 'bg-gradient-to-r from-teal-600 to-emerald-600 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all duration-200 group relative`}
             >
-              <span className="text-xl">📬</span>
+              <span className="text-xl">💬</span>
               {!sidebarCollapsed && (
                 <>
-                  <span className="flex-1 text-sm font-medium">Inbox</span>
+                  <span className="flex-1 text-sm font-medium">Messages</span>
                   {unreadReportsCount > 0 && (
                     <span className="px-2 py-0.5 rounded-full text-xs bg-red-500 text-white animate-pulse">
                       {unreadReportsCount}
@@ -2328,25 +2259,25 @@ const DoctorDashboard = ({ user, onLogout }) => {
               )}
             </div>
 
-            {/* Sent Reports */}
+            {/* Reports */}
             <div
               onClick={() => { setShowDischargeList(false); setReportMainTab('sent'); fetchReportsOutbox(); }}
               className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${reportMainTab === 'sent' && !showDischargeList ? 'bg-gradient-to-r from-teal-600 to-emerald-600 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all duration-200 group`}
             >
-              <span className="text-xl">📤</span>
+              <span className="text-xl">📊</span>
               {!sidebarCollapsed && (
-                <span className="flex-1 text-sm font-medium">Sent Reports</span>
+                <span className="flex-1 text-sm font-medium">Reports</span>
               )}
             </div>
 
-            {/* My Schedule */}
+            {/* Schedule */}
             <div
               onClick={() => { setShowDischargeList(false); setReportMainTab('schedule'); }}
               className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${reportMainTab === 'schedule' && !showDischargeList ? 'bg-gradient-to-r from-teal-600 to-emerald-600 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all duration-200 group`}
             >
               <span className="text-xl">📅</span>
               {!sidebarCollapsed && (
-                <span className="flex-1 text-sm font-medium">My Schedule</span>
+                <span className="flex-1 text-sm font-medium">Schedule</span>
               )}
             </div>
 
@@ -2406,12 +2337,12 @@ const DoctorDashboard = ({ user, onLogout }) => {
                 </div>
                 <div>
                   <h1 className="text-3xl font-bold text-white m-0 drop-shadow-md tracking-tight">
-                    {showDischargeList ? 'Discharge List' : 
-                     reportMainTab === 'inbox' ? 'Reports - Inbox' : 
-                     reportMainTab === 'sent' ? 'Reports - Sent' : 
+                    {showDischargeList ? 'Discharged Patients' : 
+                     reportMainTab === 'inbox' ? 'Messages' : 
+                     reportMainTab === 'sent' ? 'Reports' : 
                      reportMainTab === 'profile' ? 'My Profile' : 
-                     reportMainTab === 'schedule' ? 'My Schedule' :
-                     currentWard.title}
+                     reportMainTab === 'schedule' ? 'Schedule' :
+                     'Dashboard'}
                   </h1>
                   <p className="text-base text-white/90 mt-1 flex items-center gap-2 flex-wrap">
                     <span>Dr. {user?.full_name || getDoctorFullName()}</span>
@@ -4692,7 +4623,6 @@ const DoctorDashboard = ({ user, onLogout }) => {
                   onClick={() => {
                     setReferralType('internal');
                     setSelectedInternalWard('');
-                    setExternalReferralData(null);
                     setDischargeValidation({});
                   }}
                   className={`flex-1 py-3 rounded-lg cursor-pointer font-semibold ${
@@ -4703,22 +4633,6 @@ const DoctorDashboard = ({ user, onLogout }) => {
                   style={{ backgroundColor: referralType === 'internal' ? currentWard.primaryColor : '' }}
                 >
                   🏥 Internal Referral
-                </button>
-                <button
-                  onClick={() => {
-                    setReferralType('external');
-                    setSelectedInternalWard('');
-                    setExternalReferralData(null);
-                    setDischargeValidation({});
-                  }}
-                  className={`flex-1 py-3 rounded-lg cursor-pointer font-semibold ${
-                    referralType === 'external' 
-                      ? 'text-white' 
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                  style={{ backgroundColor: referralType === 'external' ? currentWard.primaryColor : '' }}
-                >
-                  🌍 External Referral
                 </button>
               </div>
 
@@ -4789,36 +4703,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
                 </div>
               )}
 
-              {referralType === 'external' && (
-                <div>
-                  <div className={`${dischargeValidation.hospital ? 'border-red-500 border rounded-lg' : ''}`}>
-                    <EthiopianHierarchySelector onSelect={setExternalReferralData} />
-                  </div>
-                  {dischargeValidation.hospital && (
-                    <p className="text-red-500 text-xs mt-1">{dischargeValidation.hospital}</p>
-                  )}
-                  
-                  <div className="flex justify-end gap-3 mt-6">
-                    <button
-                      onClick={() => setShowReferralModal(false)}
-                      className="py-2.5 px-6 bg-gray-100 text-gray-600 border-none rounded-full cursor-pointer hover:bg-gray-200"
-                      disabled={loading}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleExternalRefer}
-                      disabled={!externalReferralData || loading}
-                      className={`py-2.5 px-6 text-white border-none rounded-full cursor-pointer ${
-                        !externalReferralData || loading ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
-                      style={{ backgroundColor: currentWard.primaryColor }}
-                    >
-                      {loading ? 'Processing...' : 'Send Referral'}
-                    </button>
-                  </div>
-                </div>
-              )}
+              {/* External referral removed */}
             </div>
           </div>
         )}

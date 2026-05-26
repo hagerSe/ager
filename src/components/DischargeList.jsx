@@ -4,6 +4,7 @@ import axios from 'axios';
 
 const DischargeList = ({ hospitalId, ward, dischargedPatients = [], onRefresh }) => {
   const [filter, setFilter] = useState('today');
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [localDischarges, setLocalDischarges] = useState([]);
   const [expandedPatient, setExpandedPatient] = useState(null);
@@ -57,6 +58,17 @@ const DischargeList = ({ hospitalId, ward, dischargedPatients = [], onRefresh })
 
   // Filter discharges based on selection
   const filteredDischarges = localDischarges.filter(d => {
+    const q = search.trim().toLowerCase();
+    if (q) {
+      const hay = [
+        d.patient_name,
+        d.card_number,
+        d.final_diagnosis,
+        d.diagnosis,
+        d.doctor_name
+      ].filter(Boolean).join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
     if (filter === 'today') {
       const today = new Date().toDateString();
       const dischargeDate = d.discharge_date ? new Date(d.discharge_date).toDateString() : null;
@@ -155,7 +167,22 @@ const DischargeList = ({ hospitalId, ward, dischargedPatients = [], onRefresh })
           </span>
         </div>
         
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search name, card, diagnosis..."
+            style={{
+              padding: '8px 12px',
+              backgroundColor: '#ffffff',
+              color: '#0f172a',
+              border: '1px solid #e2e8f0',
+              borderRadius: '12px',
+              fontSize: '0.875rem',
+              outline: 'none',
+              minWidth: '220px'
+            }}
+          />
           <button 
             onClick={() => setFilter('today')} 
             style={{
@@ -305,12 +332,24 @@ const DischargeList = ({ hospitalId, ward, dischargedPatients = [], onRefresh })
                 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
                     <div>
+                      <p style={{ margin: '0 0 4px', color: '#64748b', fontSize: '0.75rem' }}>Admission Date</p>
+                      <p style={{ margin: 0, fontWeight: '500' }}>{formatDate(patient.admission_date)}</p>
+                    </div>
+                    <div>
+                      <p style={{ margin: '0 0 4px', color: '#64748b', fontSize: '0.75rem' }}>Discharge Date</p>
+                      <p style={{ margin: 0, fontWeight: '500' }}>{formatDate(patient.discharge_date || patient.updatedAt)}</p>
+                    </div>
+                    <div>
                       <p style={{ margin: '0 0 4px', color: '#64748b', fontSize: '0.75rem' }}>Discharge Location</p>
                       <p style={{ margin: 0, fontWeight: '500' }}>{patient.discharge_location || 'Home'}</p>
                     </div>
                     <div>
                       <p style={{ margin: '0 0 4px', color: '#64748b', fontSize: '0.75rem' }}>Discharged By</p>
                       <p style={{ margin: 0, fontWeight: '500' }}>Dr. {patient.doctor_name}</p>
+                    </div>
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <p style={{ margin: '0 0 4px', color: '#64748b', fontSize: '0.75rem' }}>Final Diagnosis</p>
+                      <p style={{ margin: 0, fontWeight: '600' }}>{patient.final_diagnosis || patient.diagnosis || 'Not recorded'}</p>
                     </div>
                     <div>
                       <p style={{ margin: '0 0 4px', color: '#64748b', fontSize: '0.75rem' }}>Prescriptions</p>

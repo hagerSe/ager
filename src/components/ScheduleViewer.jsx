@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { FaCalendarAlt, FaClock, FaSun, FaMoon, FaCloudSun, FaSpinner, FaBell, FaSync } from 'react-icons/fa';
 import axios from 'axios';
 
@@ -12,6 +12,12 @@ const ScheduleViewer = ({ user, compact = false }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [error, setError] = useState(null);
+
+  // Doctor "view all staff" filters
+  const [viewMode, setViewMode] = useState('mine'); // mine | all
+  const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
+  const [filterDepartment, setFilterDepartment] = useState('all');
+  const [filterWard, setFilterWard] = useState('all');
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
@@ -48,7 +54,7 @@ const ScheduleViewer = ({ user, compact = false }) => {
       
       // Doctor
       if (userRole === 'doctor' || userDepartment === 'Doctor') {
-        endpoint = '/doctor/my-schedule';
+        endpoint = viewMode === 'all' ? '/doctor/staff-schedules' : '/doctor/my-schedule';
       }
       // Nurse
       else if (userRole === 'nurse' || userDepartment === 'Nurse') {
@@ -95,6 +101,9 @@ const ScheduleViewer = ({ user, compact = false }) => {
       console.log('Fetching schedule from:', fullUrl);
 
       const response = await axios.get(fullUrl, {
+        params: endpoint === '/doctor/staff-schedules'
+          ? { date: filterDate, department: filterDepartment, ward: filterWard }
+          : undefined,
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -113,6 +122,8 @@ const ScheduleViewer = ({ user, compact = false }) => {
             end_time: s.shift_end || s.end_time || '--:--',
             hours: s.shift_hours || s.hours || 0,
             ward: s.ward,
+            department: s.department,
+            staff_full_name: s.staff_full_name,
             status: s.status || 'scheduled'
           }));
         }
@@ -154,7 +165,7 @@ const ScheduleViewer = ({ user, compact = false }) => {
 
   useEffect(() => {
     fetchSchedule();
-  }, []);
+  }, [viewMode, filterDate, filterDepartment, filterWard]);
 
   const refreshData = async () => {
     setRefreshing(true);
@@ -328,6 +339,88 @@ const ScheduleViewer = ({ user, compact = false }) => {
         </button>
       </div>
 
+      {/* Doctor staff schedule controls */}
+      {(() => {
+        const userStr = localStorage.getItem('user');
+        let userRole = '';
+        let userDepartment = '';
+        if (userStr) {
+          try {
+            const userData = JSON.parse(userStr);
+            userRole = userData.userType || userData.role || '';
+            userDepartment = userData.department || '';
+          } catch { /* ignore */ }
+        }
+        const isDoctor = userRole === 'doctor' || userDepartment === 'Doctor';
+        if (!isDoctor) return null;
+
+        return (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex flex-wrap gap-3 items-end">
+            <div className="flex gap-2">
+              <button
+                onClick={() => setViewMode('mine')}
+                className={`px-3 py-2 rounded-lg text-sm font-medium ${viewMode === 'mine' ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+              >
+                My Schedule
+              </button>
+              <button
+                onClick={() => setViewMode('all')}
+                className={`px-3 py-2 rounded-lg text-sm font-medium ${viewMode === 'all' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+              >
+                All Staff
+              </button>
+            </div>
+
+            {viewMode === 'all' && (
+              <>
+                <div>
+                  <label className="text-xs text-gray-500">Date</label>
+                  <input
+                    type="date"
+                    value={filterDate}
+                    onChange={(e) => setFilterDate(e.target.value)}
+                    className="block mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Department</label>
+                  <select
+                    value={filterDepartment}
+                    onChange={(e) => setFilterDepartment(e.target.value)}
+                    className="block mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
+                  >
+                    <option value="all">All</option>
+                    <option value="Doctor">Doctor</option>
+                    <option value="Nurse">Nurse</option>
+                    <option value="Lab">Lab</option>
+                    <option value="Radio">Radiology</option>
+                    <option value="Pharma">Pharmacy</option>
+                    <option value="Midwife">Midwife</option>
+                    <option value="Triage">Triage</option>
+                    <option value="Card_Office">Card Office</option>
+                    <option value="Human_Resource">HR</option>
+                    <option value="Bed_Management">Bed Management</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Ward</label>
+                  <select
+                    value={filterWard}
+                    onChange={(e) => setFilterWard(e.target.value)}
+                    className="block mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
+                  >
+                    <option value="all">All</option>
+                    <option value="OPD">OPD</option>
+                    <option value="EME">EME</option>
+                    <option value="ANC">ANC</option>
+                  </select>
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })()}
+
       {/* Schedule Stats Cards */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -459,6 +552,12 @@ const ScheduleViewer = ({ user, compact = false }) => {
                             {getShiftIcon(schedule.shift_type)}
                             <span className="font-medium">{schedule.shift_name || schedule.shift_type} Shift</span>
                           </div>
+                          {schedule.staff_full_name && (
+                            <p className="text-xs text-gray-700 font-medium">{schedule.staff_full_name}</p>
+                          )}
+                          {schedule.department && (
+                            <p className="text-[11px] text-gray-500">{schedule.department}</p>
+                          )}
                           <p className="text-sm font-medium">{new Date(schedule.date).toLocaleDateString()}</p>
                           <p className="text-xs text-gray-500">{schedule.start_time} - {schedule.end_time}</p>
                           <p className="text-xs text-gray-600 mt-1">📍 {schedule.ward} Ward</p>
