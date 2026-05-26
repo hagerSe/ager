@@ -110,8 +110,17 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const [realTimeNotification, setRealTimeNotification] = useState(null);
 
   const navigate = useNavigate();
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
-  const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001';
+  
+  // ==================== API CONFIGURATION - FIXED ====================
+  // This fixes the duplicate /api/api/ issue
+  let API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+  // Remove trailing slash and /api from the end to prevent double /api/
+  API_URL = API_URL.replace(/\/$/, '').replace(/\/api$/, '');
+  console.log('✅ API_URL configured:', API_URL);
+
+  let SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace(/\/api\/?$/, '').replace(/\/$/, '') || 'http://localhost:5001';
+  SOCKET_URL = SOCKET_URL.replace(/\/$/, '');
+  console.log('✅ SOCKET_URL configured:', SOCKET_URL);
 
   // ==================== VALIDATION FUNCTIONS ====================
   const validateName = (name, fieldName) => {
@@ -258,7 +267,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       setTimeout(() => setRealTimeNotification(null), 6000);
     });
 
-    // Listen for weekly schedule ready
     socketRef.current.on('weekly_schedule_ready', (data) => {
       console.log('📅 Weekly schedule ready event received:', data);
       setRealTimeNotification({
@@ -278,7 +286,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       setTimeout(() => setRealTimeNotification(null), 10000);
     });
 
-    // Listen for new schedule assigned
     socketRef.current.on('new_schedule_assigned', (data) => {
       console.log('📅 New schedule assigned event:', data);
       setRealTimeNotification({
@@ -847,7 +854,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
           </div>
 
           <nav className="space-y-1">
-            {/* Register Patient */}
             <button onClick={() => { setActiveTab('register'); setShowScheduleView(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
               activeTab === 'register' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
@@ -855,7 +861,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
               {!sidebarCollapsed && <span>Register Patient</span>}
             </button>
 
-            {/* Search Patients */}
             <button onClick={() => { setActiveTab('search'); setShowScheduleView(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
               activeTab === 'search' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
@@ -863,7 +868,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
               {!sidebarCollapsed && <span>Search Patients</span>}
             </button>
 
-            {/* Recent Registrations */}
             <button onClick={() => { setActiveTab('recent'); setShowScheduleView(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
               activeTab === 'recent' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
@@ -873,7 +877,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
 
             <div className="h-px bg-slate-700/50 my-3 mx-2"></div>
 
-            {/* Inbox */}
             <button onClick={() => { setActiveTab('inbox'); setShowScheduleView(false); fetchReportsInbox(); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm relative ${sidebarCollapsed ? 'justify-center' : ''} ${
               activeTab === 'inbox' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
@@ -886,7 +889,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
               )}
             </button>
 
-            {/* Sent Reports */}
             <button onClick={() => { setActiveTab('outbox'); setShowScheduleView(false); fetchReportsOutbox(); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
               activeTab === 'outbox' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
@@ -894,7 +896,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
               {!sidebarCollapsed && <span>Sent Reports</span>}
             </button>
 
-            {/* Statistics */}
             <button onClick={() => { setActiveTab('reports'); setShowScheduleView(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
               activeTab === 'reports' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
@@ -902,7 +903,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
               {!sidebarCollapsed && <span>Statistics</span>}
             </button>
 
-            {/* ==================== MY SCHEDULE ==================== */}
             <button 
               onClick={() => { setActiveTab('schedule'); setShowScheduleView(true); }} 
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
@@ -915,7 +915,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
 
             <div className="h-px bg-slate-700/50 my-3 mx-2"></div>
 
-            {/* Profile */}
             <button onClick={() => { setActiveTab('profile'); setShowScheduleView(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
               activeTab === 'profile' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
@@ -1003,7 +1002,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
 
         {/* Main Content */}
         <div className="max-w-[1600px] mx-auto p-8">
-          {/* Message Display */}
           {message.text && (
             <div className={`mb-6 p-4 rounded-xl border-l-4 ${message.type === 'error' ? 'bg-red-50 border-red-500 text-red-700' : 'bg-green-50 border-green-500 text-green-700'} flex justify-between items-center`}>
               <span>{message.text}</span>
@@ -1011,7 +1009,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
             </div>
           )}
 
-          {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
             <div className="bg-gradient-to-br from-blue-500 to-indigo-500 rounded-2xl p-5 text-white shadow-lg">
               <p className="text-sm opacity-90 mb-1">Today's Registrations</p>
@@ -1031,7 +1028,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
             </div>
           </div>
 
-          {/* Register Tab */}
           {activeTab === 'register' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
               <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
@@ -1157,7 +1153,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
             </div>
           )}
 
-          {/* Search Tab */}
           {activeTab === 'search' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
               <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
@@ -1260,7 +1255,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
             </div>
           )}
 
-          {/* Recent Tab */}
           {activeTab === 'recent' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
               <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
@@ -1315,7 +1309,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
             </div>
           )}
 
-          {/* Inbox Tab */}
           {activeTab === 'inbox' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
               <div className="flex justify-between items-center mb-6">
@@ -1352,7 +1345,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
             </div>
           )}
 
-          {/* Outbox Tab */}
           {activeTab === 'outbox' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
               <div className="flex justify-between items-center mb-6">
@@ -1384,7 +1376,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
             </div>
           )}
 
-          {/* Reports/Statistics Tab */}
           {activeTab === 'reports' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
               <h2 className="text-xl font-bold text-gray-800 mb-6">📊 Card Office Statistics</h2>
@@ -1401,7 +1392,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
             </div>
           )}
 
-          {/* My Schedule View */}
           {showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
               <div className="flex justify-between items-center mb-6">
@@ -1425,12 +1415,10 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                 </button>
               </div>
               
-              {/* Schedule Viewer Component */}
               <ScheduleViewer user={user} compact={false} />
             </div>
           )}
 
-          {/* Profile Tab */}
           {activeTab === 'profile' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
               <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-10">
@@ -1475,7 +1463,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Personal Info Card */}
                   <div className="bg-gray-50 rounded-xl p-5">
                     <h4 className="font-semibold text-blue-600 mb-4 flex items-center gap-2">
                       <FaUserCircle /> Personal Info
@@ -1555,7 +1542,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                     </div>
                   </div>
                   
-                  {/* Account Settings Card */}
                   <div className="bg-gray-50 rounded-xl p-5">
                     <h4 className="font-semibold text-blue-600 mb-4 flex items-center gap-2">
                       <FaKey /> Account Settings
