@@ -16,38 +16,131 @@ const ScheduleViewer = ({ user, compact = false }) => {
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
   // Fetch schedule from backend
-  const fetchSchedule = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.error('No token found');
-        setError('Please login again');
-        setLoading(false);
-        return;
-      }
+ // In ScheduleViewer.jsx - Replace the fetchSchedule function
 
-      const response = await axios.get(`${API_URL}/api/doctor/my-schedule`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      if (response.data.success) {
-        setSchedules(response.data.schedules || []);
-        setStats(response.data.stats || null);
-        setError(null);
-      } else {
-        setError(response.data.message || 'Failed to load schedule');
-        setSchedules([]);
-      }
-    } catch (err) {
-      console.error('Error fetching schedule:', err);
-      setError(err.response?.data?.message || 'Network error loading schedule');
-      setSchedules([]);
-    } finally {
+const fetchSchedule = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.error('No token found');
+      setError('Please login again');
       setLoading(false);
-      setRefreshing(false);
+      return;
     }
-  };
 
+    // Get user from localStorage
+    const userStr = localStorage.getItem('user');
+    let userRole = '';
+    let userDepartment = '';
+    
+    if (userStr) {
+      try {
+        const userData = JSON.parse(userStr);
+        userRole = userData.userType || userData.role || '';
+        userDepartment = userData.department || '';
+        console.log('User role:', userRole, 'Department:', userDepartment);
+      } catch (e) {
+        console.error('Error parsing user:', e);
+      }
+    }
+
+    // Determine which endpoint to use based on user role/department
+    let endpoint = '';
+    
+    // Doctor
+    if (userRole === 'doctor' || userDepartment === 'Doctor') {
+      endpoint = '/api/doctor/my-schedule';
+    }
+    // Nurse
+    else if (userRole === 'nurse' || userDepartment === 'Nurse') {
+      endpoint = '/api/nurse/my-schedule';
+    }
+    // Lab
+    else if (userRole === 'lab' || userDepartment === 'Lab') {
+      endpoint = '/api/lab/my-schedule';
+    }
+    // Radiology
+    else if (userRole === 'radio' || userDepartment === 'Radio' || userDepartment === 'Radiology') {
+      endpoint = '/api/radiology/my-schedule';
+    }
+    // Pharmacy
+    else if (userRole === 'pharmacy' || userDepartment === 'Pharma') {
+      endpoint = '/api/pharmacy/my-schedule';
+    }
+    // Midwife
+    else if (userRole === 'midwife' || userDepartment === 'Midwife') {
+      endpoint = '/api/midwife/my-schedule';
+    }
+    // Triage
+    else if (userRole === 'triage' || userDepartment === 'Triage') {
+      endpoint = '/api/triage/my-schedule';
+    }
+    // Card Office
+    else if (userRole === 'card_office' || userDepartment === 'Card_Office' || userDepartment === 'Card Office') {
+      endpoint = '/api/cardoffice/my-schedule';
+    }
+    // HR
+    else if (userRole === 'hr' || userDepartment === 'Human_Resource' || userDepartment === 'Human Resource') {
+      endpoint = '/api/hr/my-schedule';
+    }
+    // Bed Management
+    else if (userRole === 'bed_management' || userDepartment === 'Bed_Management') {
+      endpoint = '/api/bed-management/my-schedule';
+    }
+    // Default to generic staff endpoint (try HR first, then card office)
+    else {
+      endpoint = '/api/hr/my-schedule';
+    }
+
+    console.log('Fetching schedule from:', endpoint);
+
+    const response = await axios.get(`${API_URL}${endpoint}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (response.data.success) {
+      // Transform data to match expected format
+      let formattedSchedules = [];
+      let formattedStats = null;
+      
+      if (response.data.schedules) {
+        formattedSchedules = response.data.schedules.map(s => ({
+          date: s.date,
+          shift_type: s.shift_type,
+          shift_name: s.shift_name || s.shift_type,
+          start_time: s.shift_start || s.start_time || '--:--',
+          end_time: s.shift_end || s.end_time || '--:--',
+          hours: s.shift_hours || s.hours || 0,
+          ward: s.ward,
+          status: s.status || 'scheduled'
+        }));
+      }
+      
+      if (response.data.total_hours || response.data.schedulesByWeek) {
+        formattedStats = {
+          today: response.data.today_stats || { shift_count: 0, total_hours: 0 },
+          this_week: response.data.this_week_stats || { shift_count: 0, total_hours: 0 },
+          next_week: response.data.next_week_stats || { shift_count: 0, total_hours: 0 },
+          upcoming: { shift_count: response.data.upcoming_shifts?.length || 0, total_hours: 0 }
+        };
+      }
+      
+      setSchedules(formattedSchedules);
+      setStats(formattedStats);
+      setError(null);
+    } else {
+      setError(response.data.message || 'Failed to load schedule');
+      setSchedules([]);
+    }
+  } catch (err) {
+    console.error('Error fetching schedule:', err);
+    setError(err.response?.data?.message || 'Network error loading schedule');
+    setSchedules([]);
+  } finally {
+    setLoading(false);
+    setRefreshing(false);
+  }
+};
   useEffect(() => {
     fetchSchedule();
   }, []);
