@@ -1,30 +1,27 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { FaCalendarAlt, FaClock, FaSun, FaMoon, FaCloudSun, FaSpinner, FaBell, FaSync } from 'react-icons/fa';
+import React, { useState, useEffect } from 'react';
+import { FaCalendarAlt, FaClock, FaSun, FaMoon, FaCloudSun, FaSpinner, FaSync } from 'react-icons/fa';
 import axios from 'axios';
 
 const ScheduleViewer = ({ user, compact = false }) => {
   const [loading, setLoading] = useState(true);
   const [activeView, setActiveView] = useState('today');
   const [refreshing, setRefreshing] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
   const [schedules, setSchedules] = useState([]);
-  const [stats, setStats] = useState(null);
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [summary, setSummary] = useState(null);
+  const [staffInfo, setStaffInfo] = useState(null);
   const [error, setError] = useState(null);
 
-  // Doctor "view all staff" filters
-  const [viewMode, setViewMode] = useState('mine'); // mine | all
-  const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
-  const [filterDepartment, setFilterDepartment] = useState('all');
-  const [filterWard, setFilterWard] = useState('all');
+  // Clean API URL
+  let API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+  API_URL = API_URL.replace(/\/$/, '');
+  console.log('🔧 ScheduleViewer API_URL:', API_URL);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
-
-  // Fetch schedule from backend
+  // Fetch schedule from universal staff endpoint
   const fetchSchedule = async () => {
     try {
+      setLoading(true);
       const token = localStorage.getItem('token');
+      
       if (!token) {
         console.error('No token found');
         setError('Please login again');
@@ -32,130 +29,40 @@ const ScheduleViewer = ({ user, compact = false }) => {
         return;
       }
 
-      // Get user from localStorage
-      const userStr = localStorage.getItem('user');
-      let userRole = '';
-      let userDepartment = '';
-      
-      if (userStr) {
-        try {
-          const userData = JSON.parse(userStr);
-          userRole = userData.userType || userData.role || '';
-          userDepartment = userData.department || '';
-          console.log('User role:', userRole, 'Department:', userDepartment);
-        } catch (e) {
-          console.error('Error parsing user:', e);
-        }
-      }
-
-      // Determine which endpoint to use based on user role/department
-      // NOTE: API_URL already includes '/api', so don't add '/api' again
-      let endpoint = '';
-      
-      // Doctor
-      if (userRole === 'doctor' || userDepartment === 'Doctor') {
-        endpoint = viewMode === 'all' ? '/doctor/staff-schedules' : '/doctor/my-schedule';
-      }
-      // Nurse
-      else if (userRole === 'nurse' || userDepartment === 'Nurse') {
-        endpoint = '/nurse/my-schedule';
-      }
-      // Lab
-      else if (userRole === 'lab' || userDepartment === 'Lab') {
-        endpoint = '/lab/my-schedule';
-      }
-      // Radiology
-      else if (userRole === 'radio' || userDepartment === 'Radio' || userDepartment === 'Radiology') {
-        endpoint = '/radiology/my-schedule';
-      }
-      // Pharmacy
-      else if (userRole === 'pharmacy' || userDepartment === 'Pharma') {
-        endpoint = '/pharmacy/my-schedule';
-      }
-      // Midwife
-      else if (userRole === 'midwife' || userDepartment === 'Midwife') {
-        endpoint = '/midwife/my-schedule';
-      }
-      // Triage
-      else if (userRole === 'triage' || userDepartment === 'Triage') {
-        endpoint = '/triage/my-schedule';
-      }
-      // Card Office
-      else if (userRole === 'card_office' || userDepartment === 'Card_Office' || userDepartment === 'Card Office') {
-        endpoint = '/cardoffice/my-schedule';
-      }
-      // HR
-      else if (userRole === 'hr' || userDepartment === 'Human_Resource' || userDepartment === 'Human Resource') {
-        endpoint = '/hr/my-schedule';
-      }
-      // Bed Management
-      else if (userRole === 'bed_management' || userDepartment === 'Bed_Management') {
-        endpoint = '/bed-management/my-schedule';
-      }
-      // Default to generic staff endpoint
-      else {
-        endpoint = '/hr/my-schedule';
-      }
-
+      // ✅ USE THE UNIVERSAL STAFF ENDPOINT
+      const endpoint = '/api/staff/my-schedule';
       const fullUrl = `${API_URL}${endpoint}`;
-      console.log('Fetching schedule from:', fullUrl);
-
+      
+      console.log('📡 Fetching schedule from:', fullUrl);
+      
       const response = await axios.get(fullUrl, {
-        params: endpoint === '/doctor/staff-schedules'
-          ? { date: filterDate, department: filterDepartment, ward: filterWard }
-          : undefined,
         headers: { Authorization: `Bearer ${token}` }
       });
-
+      
+      console.log('📅 Schedule response:', response.data);
+      
       if (response.data.success) {
-        // Transform data to match expected format
-        let formattedSchedules = [];
-        let formattedStats = null;
-        
-        if (response.data.schedules) {
-          formattedSchedules = response.data.schedules.map(s => ({
-            id: s.id,
-            date: s.date,
-            shift_type: s.shift_type,
-            shift_name: s.shift_name || s.shift_type,
-            start_time: s.shift_start || s.start_time || '--:--',
-            end_time: s.shift_end || s.end_time || '--:--',
-            hours: s.shift_hours || s.hours || 0,
-            ward: s.ward,
-            department: s.department,
-            staff_full_name: s.staff_full_name,
-            status: s.status || 'scheduled'
-          }));
-        }
-        
-        // Calculate stats from schedules if not provided
-        if (response.data.stats) {
-          formattedStats = response.data.stats;
-        } else if (formattedSchedules.length > 0) {
-          // Calculate stats manually
-          const today = new Date().toISOString().split('T')[0];
-          const todaySchedules = formattedSchedules.filter(s => s.date === today);
-          let todayHours = 0;
-          todaySchedules.forEach(s => todayHours += s.hours);
-          
-          formattedStats = {
-            today: { shift_count: todaySchedules.length, total_hours: todayHours },
-            this_week: { shift_count: formattedSchedules.length, total_hours: response.data.total_hours || 0 },
-            next_week: { shift_count: 0, total_hours: 0 },
-            upcoming: { shift_count: formattedSchedules.length, total_hours: response.data.total_hours || 0 }
-          };
-        }
-        
-        setSchedules(formattedSchedules);
-        setStats(formattedStats);
+        setSchedules(response.data.schedules || []);
+        setSummary(response.data.summary || null);
+        setStaffInfo(response.data.staff || null);
         setError(null);
       } else {
         setError(response.data.message || 'Failed to load schedule');
         setSchedules([]);
       }
     } catch (err) {
-      console.error('Error fetching schedule:', err);
-      setError(err.response?.data?.message || 'Network error loading schedule');
+      console.error('❌ Error fetching schedule:', err);
+      console.error('Error details:', err.response?.data);
+      
+      if (err.response?.status === 404) {
+        setError('Schedule endpoint not found. Please check if /api/staff/my-schedule exists.');
+      } else if (err.response?.status === 500) {
+        setError(`Server error: ${err.response?.data?.message || 'Internal server error'}`);
+      } else if (err.response?.status === 401) {
+        setError('Session expired. Please login again.');
+      } else {
+        setError(err.response?.data?.message || err.message || 'Network error loading schedule');
+      }
       setSchedules([]);
     } finally {
       setLoading(false);
@@ -163,9 +70,17 @@ const ScheduleViewer = ({ user, compact = false }) => {
     }
   };
 
+  // Auto-refresh every 30 seconds
   useEffect(() => {
     fetchSchedule();
-  }, [viewMode, filterDate, filterDepartment, filterWard]);
+    
+    const interval = setInterval(() => {
+      console.log('🔄 Auto-refreshing schedule...');
+      fetchSchedule();
+    }, 30000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   const refreshData = async () => {
     setRefreshing(true);
@@ -190,7 +105,7 @@ const ScheduleViewer = ({ user, compact = false }) => {
     }
   };
 
-  // Get today's schedule from backend data
+  // Get today's schedule
   const getTodaySchedule = () => {
     const today = new Date().toISOString().split('T')[0];
     const todayShifts = schedules.filter(s => s.date === today);
@@ -213,7 +128,7 @@ const ScheduleViewer = ({ user, compact = false }) => {
     return { current_shift: currentShift, upcoming_shift: upcomingShift, date: today, shifts: todayShifts };
   };
 
-  // Get weekly view from backend data
+  // Get weekly view
   const getWeeklyView = () => {
     const weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const today = new Date();
@@ -248,7 +163,7 @@ const ScheduleViewer = ({ user, compact = false }) => {
   const weeklyView = getWeeklyView();
 
   // Loading state
-  if (loading) {
+  if (loading && schedules.length === 0) {
     return (
       <div className="flex items-center justify-center p-8">
         <FaSpinner className="animate-spin text-2xl text-teal-500" />
@@ -258,7 +173,7 @@ const ScheduleViewer = ({ user, compact = false }) => {
   }
 
   // Error state
-  if (error) {
+  if (error && schedules.length === 0) {
     return (
       <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center">
         <div className="text-4xl mb-3">⚠️</div>
@@ -274,7 +189,7 @@ const ScheduleViewer = ({ user, compact = false }) => {
     );
   }
 
-  // Compact view for sidebar widget
+  // Compact view for sidebar
   if (compact) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
@@ -282,6 +197,9 @@ const ScheduleViewer = ({ user, compact = false }) => {
           <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
             <FaCalendarAlt className="text-teal-500" /> Today's Schedule
           </h3>
+          <button onClick={refreshData} disabled={refreshing} className="text-gray-400 hover:text-gray-600">
+            <FaSync className={refreshing ? 'animate-spin text-xs' : 'text-xs'} />
+          </button>
         </div>
         
         {todaySchedule.current_shift ? (
@@ -310,13 +228,13 @@ const ScheduleViewer = ({ user, compact = false }) => {
           </div>
         )}
         
-        {stats && stats.this_week && (
+        {summary && (
           <div className="mt-3 pt-3 border-t border-gray-100">
             <div className="flex justify-between text-xs">
-              <span className="text-gray-500">This week:</span>
-              <span className="font-medium">{stats.this_week?.shift_count || 0} shifts</span>
+              <span className="text-gray-500">Upcoming:</span>
+              <span className="font-medium">{summary.upcoming_shifts || 0} shifts</span>
               <span className="text-gray-500">|</span>
-              <span className="font-medium">{stats.this_week?.total_hours || 0}h</span>
+              <span className="font-medium">{summary.total_hours || 0}h</span>
             </div>
           </div>
         )}
@@ -327,132 +245,57 @@ const ScheduleViewer = ({ user, compact = false }) => {
   // Full view
   return (
     <div className="space-y-6">
-      {/* Refresh Button */}
-      <div className="flex justify-end">
-        <button 
-          onClick={refreshData}
-          disabled={refreshing}
-          className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-gray-200 flex items-center gap-1"
-        >
-          <FaSync className={refreshing ? 'animate-spin text-xs' : 'text-xs'} />
-          {refreshing ? 'Refreshing...' : 'Refresh'}
-        </button>
-      </div>
-
-      {/* Doctor staff schedule controls */}
-      {(() => {
-        const userStr = localStorage.getItem('user');
-        let userRole = '';
-        let userDepartment = '';
-        if (userStr) {
-          try {
-            const userData = JSON.parse(userStr);
-            userRole = userData.userType || userData.role || '';
-            userDepartment = userData.department || '';
-          } catch { /* ignore */ }
-        }
-        const isDoctor = userRole === 'doctor' || userDepartment === 'Doctor';
-        if (!isDoctor) return null;
-
-        return (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex flex-wrap gap-3 items-end">
-            <div className="flex gap-2">
-              <button
-                onClick={() => setViewMode('mine')}
-                className={`px-3 py-2 rounded-lg text-sm font-medium ${viewMode === 'mine' ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-              >
-                My Schedule
-              </button>
-              <button
-                onClick={() => setViewMode('all')}
-                className={`px-3 py-2 rounded-lg text-sm font-medium ${viewMode === 'all' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-              >
-                All Staff
-              </button>
+      {/* Staff Info Header */}
+      {staffInfo && (
+        <div className="bg-gradient-to-r from-teal-500 to-emerald-500 rounded-xl p-4 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm opacity-90">Welcome back,</p>
+              <p className="text-xl font-bold">{staffInfo.full_name}</p>
+              <p className="text-xs opacity-80 mt-1">{staffInfo.department} • {staffInfo.ward} Ward • {staffInfo.role}</p>
             </div>
-
-            {viewMode === 'all' && (
-              <>
-                <div>
-                  <label className="text-xs text-gray-500">Date</label>
-                  <input
-                    type="date"
-                    value={filterDate}
-                    onChange={(e) => setFilterDate(e.target.value)}
-                    className="block mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500">Department</label>
-                  <select
-                    value={filterDepartment}
-                    onChange={(e) => setFilterDepartment(e.target.value)}
-                    className="block mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
-                  >
-                    <option value="all">All</option>
-                    <option value="Doctor">Doctor</option>
-                    <option value="Nurse">Nurse</option>
-                    <option value="Lab">Lab</option>
-                    <option value="Radio">Radiology</option>
-                    <option value="Pharma">Pharmacy</option>
-                    <option value="Midwife">Midwife</option>
-                    <option value="Triage">Triage</option>
-                    <option value="Card_Office">Card Office</option>
-                    <option value="Human_Resource">HR</option>
-                    <option value="Bed_Management">Bed Management</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500">Ward</label>
-                  <select
-                    value={filterWard}
-                    onChange={(e) => setFilterWard(e.target.value)}
-                    className="block mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
-                  >
-                    <option value="all">All</option>
-                    <option value="OPD">OPD</option>
-                    <option value="EME">EME</option>
-                    <option value="ANC">ANC</option>
-                  </select>
-                </div>
-              </>
-            )}
+            <button 
+              onClick={refreshData}
+              disabled={refreshing}
+              className="bg-white/20 backdrop-blur px-3 py-1.5 rounded-lg text-sm hover:bg-white/30 flex items-center gap-1"
+            >
+              <FaSync className={refreshing ? 'animate-spin text-xs' : 'text-xs'} />
+              {refreshing ? '...' : 'Refresh'}
+            </button>
           </div>
-        );
-      })()}
+        </div>
+      )}
 
-      {/* Schedule Stats Cards */}
-      {stats && (
+      {/* Summary Cards */}
+      {summary && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-gradient-to-br from-teal-500 to-emerald-500 rounded-xl p-4 text-white">
-            <p className="text-xs opacity-90">Today</p>
-            <p className="text-2xl font-bold">{stats.today?.shift_count || 0}</p>
-            <p className="text-xs opacity-75">{stats.today?.total_hours || 0} hours</p>
-          </div>
           <div className="bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl p-4 text-white">
-            <p className="text-xs opacity-90">This Week</p>
-            <p className="text-2xl font-bold">{stats.this_week?.shift_count || 0}</p>
-            <p className="text-xs opacity-75">{stats.this_week?.total_hours || 0} hours</p>
+            <p className="text-xs opacity-90">Total Shifts</p>
+            <p className="text-2xl font-bold">{summary.total_shifts || 0}</p>
+          </div>
+          <div className="bg-gradient-to-br from-teal-500 to-emerald-500 rounded-xl p-4 text-white">
+            <p className="text-xs opacity-90">Total Hours</p>
+            <p className="text-2xl font-bold">{summary.total_hours || 0}h</p>
+          </div>
+          <div className="bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl p-4 text-white">
+            <p className="text-xs opacity-90">Upcoming</p>
+            <p className="text-2xl font-bold">{summary.upcoming_shifts || 0}</p>
           </div>
           <div className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl p-4 text-white">
-            <p className="text-xs opacity-90">Next Week</p>
-            <p className="text-2xl font-bold">{stats.next_week?.shift_count || 0}</p>
-            <p className="text-xs opacity-75">{stats.next_week?.total_hours || 0} hours</p>
-          </div>
-          <div className="bg-gradient-to-br from-orange-500 to-red-500 rounded-xl p-4 text-white">
-            <p className="text-xs opacity-90">Upcoming</p>
-            <p className="text-2xl font-bold">{stats.upcoming?.shift_count || 0}</p>
-            <p className="text-xs opacity-75">next {stats.upcoming?.shift_count || 0} shifts</p>
+            <p className="text-xs opacity-90">Next Shift</p>
+            <p className="text-sm font-semibold truncate">
+              {summary.next_shift ? `${summary.next_shift.shift_name} (${summary.next_shift.ward})` : 'None'}
+            </p>
           </div>
         </div>
       )}
 
       {/* If no schedules */}
-      {schedules.length === 0 && (
+      {schedules.length === 0 && !error && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
           <div className="text-5xl mb-3">📅</div>
           <h3 className="text-lg font-semibold text-gray-800 mb-2">No Schedule Found</h3>
-          <p className="text-gray-500 mb-4">Your schedule will appear here once assigned by the hospital admin.</p>
+          <p className="text-gray-500 mb-4">Your schedule will appear here once assigned by HR.</p>
           <button 
             onClick={refreshData}
             className="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm hover:bg-teal-700"
@@ -514,9 +357,6 @@ const ScheduleViewer = ({ user, compact = false }) => {
                         {getShiftIcon(shift.shift_type)}
                         <span className="font-semibold">{shift.shift_name || shift.shift_type} Shift</span>
                       </div>
-                      {shift.status === 'ongoing' && (
-                        <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full">In Progress</span>
-                      )}
                     </div>
                     <p className="text-sm">{shift.start_time} - {shift.end_time}</p>
                     <p className="text-sm text-gray-600 mt-1">📍 {shift.ward} Ward</p>
@@ -552,12 +392,6 @@ const ScheduleViewer = ({ user, compact = false }) => {
                             {getShiftIcon(schedule.shift_type)}
                             <span className="font-medium">{schedule.shift_name || schedule.shift_type} Shift</span>
                           </div>
-                          {schedule.staff_full_name && (
-                            <p className="text-xs text-gray-700 font-medium">{schedule.staff_full_name}</p>
-                          )}
-                          {schedule.department && (
-                            <p className="text-[11px] text-gray-500">{schedule.department}</p>
-                          )}
                           <p className="text-sm font-medium">{new Date(schedule.date).toLocaleDateString()}</p>
                           <p className="text-xs text-gray-500">{schedule.start_time} - {schedule.end_time}</p>
                           <p className="text-xs text-gray-600 mt-1">📍 {schedule.ward} Ward</p>
