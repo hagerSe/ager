@@ -488,7 +488,7 @@ const getHospitalId = () => {
   const updateProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/cardoffice/profile`, profileData, {
+      const res = await axios.put(`${API_URL}/cardoffice/profile`, profileData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
