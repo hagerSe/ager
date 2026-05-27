@@ -17,12 +17,53 @@ import {
 } from 'react-icons/fa';
 import ScheduleViewer from '../components/ScheduleViewer';
 
+// At the top of CardOfficeDashboard component, add:
+console.log('=== CardOfficeDashboard received user prop ===');
+console.log('user:', user);
+console.log('user keys:', user ? Object.keys(user) : 'user is null/undefined');
 const CardOfficeDashboard = ({ user, onLogout }) => {
   // ==================== HELPER: Get Hospital ID ====================
-  const getHospitalId = () => {
-    return user?.hospital_id || user?.hospitalId || localStorage.getItem('hospital_id') || (user?.hospital ? user.hospital.id : null);
-  };
-
+const getHospitalId = () => {
+  console.log('=== USER OBJECT DEBUG ===');
+  console.log('Full user object:', user);
+  console.log('user?.hospital_id:', user?.hospital_id);
+  console.log('user?.hospitalId:', user?.hospitalId);
+  console.log('user?.hospital?.id:', user?.hospital?.id);
+  console.log('localStorage hospital_id:', localStorage.getItem('hospital_id'));
+  
+  // Try multiple sources
+  let id = user?.hospital_id || 
+          user?.hospitalId || 
+          localStorage.getItem('hospital_id') || 
+          (user?.hospital ? user.hospital.id : null);
+  
+  // If still null, try to get from nested user object in localStorage
+  if (!id) {
+    try {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        id = parsed?.hospital_id || parsed?.hospitalId || (parsed?.hospital ? parsed.hospital.id : null);
+        console.log('Found in stored user:', id);
+      }
+    } catch (e) {}
+  }
+  
+  // If still null, try to decode from JWT token
+  if (!id) {
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        id = payload?.hospital_id || payload?.hospitalId;
+        console.log('Found in token payload:', id);
+      }
+    } catch (e) {}
+  }
+  
+  console.log('Final hospital ID:', id);
+  return id;
+};
   // ==================== STATE MANAGEMENT ====================
   const [activeTab, setActiveTab] = useState('register');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
