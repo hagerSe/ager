@@ -497,7 +497,7 @@ const Login = () => {
                     </button>
                   </form>
 
-                  <div className="mt-5 text-center">
+                 f <div className="mt-5 text-center">
                     <button
                       type="button"
                       onClick={() => setShowResendVerification(true)}
