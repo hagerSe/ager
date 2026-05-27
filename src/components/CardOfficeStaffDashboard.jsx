@@ -2,23 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { io } from 'socket.io-client';
-import { 
-  FaHome, FaHospital, FaBell, FaUserCircle, FaSignOutAlt,
-  FaInbox, FaPaperPlane, FaUsers, FaChartBar,
-  FaPlus, FaSearch, FaChevronLeft, FaChevronRight,
-  FaClock, FaExclamationTriangle,
-  FaEnvelope, FaEnvelopeOpen, FaTimes, FaCheck, FaSpinner,
-  FaUserMd, FaUserNurse, FaFlask, FaXRay, FaBaby,
-  FaBed, FaUserTie, FaCreditCard,
-  FaCalendarAlt, FaPhone, FaEnvelope as FaEnvelopeIcon,
-  FaHeartbeat, FaPills, FaHospitalAlt,
-  FaChartLine, FaFileExport, FaCalendarWeek,
-  FaStethoscope, FaProcedures, FaUserInjured, FaEdit, FaSave, FaKey, FaCamera,
-  FaReply, FaEye, FaFileAlt, FaPaperclip, FaTrash, FaBell as FaBellIcon,
-  FaRegClock, FaBuilding, FaGlobe, FaMapMarkerAlt,
-  FaIdCard, FaUserPlus, FaHistory, FaSync
-} from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  FaIdCard, FaUserPlus, FaSearch, FaHistory, FaInbox, FaPaperPlane, 
+  FaChartBar, FaCalendarAlt, FaUserCircle, FaSignOutAlt, FaChevronLeft, 
+  FaChevronRight, FaSpinner, FaCheck, FaEdit, FaSave, FaKey, FaReply,
+  FaEnvelope, FaEnvelopeOpen, FaHeartbeat, FaSync, FaTextHeight, FaUndo,
+  FaPhone, FaVenusMars, FaCalendarWeek, FaClock, FaExclamationTriangle
+} from 'react-icons/fa';
 import ScheduleViewer from '../components/ScheduleViewer';
 
 const CardOfficeDashboard = ({ user, onLogout }) => {
@@ -29,6 +20,16 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [showScheduleView, setShowScheduleView] = useState(false);
+  
+  // ==================== TEXT SIZE STATE ====================
+  const [textSize, setTextSize] = useState('xlarge');
+  const [showTextSizeMenu, setShowTextSizeMenu] = useState(false);
+  
+  // ==================== LOGOUT CONFIRMATION ====================
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  
+  // ==================== HISTORY FOR BACK NAVIGATION ====================
+  const [tabHistory, setTabHistory] = useState(['register']);
   
   // ==================== REGISTRATION STATES ====================
   const [formData, setFormData] = useState({
@@ -82,7 +83,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     priority: 'medium',
     attachments: []
   });
-  const [attachmentPreview, setAttachmentPreview] = useState([]);
   const fileInputRef = useRef(null);
   const [reportsLoading, setReportsLoading] = useState(false);
   
@@ -111,8 +111,60 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
 
   const navigate = useNavigate();
   
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
   const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001';
+
+  // ==================== TEXT SIZE STYLES ====================
+  const getTextSizeClasses = () => {
+    switch(textSize) {
+      case 'small':
+        return { base: 'text-sm', heading: 'text-base', title: 'text-lg', large: 'text-sm' };
+      case 'normal':
+        return { base: 'text-base', heading: 'text-lg', title: 'text-xl', large: 'text-base' };
+      case 'large':
+        return { base: 'text-lg', heading: 'text-xl', title: 'text-2xl', large: 'text-lg' };
+      case 'xlarge':
+        return { base: 'text-xl', heading: 'text-2xl', title: 'text-3xl', large: 'text-xl' };
+      default:
+        return { base: 'text-xl', heading: 'text-2xl', title: 'text-3xl', large: 'text-xl' };
+    }
+  };
+  
+  const textSizeClasses = getTextSizeClasses();
+  
+  useEffect(() => {
+    document.documentElement.style.fontSize = 
+      textSize === 'small' ? '13px' : 
+      textSize === 'normal' ? '15px' : 
+      textSize === 'large' ? '17px' : '19px';
+  }, [textSize]);
+
+  // ==================== BACK NAVIGATION HANDLER ====================
+  const handleTabChange = (tab, isSchedule = false) => {
+    if (tab !== activeTab || isSchedule !== showScheduleView) {
+      setTabHistory(prev => [...prev, activeTab]);
+      setActiveTab(tab);
+      setShowScheduleView(isSchedule);
+    }
+  };
+  
+  const handleGoBack = () => {
+    if (tabHistory.length > 0) {
+      const previousTab = tabHistory[tabHistory.length - 1];
+      setTabHistory(prev => prev.slice(0, -1));
+      setActiveTab(previousTab);
+      setShowScheduleView(previousTab === 'schedule');
+    }
+  };
+
+  // ==================== FORMAT FULL NAME ====================
+  const formatFullName = (staffMember) => {
+    if (!staffMember) return 'Unknown';
+    const firstName = staffMember.first_name || '';
+    const middleName = staffMember.middle_name ? ` ${staffMember.middle_name}` : '';
+    const lastName = staffMember.last_name || '';
+    return `${firstName}${middleName} ${lastName}`.trim();
+  };
 
   // ==================== VALIDATION FUNCTIONS ====================
   const validateName = (name, fieldName) => {
@@ -189,10 +241,9 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   };
 
   // ==================== SOCKET CONNECTION ====================
-  useEffect(() => {
+  const initializeSocket = () => {
     const token = localStorage.getItem('token');
-    if (!token) return;
-
+    
     socketRef.current = io(SOCKET_URL, {
       auth: { token },
       transports: ['polling', 'websocket'],
@@ -202,16 +253,18 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     });
 
     socketRef.current.on('connect', () => {
-      console.log('✅ Socket connected');
+      console.log('✅ Card office socket connected');
       setConnectionStatus('connected');
-      socketRef.current.emit('join_cardoffice', user?.hospital_id);
+      if (user?.hospital_id) {
+        socketRef.current.emit('join_cardoffice', user.hospital_id);
+      }
     });
 
     socketRef.current.on('connect_error', (error) => {
-      console.error('❌ Socket error:', error);
+      console.error('❌ Socket connection error:', error);
       setConnectionStatus('disconnected');
     });
-
+    
     socketRef.current.on('disconnect', () => {
       console.log('🔌 Socket disconnected');
       setConnectionStatus('disconnected');
@@ -260,53 +313,27 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     });
 
     socketRef.current.on('weekly_schedule_ready', (data) => {
-      console.log('📅 Weekly schedule ready event received:', data);
-      setRealTimeNotification({
-        id: Date.now(),
-        type: 'weekly_schedule',
-        title: 'Weekly Schedule Ready',
-        message: `Your schedule for ${data.week_range} is ready. ${data.schedules_count} shifts, ${data.total_hours} hours.`,
-        priority: 'high',
-        timestamp: new Date()
-      });
-      
       if (showScheduleView) {
+        setRealTimeNotification({
+          id: Date.now(),
+          type: 'weekly_schedule',
+          title: 'Weekly Schedule Ready',
+          message: `Your schedule for ${data.week_range} is ready.`,
+          priority: 'high',
+          timestamp: new Date()
+        });
         const event = new CustomEvent('refreshSchedule');
         window.dispatchEvent(event);
+        setTimeout(() => setRealTimeNotification(null), 10000);
       }
-      
-      setTimeout(() => setRealTimeNotification(null), 10000);
     });
-
-    socketRef.current.on('new_schedule_assigned', (data) => {
-      console.log('📅 New schedule assigned event:', data);
-      setRealTimeNotification({
-        id: Date.now(),
-        type: 'schedule',
-        title: 'New Schedule Assigned',
-        message: `${data.shift} Shift on ${data.date} in ${data.ward} Ward`,
-        priority: 'high',
-        timestamp: new Date()
-      });
-      
-      if (showScheduleView) {
-        const event = new CustomEvent('refreshSchedule');
-        window.dispatchEvent(event);
-      }
-      
-      setTimeout(() => setRealTimeNotification(null), 8000);
-    });
-
-    return () => {
-      if (socketRef.current) socketRef.current.disconnect();
-    };
-  }, [user?.hospital_id]);
+  };
 
   // ==================== FETCH DATA (WITH HOSPITAL ID) ====================
   const fetchRecentPatients = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/cardoffice/patients/recent`, {
+      const response = await axios.get(`${API_URL}/api/cardoffice/patients/recent`, {
         params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -321,7 +348,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const fetchStats = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/cardoffice/stats`, {
+      const response = await axios.get(`${API_URL}/api/cardoffice/stats`, {
         params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -338,7 +365,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/cardoffice/reports/inbox`, {
+      const res = await axios.get(`${API_URL}/api/cardoffice/reports/inbox`, {
         params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -357,7 +384,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/cardoffice/reports/outbox`, {
+      const res = await axios.get(`${API_URL}/api/cardoffice/reports/outbox`, {
         params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -374,7 +401,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const fetchHospitalAdmins = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/cardoffice/hospital-admins`, {
+      const res = await axios.get(`${API_URL}/api/cardoffice/hospital-admins`, {
         params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -410,7 +437,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       formData.append('hospital_id', user?.hospital_id);
       sendReportForm.attachments.forEach((file) => formData.append('attachments', file));
       
-      const res = await axios.post(`${API_URL}/cardoffice/reports/send`, formData, {
+      const res = await axios.post(`${API_URL}/api/cardoffice/reports/send`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
 
@@ -426,7 +453,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
           priority: 'medium',
           attachments: []
         });
-        setAttachmentPreview([]);
         fetchReportsOutbox();
       }
     } catch (error) {
@@ -446,7 +472,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const markReportAsRead = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/cardoffice/reports/${reportId}/read`, 
+      await axios.put(`${API_URL}/api/cardoffice/reports/${reportId}/read`, 
         { hospital_id: user?.hospital_id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -471,7 +497,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       formData.append('hospital_id', user?.hospital_id);
       if (replyAttachment) formData.append('attachment', replyAttachment);
       
-      const res = await axios.post(`${API_URL}/cardoffice/reports/${selectedReport.id}/reply`, formData, {
+      const res = await axios.post(`${API_URL}/api/cardoffice/reports/${selectedReport.id}/reply`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
 
@@ -496,7 +522,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/cardoffice/profile`, {
+      const res = await axios.get(`${API_URL}/api/cardoffice/profile`, {
         params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -521,7 +547,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const updateProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/cardoffice/profile`, 
+      const res = await axios.put(`${API_URL}/api/cardoffice/profile`, 
         { ...profileData, hospital_id: user?.hospital_id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -544,7 +570,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     }
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/cardoffice/change-password`, {
+      const res = await axios.put(`${API_URL}/api/cardoffice/change-password`, {
         current_password: passwordData.current_password,
         new_password: passwordData.new_password,
         hospital_id: user?.hospital_id
@@ -583,7 +609,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       };
       
       const response = await axios.post(
-        `${API_URL}/cardoffice/patients/register`,
+        `${API_URL}/api/cardoffice/patients/register`,
         cleanedFormData,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -633,7 +659,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       const token = localStorage.getItem('token');
       const encodedQuery = encodeURIComponent(searchQuery.trim());
       const response = await axios.get(
-        `${API_URL}/cardoffice/patients/search?query=${encodedQuery}&hospital_id=${user?.hospital_id}`,
+        `${API_URL}/api/cardoffice/patients/search?query=${encodedQuery}&hospital_id=${user?.hospital_id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -661,7 +687,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        `${API_URL}/cardoffice/patients/send-to-triage`,
+        `${API_URL}/api/cardoffice/patients/send-to-triage`,
         { patientId: patient.id, reason, hospital_id: user?.hospital_id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -683,7 +709,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `${API_URL}/cardoffice/patients/${patient.id}?hospital_id=${user?.hospital_id}`,
+        `${API_URL}/api/cardoffice/patients/${patient.id}?hospital_id=${user?.hospital_id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -749,31 +775,31 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
         exit={{ opacity: 0, x: 100, scale: 0.9 }}
         className={`fixed bottom-6 right-6 z-[10000] max-w-md bg-white rounded-2xl shadow-2xl border-l-4 ${priorityColors[realTimeNotification.priority] || 'border-teal-500'} overflow-hidden`}
       >
-        <div className="p-4">
-          <div className="flex items-start gap-3">
+        <div className="p-5">
+          <div className="flex items-start gap-4">
             <div className="flex-shrink-0">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-teal-100">
+              <div className="w-14 h-14 rounded-full flex items-center justify-center text-3xl bg-blue-100">
                 {realTimeNotification.type === 'reply' ? '💬' : realTimeNotification.type === 'new_patient' ? '🆕' : '📬'}
               </div>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-sm font-bold text-gray-900">{realTimeNotification.title}</p>
-                <span className="text-xs text-gray-400 ml-2">{getPriorityIcon(realTimeNotification.priority)} {realTimeNotification.priority}</span>
+              <div className="flex items-center justify-between mb-2">
+                <p className={`font-bold text-gray-900 ${textSizeClasses.heading}`}>{realTimeNotification.title}</p>
+                <span className={`text-gray-400 ml-2 ${textSizeClasses.base}`}>{getPriorityIcon(realTimeNotification.priority)} {realTimeNotification.priority}</span>
               </div>
-              <p className="text-sm text-gray-600 mb-2">{realTimeNotification.message}</p>
-              <div className="flex items-center gap-3 text-xs text-gray-400">
+              <p className={`text-gray-600 mb-2 ${textSizeClasses.base}`}>{realTimeNotification.message}</p>
+              <div className="flex items-center gap-3 text-gray-400" style={{ fontSize: '0.875rem' }}>
                 <span>🕒 {new Date(realTimeNotification.timestamp).toLocaleTimeString()}</span>
               </div>
             </div>
-            <button onClick={() => setRealTimeNotification(null)} className="flex-shrink-0 text-gray-400 hover:text-gray-600">×</button>
+            <button onClick={() => setRealTimeNotification(null)} className="flex-shrink-0 text-gray-400 hover:text-gray-600 text-2xl">×</button>
           </div>
         </div>
         <motion.div
           initial={{ width: '100%' }}
           animate={{ width: '0%' }}
           transition={{ duration: 6, ease: 'linear' }}
-          className={`h-1 ${realTimeNotification.priority === 'urgent' ? 'bg-red-500' : 'bg-teal-500'}`}
+          className={`h-1 ${realTimeNotification.priority === 'urgent' ? 'bg-red-500' : 'bg-blue-500'}`}
         />
       </motion.div>
     );
@@ -781,169 +807,230 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
 
   const SocketStatusIndicator = () => {
     const statusConfig = {
-      connected: { color: 'bg-teal-500', text: 'Live', icon: '🟢' },
+      connected: { color: 'bg-green-500', text: 'Live', icon: '🟢' },
       connecting: { color: 'bg-yellow-500', text: 'Connecting...', icon: '🟡' },
       disconnected: { color: 'bg-red-500', text: 'Offline', icon: '🔴' }
     };
     const config = statusConfig[connectionStatus] || statusConfig.connecting;
     return (
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-full">
-        <div className={`w-2 h-2 rounded-full ${config.color} animate-pulse`} />
-        <span className="text-xs text-gray-600">{config.icon} {config.text}</span>
+      <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-full">
+        <div className={`w-3 h-3 rounded-full ${config.color} animate-pulse`} />
+        <span className={`text-gray-600 ${textSizeClasses.base}`}>{config.icon} {config.text}</span>
       </div>
     );
   };
 
-  const handleLogout = () => {
+  // ==================== LOGOUT WITH CONFIRMATION ====================
+  const handleLogoutClick = () => {
+    setShowLogoutConfirm(true);
+  };
+  
+  const handleConfirmLogout = () => {
     if (socketRef.current) socketRef.current.disconnect();
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     if (onLogout) onLogout();
     navigate('/login');
   };
+  
+  const handleCancelLogout = () => {
+    setShowLogoutConfirm(false);
+  };
 
   // ==================== INITIAL LOAD ====================
   useEffect(() => {
-    if (user?.hospital_id) {
-      fetchRecentPatients();
+    if (!user?.hospital_id) return;
+
+    initializeSocket();
+    fetchRecentPatients();
+    fetchStats();
+    fetchReportsInbox();
+    fetchReportsOutbox();
+    fetchHospitalAdmins();
+    fetchProfile();
+
+    const interval = setInterval(() => {
       fetchStats();
       fetchReportsInbox();
-      fetchReportsOutbox();
-      fetchHospitalAdmins();
-      fetchProfile();
-      
-      const interval = setInterval(() => {
-        fetchStats();
-        fetchReportsInbox();
-      }, 30000);
-      
-      return () => clearInterval(interval);
-    }
+    }, 30000);
+
+    return () => {
+      if (socketRef.current) socketRef.current.disconnect();
+      clearInterval(interval);
+    };
   }, [user?.hospital_id]);
 
   // ==================== RENDER ====================
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex">
+    <div className={`min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex ${textSizeClasses.base}`}>
       <RealTimeNotification />
+      
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10001] p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8"
+          >
+            <div className="text-center">
+              <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5">
+                <FaSignOutAlt className="text-red-600 text-3xl" />
+              </div>
+              <h3 className={`font-bold text-gray-800 mb-3 ${textSizeClasses.title}`}>Confirm Logout</h3>
+              <p className={`text-gray-600 mb-8 ${textSizeClasses.base}`}>Are you sure you want to logout from Card Office Dashboard?</p>
+              <div className="flex gap-4">
+                <button
+                  onClick={handleCancelLogout}
+                  className={`flex-1 px-6 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition font-medium ${textSizeClasses.base}`}
+                >
+                  No, Stay
+                </button>
+                <button
+                  onClick={handleConfirmLogout}
+                  className={`flex-1 px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition font-medium ${textSizeClasses.base}`}
+                >
+                  Yes, Logout
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
       
       <style>{`
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
         @keyframes glow { 0% { box-shadow: 0 0 5px rgba(59,130,246,0.2); } 50% { box-shadow: 0 0 20px rgba(59,130,246,0.5); } 100% { box-shadow: 0 0 5px rgba(59,130,246,0.2); } }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
         .animate-slide-in { animation: slideIn 0.3s ease-out; }
         .animate-glow { animation: glow 2s infinite; }
+        
+        /* White/Blue Card Styles */
+        .white-blue-card {
+          background: white !important;
+          border: 2px solid #e0e7ff !important;
+          border-radius: 1rem !important;
+          padding: 1.5rem !important;
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1) !important;
+          transition: all 0.3s ease !important;
+        }
+        .white-blue-card:hover {
+          box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15) !important;
+          border-color: #3b82f6 !important;
+        }
       `}</style>
 
       {/* ==================== SIDEBAR ==================== */}
       <div className={`bg-gradient-to-b from-slate-900 to-slate-800 text-white transition-all duration-300 ${
-        sidebarCollapsed ? 'w-20' : 'w-64'
+        sidebarCollapsed ? 'w-24' : 'w-72'
       } shadow-2xl flex flex-col h-screen sticky top-0 z-50`}>
-        <div className="p-4">
+        <div className="p-5">
           <div className="flex items-center justify-between mb-8">
-            {sidebarCollapsed ? (
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-lg">
-                <FaIdCard className="text-white text-sm" />
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-lg">
-                  <FaIdCard className="text-white text-sm" />
+            {!sidebarCollapsed && (
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg">
+                  <FaIdCard className="text-white text-lg" />
                 </div>
-                <span className="font-bold text-base tracking-tight">Card Office</span>
+                <span className={`font-bold tracking-tight ${textSizeClasses.heading}`}>Card Office</span>
               </div>
             )}
-            <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="p-2 hover:bg-slate-700 rounded-lg transition-colors flex-shrink-0">
-              {sidebarCollapsed ? <FaChevronRight /> : <FaChevronLeft />}
+            {sidebarCollapsed && (
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg mx-auto">
+                <FaIdCard className="text-white text-lg" />
+              </div>
+            )}
+            <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="p-2 hover:bg-slate-700 rounded-xl transition-colors">
+              {sidebarCollapsed ? <FaChevronRight size={20} /> : <FaChevronLeft size={20} />}
             </button>
           </div>
 
-          <nav className="space-y-1">
-            <button onClick={() => { setActiveTab('register'); setShowScheduleView(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
+          <nav className="space-y-2">
+            <button onClick={() => handleTabChange('register', false)} className={`w-full flex items-center space-x-4 px-4 py-3 rounded-xl transition-all duration-200 ${textSizeClasses.base} ${
               activeTab === 'register' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
-              <FaUserPlus className="text-lg flex-shrink-0" />
+              <FaUserPlus className="text-xl" />
               {!sidebarCollapsed && <span>Register Patient</span>}
             </button>
 
-            <button onClick={() => { setActiveTab('search'); setShowScheduleView(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
+            <button onClick={() => handleTabChange('search', false)} className={`w-full flex items-center space-x-4 px-4 py-3 rounded-xl transition-all duration-200 ${textSizeClasses.base} ${
               activeTab === 'search' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
-              <FaSearch className="text-lg flex-shrink-0" />
+              <FaSearch className="text-xl" />
               {!sidebarCollapsed && <span>Search Patients</span>}
             </button>
 
-            <button onClick={() => { setActiveTab('recent'); setShowScheduleView(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
+            <button onClick={() => handleTabChange('recent', false)} className={`w-full flex items-center space-x-4 px-4 py-3 rounded-xl transition-all duration-200 ${textSizeClasses.base} ${
               activeTab === 'recent' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
-              <FaHistory className="text-lg flex-shrink-0" />
+              <FaHistory className="text-xl" />
               {!sidebarCollapsed && <span>Recent Registrations</span>}
             </button>
 
-            <div className="h-px bg-slate-700/50 my-3 mx-2"></div>
+            <div className="h-px bg-slate-700/50 my-4 mx-3"></div>
 
-            <button onClick={() => { setActiveTab('inbox'); setShowScheduleView(false); fetchReportsInbox(); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm relative ${sidebarCollapsed ? 'justify-center' : ''} ${
+            <button onClick={() => { handleTabChange('inbox', false); fetchReportsInbox(); }} className={`w-full flex items-center space-x-4 px-4 py-3 rounded-xl transition-all duration-200 ${textSizeClasses.base} relative ${
               activeTab === 'inbox' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
-              <FaInbox className="text-lg flex-shrink-0" />
+              <FaInbox className="text-xl" />
               {!sidebarCollapsed && <span>Inbox</span>}
               {unreadReportsCount > 0 && (
-                <span className={`${sidebarCollapsed ? 'absolute -top-1 -right-1' : 'ml-auto'} bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-pulse`}>
+                <span className="absolute right-3 bg-red-500 text-white text-sm rounded-full h-6 w-6 flex items-center justify-center animate-pulse">
                   {unreadReportsCount}
                 </span>
               )}
             </button>
 
-            <button onClick={() => { setActiveTab('outbox'); setShowScheduleView(false); fetchReportsOutbox(); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
+            <button onClick={() => { handleTabChange('outbox', false); fetchReportsOutbox(); }} className={`w-full flex items-center space-x-4 px-4 py-3 rounded-xl transition-all duration-200 ${textSizeClasses.base} ${
               activeTab === 'outbox' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
-              <FaPaperPlane className="text-lg flex-shrink-0" />
+              <FaPaperPlane className="text-xl" />
               {!sidebarCollapsed && <span>Sent Reports</span>}
             </button>
 
-            <button onClick={() => { setActiveTab('reports'); setShowScheduleView(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
+            <button onClick={() => handleTabChange('reports', false)} className={`w-full flex items-center space-x-4 px-4 py-3 rounded-xl transition-all duration-200 ${textSizeClasses.base} ${
               activeTab === 'reports' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
-              <FaChartBar className="text-lg flex-shrink-0" />
+              <FaChartBar className="text-xl" />
               {!sidebarCollapsed && <span>Statistics</span>}
             </button>
 
-            <button 
-              onClick={() => { setActiveTab('schedule'); setShowScheduleView(true); }} 
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
-                showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
-              }`}
-            >
-              <FaCalendarAlt className="text-lg flex-shrink-0" />
+            <div className="h-px bg-slate-700/50 my-4 mx-3"></div>
+
+            <button onClick={() => handleTabChange('schedule', true)} className={`w-full flex items-center space-x-4 px-4 py-3 rounded-xl transition-all duration-200 ${textSizeClasses.base} ${
+              showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
+            }`}>
+              <FaCalendarAlt className="text-xl" />
               {!sidebarCollapsed && <span>My Schedule</span>}
             </button>
 
-            <div className="h-px bg-slate-700/50 my-3 mx-2"></div>
+            <div className="h-px bg-slate-700/50 my-4 mx-3"></div>
 
-            <button onClick={() => { setActiveTab('profile'); setShowScheduleView(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
+            <button onClick={() => handleTabChange('profile', false)} className={`w-full flex items-center space-x-4 px-4 py-3 rounded-xl transition-all duration-200 ${textSizeClasses.base} ${
               activeTab === 'profile' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
-              <FaUserCircle className="text-lg flex-shrink-0" />
+              <FaUserCircle className="text-xl" />
               {!sidebarCollapsed && <span>Profile</span>}
             </button>
           </nav>
 
           {sidebarCollapsed && (
             <div className="mt-8 text-center">
-              <div className="text-xl font-bold text-blue-400">{stats.today}</div>
-              <div className="text-[10px] text-slate-400">Today</div>
+              <div className={`text-2xl font-bold text-blue-400 ${textSizeClasses.title}`}>{stats.today}</div>
+              <div className="text-xs text-slate-400 mt-1">Today</div>
               {unreadReportsCount > 0 && (
                 <div className="mt-3">
-                  <div className="text-lg font-bold text-red-400">{unreadReportsCount}</div>
-                  <div className="text-[10px] text-slate-400">Unread</div>
+                  <div className={`text-xl font-bold text-red-400 ${textSizeClasses.heading}`}>{unreadReportsCount}</div>
+                  <div className="text-xs text-slate-400 mt-1">Unread</div>
                 </div>
               )}
             </div>
           )}
         </div>
 
-        <div className={`${sidebarCollapsed ? 'py-4 px-0' : 'p-5'} border-t border-slate-700/50 mt-auto`}>
-          <button onClick={handleLogout} className={`w-full ${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} bg-transparent border border-slate-600 rounded-xl text-red-400 cursor-pointer flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-start'} gap-3 text-sm transition-all duration-200 hover:bg-red-500/10 hover:border-red-500`}>
-            <span className="text-lg">🚪</span>
+        <div className={`${sidebarCollapsed ? 'py-5 px-0' : 'p-6'} border-t border-slate-700/50 mt-auto`}>
+          <button onClick={handleLogoutClick} className={`w-full ${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-5'} bg-transparent border border-slate-600 rounded-xl text-red-400 cursor-pointer flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-start'} gap-3 ${textSizeClasses.base} transition-all duration-200 hover:bg-red-500/10 hover:border-red-500`}>
+            <span className="text-xl">🚪</span>
             {!sidebarCollapsed && <span>Logout</span>}
           </button>
         </div>
@@ -952,52 +1039,106 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       {/* ==================== MAIN CONTENT ==================== */}
       <div className="flex-1 overflow-y-auto">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 py-6 px-8 shadow-xl sticky top-0 z-40">
-          <div className="max-w-[1600px] mx-auto flex justify-between items-center flex-wrap gap-4">
-            <div>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center text-2xl shadow-lg animate-glow">
-                  <FaIdCard className="text-white" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold text-white m-0 drop-shadow-md tracking-tight">
-                    {activeTab === 'register' && 'Register New Patient'}
-                    {activeTab === 'search' && 'Search Patients'}
-                    {activeTab === 'recent' && 'Recent Registrations'}
-                    {activeTab === 'inbox' && 'Reports - Inbox'}
-                    {activeTab === 'outbox' && 'Reports - Sent'}
-                    {activeTab === 'reports' && 'Statistics & Reports'}
-                    {activeTab === 'schedule' && 'My Work Schedule'}
-                    {activeTab === 'profile' && 'My Profile'}
-                  </h1>
-                  <p className="text-base text-white/90 mt-1 flex items-center gap-2 flex-wrap">
-                    <span>{user?.full_name || 'Card Office Staff'}</span>
-                    <span className="text-white/50">•</span>
-                    <span>{user?.hospital_name}</span>
-                    <span className="bg-white/20 px-3 py-0.5 rounded-full text-xs font-medium backdrop-blur">Card Office Department</span>
-                  </p>
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 py-8 px-10 shadow-xl sticky top-0 z-40">
+          <div className="max-w-[1600px] mx-auto flex justify-between items-center flex-wrap gap-5">
+            <div className="flex items-center gap-5">
+              {/* Back Button */}
+              <button
+                onClick={handleGoBack}
+                className="bg-white/20 backdrop-blur p-3 rounded-xl text-white hover:bg-white/30 transition-all duration-200 shadow-lg flex items-center gap-2 group"
+                title="Go Back"
+              >
+                <FaUndo className="text-white text-lg" />
+                <span className={`hidden sm:inline ${textSizeClasses.base}`}>Back</span>
+              </button>
+              
+              <div>
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center text-3xl shadow-lg animate-glow">
+                    <FaIdCard className="text-white" />
+                  </div>
+                  <div>
+                    <h1 className={`font-bold text-white m-0 drop-shadow-md tracking-tight ${textSizeClasses.title}`}>
+                      {activeTab === 'register' && 'Register New Patient'}
+                      {activeTab === 'search' && 'Search Patients'}
+                      {activeTab === 'recent' && 'Recent Registrations'}
+                      {activeTab === 'inbox' && 'Reports - Inbox'}
+                      {activeTab === 'outbox' && 'Reports - Sent'}
+                      {activeTab === 'reports' && 'Card Office Statistics'}
+                      {showScheduleView && 'My Work Schedule'}
+                      {activeTab === 'profile' && 'My Profile'}
+                    </h1>
+                    <p className={`text-white/90 mt-2 flex items-center gap-3 flex-wrap ${textSizeClasses.base}`}>
+                      <span>{formatFullName(user)}</span>
+                      <span className="text-white/50 text-lg">•</span>
+                      <span>{user?.hospital_name}</span>
+                      <span className="bg-white/20 px-4 py-1 rounded-full text-sm font-medium backdrop-blur">Card Office Department</span>
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3 flex-wrap">
+            
+            <div className="flex items-center gap-4 flex-wrap">
+              {/* Text Size Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowTextSizeMenu(!showTextSizeMenu)}
+                  className="bg-white/20 backdrop-blur px-4 py-3 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg"
+                  title="Adjust Text Size"
+                >
+                  <FaTextHeight className="text-lg" />
+                  <span className={`hidden md:inline ${textSizeClasses.base}`}>Text Size</span>
+                </button>
+                
+                {showTextSizeMenu && (
+                  <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden z-50">
+                    <button onClick={() => { setTextSize('small'); setShowTextSizeMenu(false); }} className={`w-full px-5 py-3 text-left hover:bg-gray-50 transition flex items-center justify-between ${textSize === 'small' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'} ${textSizeClasses.base}`}>
+                      <span>Small</span>
+                      {textSize === 'small' && <FaCheck className="text-blue-500" />}
+                    </button>
+                    <button onClick={() => { setTextSize('normal'); setShowTextSizeMenu(false); }} className={`w-full px-5 py-3 text-left hover:bg-gray-50 transition flex items-center justify-between ${textSize === 'normal' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'} ${textSizeClasses.base}`}>
+                      <span>Normal</span>
+                      {textSize === 'normal' && <FaCheck className="text-blue-500" />}
+                    </button>
+                    <button onClick={() => { setTextSize('large'); setShowTextSizeMenu(false); }} className={`w-full px-5 py-3 text-left hover:bg-gray-50 transition flex items-center justify-between ${textSize === 'large' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'} ${textSizeClasses.base}`}>
+                      <span>Large</span>
+                      {textSize === 'large' && <FaCheck className="text-blue-500" />}
+                    </button>
+                    <button onClick={() => { setTextSize('xlarge'); setShowTextSizeMenu(false); }} className={`w-full px-5 py-3 text-left hover:bg-gray-50 transition flex items-center justify-between ${textSize === 'xlarge' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'} ${textSizeClasses.base}`}>
+                      <span>Extra Large</span>
+                      {textSize === 'xlarge' && <FaCheck className="text-blue-500" />}
+                    </button>
+                  </div>
+                )}
+              </div>
+              
               <SocketStatusIndicator />
-              <button onClick={() => { setShowSendReportModal(true); fetchHospitalAdmins(); }} className="bg-white/20 backdrop-blur px-4 py-2.5 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg text-sm font-medium">
-                <FaPaperPlane className="text-sm" /> Send Report
+              <button onClick={() => { setShowSendReportModal(true); fetchHospitalAdmins(); }} className="bg-white/20 backdrop-blur px-5 py-3 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg font-medium">
+                <FaPaperPlane className="text-base" /> Send Report
               </button>
-              <div className="flex gap-4 bg-white/10 backdrop-blur py-2 px-5 rounded-full">
+              <button onClick={() => { fetchRecentPatients(); fetchStats(); }} className="bg-white/20 backdrop-blur px-5 py-3 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg font-medium">
+                <FaSync className={loading ? 'animate-spin' : ''} /> Refresh
+              </button>
+              <div className="flex gap-5 bg-white/10 backdrop-blur py-3 px-6 rounded-full">
                 <div className="text-center">
-                  <div className="text-xl font-bold text-white">{stats.today}</div>
-                  <div className="text-[10px] text-white/70 uppercase tracking-wider">Today</div>
+                  <div className={`font-bold text-white ${textSizeClasses.title}`}>{stats.today}</div>
+                  <div className="text-xs text-white/70 uppercase tracking-wider mt-1">Today</div>
                 </div>
-                <div className="w-px h-8 bg-white/30" />
+                <div className="w-px h-10 bg-white/30" />
                 <div className="text-center">
-                  <div className="text-xl font-bold text-white">{stats.inTriage}</div>
-                  <div className="text-[10px] text-white/70 uppercase tracking-wider">In Triage</div>
+                  <div className={`font-bold text-white ${textSizeClasses.title}`}>{stats.inTriage}</div>
+                  <div className="text-xs text-white/70 uppercase tracking-wider mt-1">In Triage</div>
                 </div>
-                <div className="w-px h-8 bg-white/30" />
+                <div className="w-px h-10 bg-white/30" />
                 <div className="text-center">
-                  <div className="text-xl font-bold text-white">{stats.total}</div>
-                  <div className="text-[10px] text-white/70 uppercase tracking-wider">Total</div>
+                  <div className={`font-bold text-white ${textSizeClasses.title}`}>{stats.active}</div>
+                  <div className="text-xs text-white/70 uppercase tracking-wider mt-1">Active</div>
+                </div>
+                <div className="w-px h-10 bg-white/30" />
+                <div className="text-center">
+                  <div className={`font-bold text-white ${textSizeClasses.title}`}>{stats.total}</div>
+                  <div className="text-xs text-white/70 uppercase tracking-wider mt-1">Total</div>
                 </div>
               </div>
             </div>
@@ -1005,44 +1146,48 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
         </div>
 
         {/* Main Content */}
-        <div className="max-w-[1600px] mx-auto p-8">
+        <div className="max-w-[1600px] mx-auto p-10">
+          {/* Message Display */}
           {message.text && (
-            <div className={`mb-6 p-4 rounded-xl border-l-4 ${message.type === 'error' ? 'bg-red-50 border-red-500 text-red-700' : 'bg-green-50 border-green-500 text-green-700'} flex justify-between items-center`}>
+            <div className={`mb-6 p-5 rounded-xl border-l-4 ${message.type === 'error' ? 'bg-red-50 border-red-500 text-red-700' : 'bg-green-50 border-green-500 text-green-700'} flex justify-between items-center ${textSizeClasses.base}`}>
               <span>{message.text}</span>
-              <button onClick={() => setMessage({ type: '', text: '' })} className="text-lg hover:opacity-70">×</button>
+              <button onClick={() => setMessage({ type: '', text: '' })} className="text-xl hover:opacity-70">×</button>
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
-            <div className="bg-gradient-to-br from-blue-500 to-indigo-500 rounded-2xl p-5 text-white shadow-lg">
-              <p className="text-sm opacity-90 mb-1">Today's Registrations</p>
-              <p className="text-3xl font-bold">{stats.today}</p>
+          {/* Stats Cards for reports tab */}
+          {activeTab === 'reports' && !showScheduleView && (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+              <div className="white-blue-card">
+                <p className={`text-blue-600 mb-2 font-semibold ${textSizeClasses.base}`}>Today's Registrations</p>
+                <p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.today}</p>
+              </div>
+              <div className="white-blue-card">
+                <p className={`text-blue-600 mb-2 font-semibold ${textSizeClasses.base}`}>In Triage</p>
+                <p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.inTriage}</p>
+              </div>
+              <div className="white-blue-card">
+                <p className={`text-blue-600 mb-2 font-semibold ${textSizeClasses.base}`}>Active Patients</p>
+                <p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.active}</p>
+              </div>
+              <div className="white-blue-card">
+                <p className={`text-blue-600 mb-2 font-semibold ${textSizeClasses.base}`}>Total Patients</p>
+                <p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.total}</p>
+              </div>
             </div>
-            <div className="bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl p-5 text-white shadow-lg">
-              <p className="text-sm opacity-90 mb-1">In Triage</p>
-              <p className="text-3xl font-bold">{stats.inTriage}</p>
-            </div>
-            <div className="bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl p-5 text-white shadow-lg">
-              <p className="text-sm opacity-90 mb-1">Active Patients</p>
-              <p className="text-3xl font-bold">{stats.active}</p>
-            </div>
-            <div className="bg-gradient-to-br from-purple-500 to-violet-500 rounded-2xl p-5 text-white shadow-lg">
-              <p className="text-sm opacity-90 mb-1">Total Patients</p>
-              <p className="text-3xl font-bold">{stats.total}</p>
-            </div>
-          </div>
+          )}
 
-          {/* Register Tab */}
+          {/* Register Tab - White/Blue Cards */}
           {activeTab === 'register' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+              <h2 className={`font-bold text-gray-800 mb-6 flex items-center gap-2 ${textSizeClasses.heading}`}>
                 <FaUserPlus className="text-blue-500" /> Register New Patient
               </h2>
               
               <form onSubmit={handleRegister} className="max-w-2xl">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>
                       First Name <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -1050,14 +1195,14 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                       name="first_name"
                       value={formData.first_name}
                       onChange={handleInputChange}
-                      className={`w-full p-3 border ${formErrors.first_name ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition`}
+                      className={`w-full p-3 border ${formErrors.first_name ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
                       placeholder="Enter first name"
                     />
-                    {formErrors.first_name && <p className="text-red-500 text-xs mt-1">{formErrors.first_name}</p>}
+                    {formErrors.first_name && <p className="text-red-500 text-sm mt-1">{formErrors.first_name}</p>}
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>
                       Middle Name
                     </label>
                     <input
@@ -1065,14 +1210,14 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                       name="middle_name"
                       value={formData.middle_name}
                       onChange={handleInputChange}
-                      className={`w-full p-3 border ${formErrors.middle_name ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition`}
+                      className={`w-full p-3 border ${formErrors.middle_name ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
                       placeholder="Enter middle name"
                     />
-                    {formErrors.middle_name && <p className="text-red-500 text-xs mt-1">{formErrors.middle_name}</p>}
+                    {formErrors.middle_name && <p className="text-red-500 text-sm mt-1">{formErrors.middle_name}</p>}
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>
                       Last Name <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -1080,14 +1225,14 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                       name="last_name"
                       value={formData.last_name}
                       onChange={handleInputChange}
-                      className={`w-full p-3 border ${formErrors.last_name ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition`}
+                      className={`w-full p-3 border ${formErrors.last_name ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
                       placeholder="Enter last name"
                     />
-                    {formErrors.last_name && <p className="text-red-500 text-xs mt-1">{formErrors.last_name}</p>}
+                    {formErrors.last_name && <p className="text-red-500 text-sm mt-1">{formErrors.last_name}</p>}
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>
                       Age <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -1097,21 +1242,21 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                       onChange={handleInputChange}
                       min="0"
                       max="120"
-                      className={`w-full p-3 border ${formErrors.age ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition`}
+                      className={`w-full p-3 border ${formErrors.age ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
                       placeholder="Enter age"
                     />
-                    {formErrors.age && <p className="text-red-500 text-xs mt-1">{formErrors.age}</p>}
+                    {formErrors.age && <p className="text-red-500 text-sm mt-1">{formErrors.age}</p>}
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>
                       Gender <span className="text-red-500">*</span>
                     </label>
                     <select
                       name="gender"
                       value={formData.gender}
                       onChange={handleInputChange}
-                      className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                      className={`w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
                     >
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
@@ -1120,7 +1265,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>
                       Phone Number
                     </label>
                     <input
@@ -1128,10 +1273,10 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                       name="phone"
                       value={formData.phone}
                       onChange={handleInputChange}
-                      className={`w-full p-3 border ${formErrors.phone ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition`}
+                      className={`w-full p-3 border ${formErrors.phone ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
                       placeholder="Enter phone number"
                     />
-                    {formErrors.phone && <p className="text-red-500 text-xs mt-1">{formErrors.phone}</p>}
+                    {formErrors.phone && <p className="text-red-500 text-sm mt-1">{formErrors.phone}</p>}
                   </div>
                 </div>
 
@@ -1139,7 +1284,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 disabled:opacity-50 flex items-center gap-2"
+                    className={`px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 disabled:opacity-50 flex items-center gap-2 ${textSizeClasses.base}`}
                   >
                     {loading ? <FaSpinner className="animate-spin" /> : <FaUserPlus />}
                     {loading ? 'Registering...' : 'Register Patient'}
@@ -1148,20 +1293,20 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
               </form>
 
               <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                <p className="text-sm text-blue-800">
+                <p className={`text-blue-800 ${textSizeClasses.base}`}>
                   <strong>📌 Note:</strong> After registration, patient will automatically be sent to Triage
                 </p>
-                <p className="text-xs text-blue-600 mt-2">
+                <p className={`text-sm text-blue-600 mt-2`}>
                   <strong>Validation Rules:</strong> Names: letters only | Age: 0-120 years | Phone: 10-15 digits
                 </p>
               </div>
             </div>
           )}
 
-          {/* Search Tab */}
+          {/* Search Tab - White/Blue Cards */}
           {activeTab === 'search' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+              <h2 className={`font-bold text-gray-800 mb-6 flex items-center gap-2 ${textSizeClasses.heading}`}>
                 <FaSearch className="text-blue-500" /> Search Patients
               </h2>
               
@@ -1172,12 +1317,12 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                   placeholder="Search by card number, name, or phone..."
-                  className="flex-1 p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  className={`flex-1 p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
                 />
                 <button
                   onClick={handleSearch}
                   disabled={searching}
-                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 disabled:opacity-50 flex items-center gap-2"
+                  className={`px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 disabled:opacity-50 flex items-center gap-2 ${textSizeClasses.base}`}
                 >
                   {searching ? <FaSpinner className="animate-spin" /> : <FaSearch />}
                   {searching ? 'Searching...' : 'Search'}
@@ -1185,7 +1330,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                 {searchQuery && (
                   <button
                     onClick={clearSearch}
-                    className="px-6 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-all duration-200"
+                    className={`px-6 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-all duration-200 ${textSizeClasses.base}`}
                   >
                     Clear
                   </button>
@@ -1194,17 +1339,17 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
 
               {searchResults.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-700 mb-4">
+                  <h3 className={`font-semibold text-gray-700 mb-4 ${textSizeClasses.base}`}>
                     Search Results ({searchResults.length})
                   </h3>
                   <div className="space-y-4 max-h-[600px] overflow-y-auto">
                     {searchResults.map(patient => {
                       const statusStyle = getStatusStyle(patient.status);
                       return (
-                        <div key={patient.id} className="border border-gray-200 rounded-xl p-5 hover:shadow-md transition-all bg-gray-50">
+                        <div key={patient.id} className="white-blue-card">
                           <div className="flex justify-between items-start">
                             <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
+                              <div className="flex items-center gap-3 mb-3 flex-wrap">
                                 <span className="font-mono text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded">
                                   {patient.card_number}
                                 </span>
@@ -1212,32 +1357,32 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                                   {statusStyle.text}
                                 </span>
                               </div>
-                              <h3 className="font-bold text-gray-800 text-lg">
+                              <h3 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>
                                 {patient.first_name} {patient.middle_name || ''} {patient.last_name}
                               </h3>
-                              <p className="text-sm text-gray-500 mt-1">
+                              <p className={`text-gray-500 mt-1 ${textSizeClasses.base}`}>
                                 {patient.age} years • {patient.gender}
                               </p>
                               {patient.phone && (
-                                <p className="text-sm text-gray-500 mt-1">
+                                <p className={`text-gray-500 mt-1 ${textSizeClasses.base}`}>
                                   📞 {patient.phone}
                                 </p>
                               )}
-                              <p className="text-xs text-gray-400 mt-2">
+                              <p className={`text-gray-400 mt-2 ${textSizeClasses.base}`}>
                                 Registered: {new Date(patient.registered_at).toLocaleDateString()}
                               </p>
                             </div>
                             <div className="flex flex-col gap-2 ml-4">
                               <button
                                 onClick={() => handleViewHistory(patient)}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition flex items-center gap-2"
+                                className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2 ${textSizeClasses.base}`}
                               >
                                 <FaHistory /> History
                               </button>
                               {patient.status !== 'in_triage' && patient.status !== 'with_doctor' && (
                                 <button
                                   onClick={() => handleSendToTriage(patient)}
-                                  className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm hover:bg-amber-700 transition flex items-center gap-2"
+                                  className={`px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition flex items-center gap-2 ${textSizeClasses.base}`}
                                 >
                                   <FaHeartbeat /> Send to Triage
                                 </button>
@@ -1252,39 +1397,39 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
               )}
 
               {searchQuery && searchResults.length === 0 && !message.text && (
-                <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                  <FaSearch className="text-5xl text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500 text-sm">No patients found</p>
-                  <p className="text-xs text-gray-400 mt-1">Try searching with a different term</p>
+                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                  <FaSearch className="text-6xl text-gray-300 mx-auto mb-4" />
+                  <p className={`text-gray-500 ${textSizeClasses.base}`}>No patients found</p>
+                  <p className={`text-sm text-gray-400 mt-2`}>Try searching with a different term</p>
                 </div>
               )}
             </div>
           )}
 
-          {/* Recent Tab */}
+          {/* Recent Tab - White/Blue Cards */}
           {activeTab === 'recent' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+              <h2 className={`font-bold text-gray-800 mb-6 flex items-center gap-2 ${textSizeClasses.heading}`}>
                 <FaHistory className="text-blue-500" /> Recent Registrations
               </h2>
               
               {recentPatients.length === 0 ? (
-                <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                  <FaUserPlus className="text-5xl text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500 text-sm">No patients registered yet</p>
-                  <p className="text-xs text-gray-400 mt-1">Register your first patient to get started</p>
+                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                  <FaUserPlus className="text-6xl text-gray-300 mx-auto mb-4" />
+                  <p className={`text-gray-500 ${textSizeClasses.base}`}>No patients registered yet</p>
+                  <p className={`text-sm text-gray-400 mt-2`}>Register your first patient to get started</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Card Number</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Patient Name</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Age/Gender</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Registered</th>
+                        <th className={`px-4 py-3 text-left font-medium text-gray-500 uppercase ${textSizeClasses.base}`}>Card Number</th>
+                        <th className={`px-4 py-3 text-left font-medium text-gray-500 uppercase ${textSizeClasses.base}`}>Patient Name</th>
+                        <th className={`px-4 py-3 text-left font-medium text-gray-500 uppercase ${textSizeClasses.base}`}>Age/Gender</th>
+                        <th className={`px-4 py-3 text-left font-medium text-gray-500 uppercase ${textSizeClasses.base}`}>Phone</th>
+                        <th className={`px-4 py-3 text-left font-medium text-gray-500 uppercase ${textSizeClasses.base}`}>Status</th>
+                        <th className={`px-4 py-3 text-left font-medium text-gray-500 uppercase ${textSizeClasses.base}`}>Registered</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -1292,18 +1437,18 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                         const statusStyle = getStatusStyle(patient.status);
                         return (
                           <tr key={patient.id} className="hover:bg-gray-50 transition">
-                            <td className="px-4 py-3 font-mono text-sm text-blue-600">{patient.card_number}</td>
-                            <td className="px-4 py-3 font-medium text-gray-900">
+                            <td className={`px-4 py-3 font-mono text-blue-600 ${textSizeClasses.base}`}>{patient.card_number}</td>
+                            <td className={`px-4 py-3 font-medium text-gray-900 ${textSizeClasses.base}`}>
                               {patient.first_name} {patient.middle_name || ''} {patient.last_name}
                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-500">{patient.age} / {patient.gender}</td>
-                            <td className="px-4 py-3 text-sm text-gray-500">{patient.phone || '-'}</td>
+                            <td className={`px-4 py-3 text-gray-500 ${textSizeClasses.base}`}>{patient.age} / {patient.gender}</td>
+                            <td className={`px-4 py-3 text-gray-500 ${textSizeClasses.base}`}>{patient.phone || '-'}</td>
                             <td className="px-4 py-3">
                               <span className={`px-2 py-1 rounded-full text-xs ${statusStyle.bg} ${statusStyle.color}`}>
                                 {statusStyle.text}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-500">
+                            <td className={`px-4 py-3 text-gray-500 ${textSizeClasses.base}`}>
                               {new Date(patient.registered_at).toLocaleString()}
                             </td>
                           </tr>
@@ -1316,33 +1461,33 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
             </div>
           )}
 
-          {/* Inbox Tab */}
+          {/* Inbox Tab - White/Blue Cards */}
           {activeTab === 'inbox' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
               <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-3">
-                  <h2 className="text-xl font-bold text-gray-800">📬 Inbox</h2>
-                  {unreadReportsCount > 0 && <span className="px-3 py-1 bg-red-500 text-white text-xs rounded-full animate-pulse">{unreadReportsCount} unread</span>}
+                  <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>📬 Inbox</h2>
+                  {unreadReportsCount > 0 && <span className={`px-3 py-1 bg-red-500 text-white rounded-full animate-pulse ${textSizeClasses.base}`}>{unreadReportsCount} unread</span>}
                 </div>
-                <button onClick={() => { setShowSendReportModal(true); fetchHospitalAdmins(); }} className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition text-sm font-medium">New Report</button>
+                <button onClick={() => { setShowSendReportModal(true); fetchHospitalAdmins(); }} className={`px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition font-medium ${textSizeClasses.base}`}>New Report</button>
               </div>
               {reportsLoading && reportsInbox.length === 0 ? (
-                <div className="text-center py-12"><FaSpinner className="animate-spin text-3xl text-gray-400 mx-auto mb-3" /><p className="text-gray-500">Loading reports...</p></div>
+                <div className="text-center py-20"><FaSpinner className="animate-spin text-4xl text-gray-400 mx-auto mb-4" /><p className={`text-gray-500 ${textSizeClasses.base}`}>Loading reports...</p></div>
               ) : reportsInbox.length === 0 ? (
-                <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200"><FaInbox className="text-5xl text-gray-300 mx-auto mb-3" /><p className="text-gray-500 text-sm">No reports in inbox</p></div>
+                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200"><FaInbox className="text-6xl text-gray-300 mx-auto mb-4" /><p className={`text-gray-500 ${textSizeClasses.base}`}>No reports in inbox</p></div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-5">
                   {reportsInbox.map(report => (
-                    <div key={report.id} className={`border rounded-xl p-5 cursor-pointer hover:shadow-md transition-all ${!report.is_opened ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-white'}`} onClick={() => viewReportDetails(report)}>
+                    <div key={report.id} className={`white-blue-card cursor-pointer ${!report.is_opened ? 'border-blue-300 bg-blue-50' : ''}`} onClick={() => viewReportDetails(report)}>
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex items-center gap-3">
-                          {!report.is_opened ? <FaEnvelope className="text-blue-500" /> : <FaEnvelopeOpen className="text-gray-400" />}
-                          <h3 className="font-semibold text-gray-800">{report.title}</h3>
+                          {!report.is_opened ? <FaEnvelope className="text-blue-500 text-xl" /> : <FaEnvelopeOpen className="text-gray-400 text-xl" />}
+                          <h3 className={`font-semibold text-gray-800 ${textSizeClasses.base}`}>{report.title}</h3>
                         </div>
-                        <span className={`text-xs px-3 py-1 rounded-full ${getPriorityBadge(report.priority)}`}>{getPriorityIcon(report.priority)} {report.priority}</span>
+                        <span className={`text-sm px-3 py-1.5 rounded-full ${getPriorityBadge(report.priority)} ${textSizeClasses.base}`}>{getPriorityIcon(report.priority)} {report.priority}</span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{report.body}</p>
-                      <div className="flex justify-between items-center text-xs text-gray-500">
+                      <p className={`text-gray-600 mb-3 line-clamp-2 ${textSizeClasses.base}`}>{report.body}</p>
+                      <div className={`flex justify-between items-center text-gray-500 ${textSizeClasses.base}`}>
                         <span>From: {report.sender_full_name}</span>
                         <span>{new Date(report.sent_at).toLocaleString()}</span>
                       </div>
@@ -1353,31 +1498,30 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
             </div>
           )}
 
-          {/* Outbox Tab */}
+          {/* Outbox Tab - White/Blue Cards */}
           {activeTab === 'outbox' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-gray-800">📤 Sent Reports</h2>
-                <button onClick={() => fetchReportsOutbox()} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition text-sm font-medium">Refresh</button>
+                <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>📤 Sent Reports</h2>
+                <button onClick={() => fetchReportsOutbox()} className={`px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition font-medium ${textSizeClasses.base}`}>Refresh</button>
               </div>
               {reportsLoading && reportsOutbox.length === 0 ? (
-                <div className="text-center py-12"><FaSpinner className="animate-spin text-3xl text-gray-400 mx-auto mb-3" /><p className="text-gray-500">Loading sent reports...</p></div>
+                <div className="text-center py-20"><FaSpinner className="animate-spin text-4xl text-gray-400 mx-auto mb-4" /><p className={`text-gray-500 ${textSizeClasses.base}`}>Loading sent reports...</p></div>
               ) : reportsOutbox.length === 0 ? (
-                <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200"><FaPaperPlane className="text-5xl text-gray-300 mx-auto mb-3" /><p className="text-gray-500 text-sm">No sent reports</p></div>
+                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200"><FaPaperPlane className="text-6xl text-gray-300 mx-auto mb-4" /><p className={`text-gray-500 ${textSizeClasses.base}`}>No sent reports</p></div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-5">
                   {reportsOutbox.map(report => (
-                    <div key={report.id} className="border border-gray-200 rounded-xl p-5 cursor-pointer hover:shadow-md bg-white" onClick={() => viewReportDetails(report)}>
+                    <div key={report.id} className="white-blue-card cursor-pointer" onClick={() => viewReportDetails(report)}>
                       <div className="flex justify-between items-start mb-3">
-                        <div className="flex items-center gap-3"><FaPaperPlane className="text-gray-400" /><h3 className="font-semibold text-gray-800">{report.title}</h3></div>
-                        <span className={`text-xs px-3 py-1 rounded-full ${getPriorityBadge(report.priority)}`}>{getPriorityIcon(report.priority)} {report.priority}</span>
+                        <div className="flex items-center gap-3"><FaPaperPlane className="text-gray-400 text-xl" /><h3 className={`font-semibold text-gray-800 ${textSizeClasses.base}`}>{report.title}</h3></div>
+                        <span className={`text-sm px-3 py-1.5 rounded-full ${getPriorityBadge(report.priority)} ${textSizeClasses.base}`}>{getPriorityIcon(report.priority)} {report.priority}</span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{report.body}</p>
-                      <div className="flex justify-between items-center text-xs text-gray-500">
+                      <p className={`text-gray-600 mb-3 line-clamp-2 ${textSizeClasses.base}`}>{report.body}</p>
+                      <div className={`flex justify-between items-center text-gray-500 ${textSizeClasses.base}`}>
                         <span>To: {report.recipient_full_name}</span>
                         <span>Sent: {new Date(report.sent_at).toLocaleString()}</span>
                       </div>
-                      <div className="mt-3"><span className={`text-xs ${report.is_opened ? 'text-green-600' : 'text-gray-400'}`}>{report.is_opened ? '✓ Opened by recipient' : '✗ Not opened yet'}</span></div>
                     </div>
                   ))}
                 </div>
@@ -1385,19 +1529,19 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
             </div>
           )}
 
-          {/* Reports/Statistics Tab */}
+          {/* Reports/Statistics Tab - White/Blue Cards */}
           {activeTab === 'reports' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-6">📊 Card Office Statistics</h2>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-6">
-                <div className="bg-gradient-to-br from-blue-500 to-indigo-500 rounded-2xl p-5 text-white shadow-lg"><p className="text-sm opacity-90 mb-1">Today's Registrations</p><p className="text-3xl font-bold">{stats.today}</p></div>
-                <div className="bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl p-5 text-white shadow-lg"><p className="text-sm opacity-90 mb-1">In Triage Queue</p><p className="text-3xl font-bold">{stats.inTriage}</p></div>
-                <div className="bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl p-5 text-white shadow-lg"><p className="text-sm opacity-90 mb-1">Active Patients</p><p className="text-3xl font-bold">{stats.active}</p></div>
-                <div className="bg-gradient-to-br from-purple-500 to-violet-500 rounded-2xl p-5 text-white shadow-lg"><p className="text-sm opacity-90 mb-1">Total Patients</p><p className="text-3xl font-bold">{stats.total}</p></div>
+              <h2 className={`font-bold text-gray-800 mb-6 ${textSizeClasses.heading}`}>📊 Card Office Statistics</h2>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                <div className="white-blue-card"><p className={`text-blue-600 mb-2 font-semibold ${textSizeClasses.base}`}>Today's Registrations</p><p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.today}</p></div>
+                <div className="white-blue-card"><p className={`text-blue-600 mb-2 font-semibold ${textSizeClasses.base}`}>In Triage</p><p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.inTriage}</p></div>
+                <div className="white-blue-card"><p className={`text-blue-600 mb-2 font-semibold ${textSizeClasses.base}`}>Active Patients</p><p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.active}</p></div>
+                <div className="white-blue-card"><p className={`text-blue-600 mb-2 font-semibold ${textSizeClasses.base}`}>Total Patients</p><p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.total}</p></div>
               </div>
               <div className="bg-gray-50 rounded-xl p-6 text-center">
-                <p className="text-gray-500">Today's Registration Summary: {stats.today} new patients registered</p>
-                <p className="text-xs text-gray-400 mt-2">Total patients waiting in triage: {stats.inTriage}</p>
+                <p className={`text-gray-600 ${textSizeClasses.base}`}>Today's Registration Summary: {stats.today} new patients registered</p>
+                <p className={`text-sm text-gray-400 mt-2`}>Total patients waiting in triage: {stats.inTriage}</p>
               </div>
             </div>
           )}
@@ -1407,12 +1551,12 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
               <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg">
-                    <FaCalendarAlt className="text-white text-lg" />
+                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg">
+                    <FaCalendarAlt className="text-white text-xl" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-800">My Work Schedule</h2>
-                    <p className="text-sm text-gray-500">View your upcoming shifts and weekly schedule</p>
+                    <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>My Work Schedule</h2>
+                    <p className={`text-gray-500 ${textSizeClasses.base}`}>View your upcoming shifts and weekly schedule</p>
                   </div>
                 </div>
                 <button 
@@ -1420,12 +1564,11 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                     const event = new CustomEvent('refreshSchedule');
                     window.dispatchEvent(event);
                   }}
-                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition text-sm font-medium flex items-center gap-2"
+                  className={`px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition font-medium flex items-center gap-2 ${textSizeClasses.base}`}
                 >
                   <FaSync className="text-sm" /> Refresh
                 </button>
               </div>
-              
               <ScheduleViewer user={user} compact={false} />
             </div>
           )}
@@ -1433,153 +1576,64 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
           {/* Profile Tab */}
           {activeTab === 'profile' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-10">
-                <div className="flex items-center gap-6">
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-10 py-12">
+                <div className="flex items-center gap-8">
                   <div className="relative">
-                    <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-xl">
-                      <FaUserCircle className="text-blue-600 text-6xl" />
+                    <div className="w-28 h-28 bg-white rounded-full flex items-center justify-center shadow-xl">
+                      <FaUserCircle className="text-blue-600 text-7xl" />
                     </div>
                   </div>
                   <div className="text-white">
-                    <h2 className="text-2xl font-bold mb-1">
+                    <h2 className={`font-bold mb-2 ${textSizeClasses.title}`}>
                       {profileData.first_name} {profileData.middle_name ? profileData.middle_name + ' ' : ''}{profileData.last_name}
                     </h2>
-                    <p className="text-blue-100 flex items-center gap-2">
-                      <FaIdCard className="text-sm" /> {profileData.department || 'Card Office'} Staff
+                    <p className={`text-blue-100 flex items-center gap-3 ${textSizeClasses.base}`}>
+                      <FaIdCard className="text-lg" /> {profileData.department || 'Card Office'} Staff
                     </p>
-                    <p className="text-blue-100 text-sm mt-1 opacity-80">{user?.hospital_name}</p>
+                    <p className={`text-blue-100 mt-2 opacity-80 ${textSizeClasses.base}`}>{user?.hospital_name}</p>
                   </div>
                 </div>
               </div>
               
-              <div className="p-8">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-bold text-gray-800">Professional Information</h3>
+              <div className="p-10">
+                <div className="flex justify-between items-center mb-8">
+                  <h3 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>Professional Information</h3>
                   {!isEditingProfile ? (
                     <button onClick={() => setIsEditingProfile(true)} 
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition text-sm font-medium">
+                      className={`flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-medium ${textSizeClasses.base}`}>
                       <FaEdit /> Edit Profile
                     </button>
                   ) : (
-                    <div className="flex gap-2">
+                    <div className="flex gap-3">
                       <button onClick={() => setIsEditingProfile(false)} 
-                        className="px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition">
+                        className={`px-5 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition ${textSizeClasses.base}`}>
                         Cancel
                       </button>
                       <button onClick={updateProfile} 
-                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition">
+                        className={`flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition ${textSizeClasses.base}`}>
                         <FaSave /> Save
                       </button>
                     </div>
                   )}
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-gray-50 rounded-xl p-5">
-                    <h4 className="font-semibold text-blue-600 mb-4 flex items-center gap-2">
-                      <FaUserCircle /> Personal Info
-                    </h4>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-xs text-gray-500">First Name</label>
-                        {isEditingProfile ? (
-                          <input type="text" value={profileData.first_name} 
-                            onChange={(e) => setProfileData({...profileData, first_name: e.target.value})} 
-                            className="w-full px-3 py-2 border rounded-lg text-sm" />
-                        ) : (
-                          <p className="text-gray-800">{profileData.first_name || 'Not set'}</p>
-                        )}
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-500">Middle Name</label>
-                        {isEditingProfile ? (
-                          <input type="text" value={profileData.middle_name} 
-                            onChange={(e) => setProfileData({...profileData, middle_name: e.target.value})} 
-                            className="w-full px-3 py-2 border rounded-lg text-sm" />
-                        ) : (
-                          <p className="text-gray-800">{profileData.middle_name || '—'}</p>
-                        )}
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-500">Last Name</label>
-                        {isEditingProfile ? (
-                          <input type="text" value={profileData.last_name} 
-                            onChange={(e) => setProfileData({...profileData, last_name: e.target.value})} 
-                            className="w-full px-3 py-2 border rounded-lg text-sm" />
-                        ) : (
-                          <p className="text-gray-800">{profileData.last_name || 'Not set'}</p>
-                        )}
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="text-xs text-gray-500">Gender</label>
-                          {isEditingProfile ? (
-                            <select value={profileData.gender} 
-                              onChange={(e) => setProfileData({...profileData, gender: e.target.value})} 
-                              className="w-full px-3 py-2 border rounded-lg text-sm">
-                              <option value="">Select</option>
-                              <option>Male</option>
-                              <option>Female</option>
-                              <option>Other</option>
-                            </select>
-                          ) : (
-                            <p className="text-gray-800">{profileData.gender || 'Not set'}</p>
-                          )}
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-500">Age</label>
-                          {isEditingProfile ? (
-                            <input type="number" value={profileData.age} 
-                              onChange={(e) => setProfileData({...profileData, age: e.target.value})} 
-                              className="w-full px-3 py-2 border rounded-lg text-sm" />
-                          ) : (
-                            <p className="text-gray-800">{profileData.age ? `${profileData.age} years` : 'Not set'}</p>
-                          )}
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-500">Phone</label>
-                        {isEditingProfile ? (
-                          <input type="tel" value={profileData.phone} 
-                            onChange={(e) => setProfileData({...profileData, phone: e.target.value})} 
-                            className="w-full px-3 py-2 border rounded-lg text-sm" />
-                        ) : (
-                          <p className="text-gray-800">{profileData.phone || 'Not set'}</p>
-                        )}
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-500">Email</label>
-                        <p className="text-gray-800">{profileData.email || 'Not set'}</p>
-                      </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <h4 className={`font-semibold text-blue-600 mb-5 flex items-center gap-2 ${textSizeClasses.base}`}><FaUserCircle /> Personal Info</h4>
+                    <div className="space-y-4">
+                      <div><label className={`text-gray-500 ${textSizeClasses.base}`}>First Name</label>{isEditingProfile ? (<input type="text" value={profileData.first_name} onChange={(e) => setProfileData({...profileData, first_name: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.first_name || 'Not set'}</p>)}</div>
+                      <div><label className={`text-gray-500 ${textSizeClasses.base}`}>Middle Name</label>{isEditingProfile ? (<input type="text" value={profileData.middle_name} onChange={(e) => setProfileData({...profileData, middle_name: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.middle_name || '—'}</p>)}</div>
+                      <div><label className={`text-gray-500 ${textSizeClasses.base}`}>Last Name</label>{isEditingProfile ? (<input type="text" value={profileData.last_name} onChange={(e) => setProfileData({...profileData, last_name: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.last_name || 'Not set'}</p>)}</div>
+                      <div className="grid grid-cols-2 gap-4"><div><label className={`text-gray-500 ${textSizeClasses.base}`}>Gender</label>{isEditingProfile ? (<select value={profileData.gender} onChange={(e) => setProfileData({...profileData, gender: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`}><option>Male</option><option>Female</option><option>Other</option></select>) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.gender || 'Not set'}</p>)}</div><div><label className={`text-gray-500 ${textSizeClasses.base}`}>Age</label>{isEditingProfile ? (<input type="number" value={profileData.age} onChange={(e) => setProfileData({...profileData, age: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.age ? `${profileData.age} years` : 'Not set'}</p>)}</div></div>
+                      <div><label className={`text-gray-500 ${textSizeClasses.base}`}>Phone</label>{isEditingProfile ? (<input type="tel" value={profileData.phone} onChange={(e) => setProfileData({...profileData, phone: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.phone || 'Not set'}</p>)}</div>
+                      <div><label className={`text-gray-500 ${textSizeClasses.base}`}>Email</label><p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.email || 'Not set'}</p></div>
                     </div>
                   </div>
                   
-                  <div className="bg-gray-50 rounded-xl p-5">
-                    <h4 className="font-semibold text-blue-600 mb-4 flex items-center gap-2">
-                      <FaKey /> Account Settings
-                    </h4>
-                    <button onClick={() => setShowPasswordModal(true)} 
-                      className="flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 rounded-xl hover:bg-blue-50 transition text-sm font-medium w-full justify-center">
-                      <FaKey /> Change Password
-                    </button>
-                    
-                    <div className="mt-6 pt-4 border-t border-gray-200">
-                      <h5 className="text-sm font-medium text-gray-700 mb-2">Account Info</h5>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Role:</span>
-                          <span className="text-gray-800 font-medium">Card Office Staff</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Department:</span>
-                          <span className="text-gray-800">{profileData.department || 'Card Office'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Status:</span>
-                          <span className="text-green-600">● Active</span>
-                        </div>
-                      </div>
-                    </div>
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <h4 className={`font-semibold text-blue-600 mb-5 flex items-center gap-2 ${textSizeClasses.base}`}><FaKey /> Account Settings</h4>
+                    <button onClick={() => setShowPasswordModal(true)} className={`flex items-center gap-2 px-5 py-3 border border-blue-600 text-blue-600 rounded-xl hover:bg-blue-50 transition font-medium w-full justify-center ${textSizeClasses.base}`}><FaKey /> Change Password</button>
+                    <div className="mt-8 pt-6 border-t border-gray-200"><h5 className={`font-medium text-gray-700 mb-3 ${textSizeClasses.base}`}>Account Info</h5><div className={`space-y-3 ${textSizeClasses.base}`}><div className="flex justify-between"><span className="text-gray-500">Role:</span><span className="text-gray-800 font-medium">Card Office Staff</span></div><div className="flex justify-between"><span className="text-gray-500">Department:</span><span className="text-gray-800">{profileData.department || 'Card Office'}</span></div><div className="flex justify-between"><span className="text-gray-500">Status:</span><span className="text-green-600 text-base">● Active</span></div></div></div>
                   </div>
                 </div>
               </div>
@@ -1588,168 +1642,87 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
         </div>
       </div>
 
-      {/* Modals - Print Card, Send Report, Report Detail, Reply, Change Password */}
-      {showPrintModal && selectedPatient && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-gray-800">Patient Card</h2>
-                <button onClick={() => { setShowPrintModal(false); setSelectedPatient(null); }} className="p-2 hover:bg-gray-100 rounded-full">×</button>
-              </div>
-              <div className="border-2 border-blue-600 rounded-xl p-5 bg-gradient-to-br from-blue-50 to-white">
-                <div className="text-center mb-4">
-                  <h3 className="text-lg font-bold text-blue-800 mb-1">{user?.hospital_name}</h3>
-                  <p className="text-xs text-gray-500">Patient Identification Card</p>
-                </div>
-                <div className="text-center mb-4">
-                  <span className="text-2xl font-mono font-bold text-blue-600">{selectedPatient.card_number}</span>
-                </div>
-                <div className="text-center">
-                  <p className="text-lg font-semibold text-gray-800 mb-1">
-                    {selectedPatient.first_name} {selectedPatient.middle_name || ''} {selectedPatient.last_name}
-                  </p>
-                  <p className="text-sm text-gray-600 mb-1">{selectedPatient.gender} • {selectedPatient.age} years</p>
-                  {selectedPatient.phone && <p className="text-sm text-gray-600">📞 {selectedPatient.phone}</p>}
-                </div>
-              </div>
-              <div className="flex justify-end gap-3 mt-6">
-                <button onClick={() => { setShowPrintModal(false); setSelectedPatient(null); }} className="px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition">Close</button>
-                <button onClick={() => window.print()} className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition">Print Card</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* Send Report Modal */}
       {showSendReportModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2"><FaPaperPlane className="text-blue-500" /> Send Report</h2>
-                <button onClick={() => setShowSendReportModal(false)} className="p-2 hover:bg-gray-100 rounded-full">×</button>
-              </div>
-              <form onSubmit={handleSendReport} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Recipient *</label>
-                  <select value={sendReportForm.recipient_id} onChange={(e) => setSendReportForm({...sendReportForm, recipient_id: e.target.value})} className="w-full p-3 border border-gray-300 rounded-xl" required>
-                    <option value="">Select Hospital Admin...</option>
-                    {hospitalAdmins.map(admin => (<option key={admin.id} value={admin.id}>{admin.full_name} - {admin.hospital_name}</option>))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
-                  <select value={sendReportForm.priority} onChange={(e) => setSendReportForm({...sendReportForm, priority: e.target.value})} className="w-full p-3 border border-gray-300 rounded-xl">
-                    <option value="low">🟢 Low</option>
-                    <option value="medium">🟡 Medium</option>
-                    <option value="high">🟠 High</option>
-                    <option value="urgent">🔴 Urgent</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Title *</label>
-                  <input type="text" value={sendReportForm.title} onChange={(e) => setSendReportForm({...sendReportForm, title: e.target.value})} placeholder="e.g., Daily Registration Report" className="w-full p-3 border border-gray-300 rounded-xl" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Message *</label>
-                  <textarea value={sendReportForm.body} onChange={(e) => setSendReportForm({...sendReportForm, body: e.target.value})} rows="5" placeholder="Enter report details..." className="w-full p-3 border border-gray-300 rounded-xl resize-none" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Attachments</label>
-                  <input type="file" ref={fileInputRef} onChange={(e) => {
-                    const files = Array.from(e.target.files);
-                    setSendReportForm(prev => ({ ...prev, attachments: [...prev.attachments, ...files] }));
-                  }} multiple accept="image/*,.pdf,.doc,.docx" className="w-full p-2 border border-gray-300 rounded-xl" />
-                </div>
-                <div className="flex justify-end gap-3 pt-4">
-                  <button type="button" onClick={() => setShowSendReportModal(false)} className="px-5 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition">Cancel</button>
-                  <button type="submit" disabled={loading} className="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition disabled:opacity-50 flex items-center gap-2">
-                    {loading ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}
-                    {loading ? 'Sending...' : 'Send Report'}
-                  </button>
-                </div>
-              </form>
-            </div>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
+            <div className="flex justify-between items-center mb-4"><h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>Send Report</h2><button onClick={() => setShowSendReportModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button></div>
+            <form onSubmit={handleSendReport} className="space-y-4">
+              <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Recipient *</label><select value={sendReportForm.recipient_id} onChange={(e) => setSendReportForm({...sendReportForm, recipient_id: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} required><option value="">Select Hospital Admin...</option>{hospitalAdmins.map(admin => (<option key={admin.id} value={admin.id}>{admin.full_name} - {admin.hospital_name}</option>))}</select></div>
+              <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Priority</label><select value={sendReportForm.priority} onChange={(e) => setSendReportForm({...sendReportForm, priority: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`}><option value="low">🟢 Low</option><option value="medium">🟡 Medium</option><option value="high">🟠 High</option><option value="urgent">🔴 Urgent</option></select></div>
+              <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Title *</label><input type="text" value={sendReportForm.title} onChange={(e) => setSendReportForm({...sendReportForm, title: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} required /></div>
+              <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Message *</label><textarea value={sendReportForm.body} onChange={(e) => setSendReportForm({...sendReportForm, body: e.target.value})} rows="5" className={`w-full p-3 border border-gray-300 rounded-xl resize-none ${textSizeClasses.base}`} required /></div>
+              <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Attachments</label><input type="file" ref={fileInputRef} onChange={(e) => { const files = Array.from(e.target.files); setSendReportForm(prev => ({ ...prev, attachments: [...prev.attachments, ...files] })); }} multiple className={`w-full p-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`} /></div>
+              <div className="flex justify-end gap-3 pt-4"><button type="button" onClick={() => setShowSendReportModal(false)} className={`px-5 py-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>Cancel</button><button type="submit" disabled={loading} className={`px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl flex items-center gap-2 ${textSizeClasses.base}`}>{loading ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}{loading ? 'Sending...' : 'Send Report'}</button></div>
+            </form>
           </div>
         </div>
       )}
 
+      {/* Report Detail Modal */}
       {showReportDetailModal && selectedReport && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-200">
-                <div className="flex items-center gap-2">
-                  {!selectedReport.is_opened ? <FaEnvelope className="text-blue-500" /> : <FaEnvelopeOpen className="text-gray-400" />}
-                  <h2 className="text-xl font-bold text-gray-800">{selectedReport.title}</h2>
-                </div>
-                <button onClick={() => { setShowReportDetailModal(false); setSelectedReport(null); }} className="p-2 hover:bg-gray-100 rounded-full">×</button>
-              </div>
-              <div className="space-y-4">
-                <div className="flex justify-between">
-                  <div><p className="text-sm text-gray-500">From</p><p className="font-semibold text-gray-800">{selectedReport.sender_full_name}</p></div>
-                  <div className="text-right"><p className="text-sm text-gray-500">Priority</p><span className={`px-3 py-1 rounded-full text-xs ${getPriorityBadge(selectedReport.priority)}`}>{getPriorityIcon(selectedReport.priority)} {selectedReport.priority}</span></div>
-                </div>
-                <div><p className="text-sm text-gray-500">Date Received</p><p className="text-sm text-gray-700">{new Date(selectedReport.sent_at).toLocaleString()}</p></div>
-                <div className="bg-gray-50 p-4 rounded-xl"><p className="text-sm text-gray-500 mb-2">Message</p><p className="whitespace-pre-wrap text-gray-800">{selectedReport.body}</p></div>
-                <div className="flex gap-3 pt-4 border-t border-gray-200">
-                  <button onClick={() => { setShowReportDetailModal(false); setShowReplyModal(true); }} className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition flex items-center justify-center gap-2"><FaReply /> Reply</button>
-                  <button onClick={() => { setShowReportDetailModal(false); setSelectedReport(null); }} className="flex-1 px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition">Close</button>
-                </div>
-              </div>
-            </div>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6">
+            <div className="flex justify-between items-center mb-4"><h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>{selectedReport.title}</h2><button onClick={() => setShowReportDetailModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button></div>
+            <div className="space-y-4"><div className="flex justify-between"><div><p className={`text-gray-500 ${textSizeClasses.base}`}>From</p><p className={`font-semibold ${textSizeClasses.base}`}>{selectedReport.sender_full_name}</p></div><div><p className={`text-gray-500 ${textSizeClasses.base}`}>Priority</p><span className={`px-3 py-1 rounded-full text-sm ${getPriorityBadge(selectedReport.priority)} ${textSizeClasses.base}`}>{getPriorityIcon(selectedReport.priority)} {selectedReport.priority}</span></div></div>
+            <div><p className={`text-gray-500 ${textSizeClasses.base}`}>Date Received</p><p className={`${textSizeClasses.base}`}>{new Date(selectedReport.sent_at).toLocaleString()}</p></div>
+            <div className="bg-gray-50 p-5 rounded-xl"><p className={`text-gray-500 mb-2 ${textSizeClasses.base}`}>Message</p><p className={`whitespace-pre-wrap ${textSizeClasses.base}`}>{selectedReport.body}</p></div>
+            <div className="flex gap-3 pt-4 border-t border-gray-200"><button onClick={() => { setShowReportDetailModal(false); setShowReplyModal(true); }} className={`flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl flex items-center justify-center gap-2 ${textSizeClasses.base}`}><FaReply /> Reply</button><button onClick={() => { setShowReportDetailModal(false); setSelectedReport(null); }} className={`flex-1 px-4 py-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>Close</button></div></div>
           </div>
         </div>
       )}
 
+      {/* Reply Modal */}
       {showReplyModal && selectedReport && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2"><FaReply className="text-blue-500" /> Reply to Report</h2>
-                <button onClick={() => { setShowReplyModal(false); setReplyText(''); setReplyAttachment(null); }} className="p-2 hover:bg-gray-100 rounded-full">×</button>
-              </div>
-              <div className="mb-4 p-4 bg-gray-50 rounded-xl">
-                <p className="text-xs text-gray-500 mb-1">Original Report</p>
-                <p className="text-sm font-medium text-gray-800">{selectedReport.title}</p>
-                <p className="text-xs text-gray-400 mt-1">From: {selectedReport.sender_full_name}</p>
-              </div>
-              <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} rows="5" placeholder="Type your reply here..." className="w-full p-3 border border-gray-300 rounded-xl resize-none" />
-              <div className="mt-3">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Attachment (Optional)</label>
-                <input type="file" onChange={(e) => setReplyAttachment(e.target.files[0])} accept="image/*,.pdf,.doc,.docx" className="w-full p-2 border border-gray-300 rounded-xl" />
-              </div>
-              <div className="flex gap-3 pt-4 mt-2">
-                <button onClick={() => { setShowReplyModal(false); setReplyText(''); setReplyAttachment(null); }} className="flex-1 px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition">Cancel</button>
-                <button onClick={handleSendReply} disabled={loading} className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition disabled:opacity-50 flex items-center justify-center gap-2">
-                  {loading ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}
-                  {loading ? 'Sending...' : 'Send Reply'}
-                </button>
-              </div>
-            </div>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6">
+            <div className="flex justify-between items-center mb-4"><h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>Reply to Report</h2><button onClick={() => { setShowReplyModal(false); setReplyText(''); setReplyAttachment(null); }} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button></div>
+            <div className="mb-4 p-4 bg-gray-50 rounded-xl"><p className={`text-gray-500 ${textSizeClasses.base}`}>Original Report</p><p className={`font-medium ${textSizeClasses.base}`}>{selectedReport.title}</p><p className={`text-gray-400 mt-1 ${textSizeClasses.base}`}>From: {selectedReport.sender_full_name}</p></div>
+            <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} rows="5" placeholder="Type your reply here..." className={`w-full p-3 border border-gray-300 rounded-xl resize-none ${textSizeClasses.base}`} />
+            <div className="mt-3"><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Attachment (Optional)</label><input type="file" onChange={(e) => setReplyAttachment(e.target.files[0])} className={`w-full p-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`} /></div>
+            <div className="flex gap-3 pt-4 mt-2"><button onClick={() => { setShowReplyModal(false); setReplyText(''); setReplyAttachment(null); }} className={`flex-1 px-4 py-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>Cancel</button><button onClick={handleSendReply} disabled={loading} className={`flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl flex items-center justify-center gap-2 ${textSizeClasses.base}`}>{loading ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}{loading ? 'Sending...' : 'Send Reply'}</button></div>
           </div>
         </div>
       )}
 
+      {/* Change Password Modal */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-gray-800">Change Password</h2>
-                <button onClick={() => setShowPasswordModal(false)} className="p-2 hover:bg-gray-100 rounded-full">×</button>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-4"><h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>Change Password</h2><button onClick={() => setShowPasswordModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button></div>
+            <div className="space-y-4"><input type="password" placeholder="Current Password" value={passwordData.current_password} onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} /><input type="password" placeholder="New Password" value={passwordData.new_password} onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} /><input type="password" placeholder="Confirm New Password" value={passwordData.confirm_password} onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} />
+            <div className="flex gap-3 pt-4"><button onClick={() => setShowPasswordModal(false)} className={`flex-1 px-4 py-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>Cancel</button><button onClick={changePassword} className={`flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl ${textSizeClasses.base}`}>Change Password</button></div></div>
+          </div>
+        </div>
+      )}
+
+      {/* Print Card Modal */}
+      {showPrintModal && selectedPatient && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>Patient Card</h2>
+              <button onClick={() => { setShowPrintModal(false); setSelectedPatient(null); }} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
+            </div>
+            <div className="border-2 border-blue-600 rounded-xl p-5 bg-gradient-to-br from-blue-50 to-white">
+              <div className="text-center mb-4">
+                <h3 className={`font-bold text-blue-800 mb-1 ${textSizeClasses.heading}`}>{user?.hospital_name}</h3>
+                <p className={`text-gray-500 ${textSizeClasses.base}`}>Patient Identification Card</p>
               </div>
-              <div className="space-y-4">
-                <input type="password" placeholder="Current Password" value={passwordData.current_password} onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})} className="w-full p-3 border border-gray-300 rounded-xl" />
-                <input type="password" placeholder="New Password" value={passwordData.new_password} onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})} className="w-full p-3 border border-gray-300 rounded-xl" />
-                <input type="password" placeholder="Confirm New Password" value={passwordData.confirm_password} onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})} className="w-full p-3 border border-gray-300 rounded-xl" />
-                <div className="flex gap-3 pt-4">
-                  <button onClick={() => setShowPasswordModal(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition">Cancel</button>
-                  <button onClick={changePassword} className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition">Change Password</button>
-                </div>
+              <div className="text-center mb-4">
+                <span className={`font-mono font-bold text-blue-600 ${textSizeClasses.title}`}>{selectedPatient.card_number}</span>
               </div>
+              <div className="text-center">
+                <p className={`font-semibold text-gray-800 mb-1 ${textSizeClasses.heading}`}>
+                  {selectedPatient.first_name} {selectedPatient.middle_name || ''} {selectedPatient.last_name}
+                </p>
+                <p className={`text-gray-600 mb-1 ${textSizeClasses.base}`}>{selectedPatient.gender} • {selectedPatient.age} years</p>
+                {selectedPatient.phone && <p className={`text-gray-600 ${textSizeClasses.base}`}>📞 {selectedPatient.phone}</p>}
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button onClick={() => { setShowPrintModal(false); setSelectedPatient(null); }} className={`px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition ${textSizeClasses.base}`}>Close</button>
+              <button onClick={() => window.print()} className={`px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition ${textSizeClasses.base}`}>Print Card</button>
             </div>
           </div>
         </div>
