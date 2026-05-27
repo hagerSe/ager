@@ -122,10 +122,9 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     confirm_password: ''
   });
 
-  // ==================== API CONFIGURATION ====================
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-  const API_URL = API_BASE_URL.replace(/\/api\/?$/, '') + '/api';
-  const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || API_BASE_URL.replace(/\/api\/?$/, '') || 'http://localhost:5001';
+  // ==================== API CONFIGURATION (SIMPLIFIED - LIKE PHARMACY) ====================
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+  const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001';
   
   // ==================== TEXT SIZE STYLES ====================
   const getTextSizeClasses = () => {
@@ -237,18 +236,14 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // ==================== FETCH DATA (with hospital_id as query param) ====================
+  // ==================== FETCH DATA (SIMPLIFIED - NO WARNINGS) ====================
   const fetchRecentPatients = async () => {
-    const hospitalId = getHospitalId();
-    if (!hospitalId) {
-      console.warn('No hospital_id available for fetchRecentPatients');
-      return;
-    }
+    if (!user?.hospital_id) return;
     
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/cardoffice/patients/recent`, {
-        params: { hospital_id: hospitalId },
+      const response = await axios.get(`${API_URL}/api/cardoffice/patients/recent`, {
+        params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.success) setRecentPatients(response.data.patients || []);
@@ -258,16 +253,12 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   };
 
   const fetchStats = async () => {
-    const hospitalId = getHospitalId();
-    if (!hospitalId) {
-      console.warn('No hospital_id available for fetchStats');
-      return;
-    }
+    if (!user?.hospital_id) return;
     
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/cardoffice/stats`, {
-        params: { hospital_id: hospitalId },
+      const response = await axios.get(`${API_URL}/api/cardoffice/stats`, {
+        params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.success) {
@@ -283,7 +274,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     setScheduleLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/cardoffice/my-schedule`, {
+      const response = await axios.get(`${API_URL}/api/cardoffice/my-schedule`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.success) {
@@ -316,7 +307,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/cardoffice/reports/inbox`, {
+      const res = await axios.get(`${API_URL}/api/cardoffice/reports/inbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -336,7 +327,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/cardoffice/reports/outbox`, {
+      const res = await axios.get(`${API_URL}/api/cardoffice/reports/outbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) setReportsOutbox(res.data.reports || []);
@@ -349,16 +340,12 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   };
 
   const fetchHospitalAdmins = async () => {
-    const hospitalId = getHospitalId();
-    if (!hospitalId) {
-      console.warn('No hospital_id available for fetchHospitalAdmins');
-      return;
-    }
+    if (!user?.hospital_id) return;
     
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/cardoffice/hospital-admins`, {
-        params: { hospital_id: hospitalId },
+      const res = await axios.get(`${API_URL}/api/cardoffice/hospital-admins`, {
+        params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -393,7 +380,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       formData.append('recipient_id', sendReportForm.recipient_id);
       sendReportForm.attachments.forEach((file) => formData.append('attachments', file));
       
-      const res = await axios.post(`${API_URL}/cardoffice/reports/send`, formData, {
+      const res = await axios.post(`${API_URL}/api/cardoffice/reports/send`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
 
@@ -428,7 +415,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const markReportAsRead = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/cardoffice/reports/${reportId}/read`, {}, {
+      await axios.put(`${API_URL}/api/cardoffice/reports/${reportId}/read`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchReportsInbox();
@@ -451,7 +438,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       formData.append('body', replyText);
       if (replyAttachment) formData.append('attachment', replyAttachment);
       
-      const res = await axios.post(`${API_URL}/cardoffice/reports/${selectedReport.id}/reply`, formData, {
+      const res = await axios.post(`${API_URL}/api/cardoffice/reports/${selectedReport.id}/reply`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
 
@@ -472,11 +459,11 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // ==================== PROFILE FUNCTIONS ====================
+  // ==================== PROFILE FUNCTIONS (FIXED) ====================
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/cardoffice/profile`, {
+      const res = await axios.get(`${API_URL}/api/cardoffice/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -500,7 +487,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const updateProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/cardoffice/profile`, profileData, {
+      const res = await axios.put(`${API_URL}/api/cardoffice/profile`, profileData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -527,7 +514,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     }
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/cardoffice/change-password`, {
+      const res = await axios.put(`${API_URL}/api/cardoffice/change-password`, {
         current_password: passwordData.current_password,
         new_password: passwordData.new_password
       }, { headers: { Authorization: `Bearer ${token}` } });
@@ -560,11 +547,11 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       const cleanedFormData = {
         ...formData,
         phone: formData.phone.replace(/\s/g, ''),
-        hospital_id: getHospitalId()
+        hospital_id: user?.hospital_id
       };
       
       const response = await axios.post(
-        `${API_URL}/cardoffice/patients/register`,
+        `${API_URL}/api/cardoffice/patients/register`,
         cleanedFormData,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -602,8 +589,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
 
   // ==================== SEARCH ====================
   const handleSearch = async () => {
-    const hospitalId = getHospitalId();
-    if (!hospitalId) {
+    if (!user?.hospital_id) {
       setMessage({ type: 'error', text: 'Hospital ID not found. Please login again.' });
       setTimeout(() => setMessage({ type: '', text: '' }), 3000);
       return;
@@ -621,7 +607,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       const token = localStorage.getItem('token');
       const encodedQuery = encodeURIComponent(searchQuery.trim());
       const response = await axios.get(
-        `${API_URL}/cardoffice/patients/search?query=${encodedQuery}&hospital_id=${hospitalId}`,
+        `${API_URL}/api/cardoffice/patients/search?query=${encodedQuery}&hospital_id=${user?.hospital_id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -649,8 +635,8 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        `${API_URL}/cardoffice/patients/send-to-triage`,
-        { patientId: patient.id, reason, hospital_id: getHospitalId() },
+        `${API_URL}/api/cardoffice/patients/send-to-triage`,
+        { patientId: patient.id, reason, hospital_id: user?.hospital_id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -671,7 +657,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `${API_URL}/cardoffice/patients/${patient.id}?hospital_id=${getHospitalId()}`,
+        `${API_URL}/api/cardoffice/patients/${patient.id}?hospital_id=${user?.hospital_id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -707,9 +693,8 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     socket.current.on('connect', () => {
       console.log('✅ Card Office socket connected');
       setConnectionStatus('connected');
-      const hospitalId = getHospitalId();
-      if (hospitalId) {
-        socket.current.emit('join_cardoffice', hospitalId);
+      if (user?.hospital_id) {
+        socket.current.emit('join_cardoffice', user?.hospital_id);
       }
     });
 
@@ -724,8 +709,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     });
 
     socket.current.on('patient_registered', (data) => {
-      const hospitalId = getHospitalId();
-      if (data.hospital_id == hospitalId) {
+      if (data.hospital_id == user?.hospital_id) {
         setRealTimeNotification({
           id: Date.now(),
           type: 'new_patient',
@@ -827,13 +811,11 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     );
   };
 
-  // ==================== INITIAL LOAD ====================
+  // ==================== INITIAL LOAD (FIXED - LIKE PHARMACY) ====================
   useEffect(() => {
-    if (!getHospitalId()) {
-      console.warn('No hospital_id available on initial load');
-      return;
-    }
-
+    // Wait for user and hospital_id to be available - NO WARNINGS
+    if (!user?.hospital_id) return;
+    
     initializeSocket();
     fetchRecentPatients();
     fetchStats();
@@ -852,14 +834,14 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       if (socket.current) socket.current.disconnect();
       clearInterval(interval);
     };
-  }, []);
+  }, [user?.hospital_id]); // ← CRITICAL FIX: Re-run when hospital_id becomes available
 
   // ==================== RENDER ====================
   return (
     <div className={`min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex ${textSizeClasses.base}`}>
       <RealTimeNotification />
       
-      {/* Logout Confirmation Modal */}
+      {/* Logout Confirmation Modal - Same as before */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10001] p-4">
           <motion.div
@@ -992,7 +974,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
         </div>
       </div>
 
-      {/* Main Content - Keep all the tabs rendering from your original component */}
+      {/* Main Content - Keep all the tabs rendering from original component */}
       <div className="flex-1 overflow-y-auto">
         {/* Header - Keep from original */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 py-8 px-10 shadow-xl sticky top-0 z-40">
@@ -1068,7 +1050,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
           </div>
         </div>
 
-        {/* Main Content Area - Keep all tabs from your original component */}
+        {/* Main Content Area - Keep all tabs from original component */}
         <div className="max-w-[1600px] mx-auto p-10">
           {/* Message Display */}
           {message.text && (
