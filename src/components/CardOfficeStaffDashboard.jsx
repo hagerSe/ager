@@ -1,4 +1,4 @@
-// frontend/src/components/CardOfficeDashboard.jsx (COMPLETE FIXED VERSION)
+// frontend/src/components/CardOfficeDashboard.jsx (COMPLETE WORKING VERSION)
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -12,9 +12,9 @@ import {
   FaEnvelope, FaEnvelopeOpen, FaReply, FaKey, FaSave, 
   FaSpinner, FaCheck, FaEye, FaPhone, FaVenusMars, 
   FaCalendarDay, FaCreditCard, FaTextHeight, FaUndo,
-  FaHeartbeat, FaEdit as FaEditIcon
+  FaHeartbeat, FaEdit as FaEditIcon, FaTimes, FaPaperclip,
+  FaFileAlt, FaArrowLeft, FaArrowRight
 } from 'react-icons/fa';
-import ScheduleViewer from '../components/ScheduleViewer';
 
 const CardOfficeDashboard = ({ user, onLogout }) => {
   // ==================== HELPER: Get Hospital ID ====================
@@ -482,6 +482,11 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       setTimeout(() => setMessage({ type: '', text: '' }), 3000);
       return;
     }
+    if (passwordData.new_password.length < 6) {
+      setMessage({ type: 'error', text: 'New password must be at least 6 characters' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      return;
+    }
     try {
       const token = localStorage.getItem('token');
       const res = await axios.put(`${API_URL}/cardoffice/change-password`, {
@@ -648,6 +653,82 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     setSearchQuery('');
     setSearchResults([]);
     setMessage({ type: '', text: '' });
+  };
+
+  // ==================== SIMPLE SCHEDULE VIEWER (Fallback) ====================
+  const SimpleScheduleViewer = () => {
+    const [schedules, setSchedules] = useState([]);
+    const [scheduleLoading, setScheduleLoading] = useState(false);
+    const [dateRange, setDateRange] = useState({ start: '', end: '' });
+
+    useEffect(() => {
+      fetchMySchedule();
+    }, []);
+
+    const fetchMySchedule = async () => {
+      setScheduleLoading(true);
+      try {
+        const token = localStorage.getItem('token');
+        const params = {};
+        if (dateRange.start && dateRange.end) {
+          params.start_date = dateRange.start;
+          params.end_date = dateRange.end;
+        }
+        const res = await axios.get(`${API_URL}/cardoffice/schedule/my`, {
+          params: { ...params, hospital_id: getHospitalId() },
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.data.success) {
+          setSchedules(res.data.schedules || []);
+        }
+      } catch (error) {
+        console.error('Error fetching schedule:', error);
+      } finally {
+        setScheduleLoading(false);
+      }
+    };
+
+    const getShiftInfo = (shiftType) => {
+      const shifts = {
+        morning: { name: '🌅 Morning', time: '08:00 - 14:00', hours: 6 },
+        afternoon: { name: '☀️ Afternoon', time: '14:00 - 20:00', hours: 6 },
+        night: { name: '🌙 Night', time: '20:00 - 08:00', hours: 12 }
+      };
+      return shifts[shiftType] || { name: shiftType, time: '--:-- - --:--', hours: 0 };
+    };
+
+    return (
+      <div>
+        <div className="flex gap-4 mb-6 flex-wrap">
+          <input type="date" value={dateRange.start} onChange={(e) => setDateRange({...dateRange, start: e.target.value})} className="p-2 border rounded-lg" />
+          <input type="date" value={dateRange.end} onChange={(e) => setDateRange({...dateRange, end: e.target.value})} className="p-2 border rounded-lg" />
+          <button onClick={fetchMySchedule} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Filter</button>
+        </div>
+        {scheduleLoading ? (
+          <div className="text-center py-10"><FaSpinner className="animate-spin text-3xl text-blue-600 mx-auto" /></div>
+        ) : schedules.length === 0 ? (
+          <div className="text-center py-10 text-gray-500">No schedules found</div>
+        ) : (
+          <div className="space-y-3">
+            {schedules.map(schedule => {
+              const shift = getShiftInfo(schedule.shift_type);
+              return (
+                <div key={schedule.id} className="white-blue-card flex justify-between items-center">
+                  <div>
+                    <p className="font-bold text-gray-800">{new Date(schedule.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                    <p className="text-gray-600">{shift.name} Shift • {shift.time}</p>
+                    {schedule.ward && <p className="text-gray-500 text-sm">Ward: {schedule.ward}</p>}
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-sm ${schedule.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                    {schedule.status || 'Scheduled'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
   };
 
   // ==================== SOCKET CONNECTION ====================
@@ -884,11 +965,10 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
         }
       `}</style>
 
-      {/* Sidebar JSX (same as before - keeping it concise) */}
+      {/* Sidebar */}
       <div className={`bg-gradient-to-b from-slate-900 to-slate-800 text-white transition-all duration-300 ${
         sidebarCollapsed ? 'w-24' : 'w-72'
       } shadow-2xl flex flex-col h-screen sticky top-0 z-50`}>
-        {/* Sidebar content - use the same as in the previous version */}
         <div className="p-5">
           <div className="flex items-center justify-between mb-8">
             {!sidebarCollapsed && (
@@ -987,7 +1067,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
         </div>
       </div>
 
-      {/* Main Content - Keep the same as previous version */}
+      {/* Main Content */}
       <div className="flex-1 overflow-y-auto">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 py-8 px-10 shadow-xl sticky top-0 z-40">
@@ -1066,7 +1146,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
         {/* Main Content */}
         <div className="max-w-[1600px] mx-auto p-10">
           {message.text && (
-            <div className={`mb-6 p-5 rounded-xl border-l-4 ${message.type === 'error' ? 'bg-red-50 border-red-500 text-red-700' : 'bg-green-50 border-green-500 text-green-700'} flex justify-between items-center ${textSizeClasses.base}`}>
+            <div className={`mb-6 p-5 rounded-xl border-l-4 ${message.type === 'error' ? 'bg-red-50 border-red-500 text-red-700' : message.type === 'success' ? 'bg-green-50 border-green-500 text-green-700' : 'bg-blue-50 border-blue-500 text-blue-700'} flex justify-between items-center ${textSizeClasses.base}`}>
               <span>{message.text}</span>
               <button onClick={() => setMessage({ type: '', text: '' })} className="text-xl">×</button>
             </div>
@@ -1194,10 +1274,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
             </div>
           )}
 
-          {/* Other tabs (Search, Recent, Inbox, Outbox, Reports, Schedule, Profile) - 
-              Add them here following the same pattern as the previous working version */}
-          {/* For brevity, I'm showing the key fix - the handleInputChange is now defined */}
-          
+          {/* Search Tab */}
           {activeTab === 'search' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
               <h2 className={`font-bold text-gray-800 mb-6 ${textSizeClasses.heading}`}>Search Patients</h2>
@@ -1211,12 +1288,27 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                   {searchResults.map(patient => (
                     <div key={patient.id} className="white-blue-card">
                       <div className="flex justify-between items-start flex-wrap gap-4">
-                        <div><div className="flex items-center gap-3 mb-2"><span className={`font-mono text-blue-600 bg-blue-50 px-3 py-1 rounded ${textSizeClasses.base}`}><FaCreditCard className="inline mr-1" /> {patient.card_number}</span><span className={`px-3 py-1 rounded-full text-sm ${getStatusStyle(patient.status).bg} ${getStatusStyle(patient.status).color}`}>{getStatusStyle(patient.status).text}</span></div><h3 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>{patient.first_name} {patient.middle_name || ''} {patient.last_name}</h3><p className={`text-gray-500 mt-1 ${textSizeClasses.base}`}>{patient.age} years • {patient.gender}{patient.phone && ` • 📞 ${patient.phone}`}</p></div>
-                        <div className="flex gap-2"><button onClick={() => handleViewHistory(patient)} className={`px-4 py-2 bg-blue-600 text-white rounded-lg ${textSizeClasses.base}`}><FaHistory /> History</button>{patient.status !== 'in_triage' && patient.status !== 'with_doctor' && <button onClick={() => handleSendToTriage(patient)} className={`px-4 py-2 bg-amber-600 text-white rounded-lg ${textSizeClasses.base}`}><FaHeartbeat /> Send to Triage</button>}</div>
+                        <div>
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className={`font-mono text-blue-600 bg-blue-50 px-3 py-1 rounded ${textSizeClasses.base}`}><FaCreditCard className="inline mr-1" /> {patient.card_number}</span>
+                            <span className={`px-3 py-1 rounded-full text-sm ${getStatusStyle(patient.status).bg} ${getStatusStyle(patient.status).color}`}>{getStatusStyle(patient.status).text}</span>
+                          </div>
+                          <h3 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>{patient.first_name} {patient.middle_name || ''} {patient.last_name}</h3>
+                          <p className={`text-gray-500 mt-1 ${textSizeClasses.base}`}>{patient.age} years • {patient.gender}{patient.phone && ` • 📞 ${patient.phone}`}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => handleViewHistory(patient)} className={`px-4 py-2 bg-blue-600 text-white rounded-lg ${textSizeClasses.base}`}><FaHistory className="inline mr-1" /> History</button>
+                          {patient.status !== 'in_triage' && patient.status !== 'with_doctor' && (
+                            <button onClick={() => handleSendToTriage(patient)} className={`px-4 py-2 bg-amber-600 text-white rounded-lg ${textSizeClasses.base}`}><FaHeartbeat className="inline mr-1" /> Send to Triage</button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
+              )}
+              {searchResults.length === 0 && searchQuery && !searching && (
+                <div className="text-center py-12 text-gray-500">No patients found</div>
               )}
             </div>
           )}
@@ -1232,7 +1324,11 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                   {recentPatients.map(patient => (
                     <div key={patient.id} className="white-blue-card">
                       <div className="flex justify-between items-center">
-                        <div><span className={`font-mono text-blue-600 ${textSizeClasses.base}`}>{patient.card_number}</span><h3 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>{patient.first_name} {patient.last_name}</h3><p className={`text-gray-500 ${textSizeClasses.base}`}>{patient.age} years • {patient.gender}</p></div>
+                        <div>
+                          <span className={`font-mono text-blue-600 ${textSizeClasses.base}`}>{patient.card_number}</span>
+                          <h3 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>{patient.first_name} {patient.last_name}</h3>
+                          <p className={`text-gray-500 ${textSizeClasses.base}`}>{patient.age} years • {patient.gender}</p>
+                        </div>
                         <span className={`px-3 py-1 rounded-full ${getStatusStyle(patient.status).bg} ${getStatusStyle(patient.status).color}`}>{getStatusStyle(patient.status).text}</span>
                       </div>
                     </div>
@@ -1245,14 +1341,61 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
           {/* Inbox Tab */}
           {activeTab === 'inbox' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-              <div className="flex justify-between items-center mb-6"><h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>📬 Inbox</h2>{unreadReportsCount > 0 && <span className={`px-3 py-1 bg-red-500 text-white rounded-full animate-pulse ${textSizeClasses.base}`}>{unreadReportsCount} unread</span>}<button onClick={() => { setShowSendReportModal(true); fetchHospitalAdmins(); }} className={`px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl ${textSizeClasses.base}`}>New Report</button></div>
-              {reportsInbox.map(report => (
-                <div key={report.id} className={`white-blue-card cursor-pointer mb-4 ${!report.is_opened ? 'border-blue-300 bg-blue-50' : ''}`} onClick={() => viewReportDetails(report)}>
-                  <div className="flex justify-between items-start"><div className="flex items-center gap-2">{!report.is_opened ? <FaEnvelope className="text-blue-500" /> : <FaEnvelopeOpen className="text-gray-400" />}<h3 className={`font-semibold ${textSizeClasses.base}`}>{report.title}</h3></div><span className={`text-xs px-2 py-1 rounded-full ${getPriorityBadge(report.priority)}`}>{getPriorityIcon(report.priority)} {report.priority}</span></div>
-                  <p className={`text-gray-600 mt-2 ${textSizeClasses.base}`}>{report.body?.substring(0, 100)}...</p>
-                  <div className={`flex justify-between text-gray-400 text-sm mt-2 ${textSizeClasses.base}`}><span>From: {report.sender_full_name}</span><span>{new Date(report.sent_at).toLocaleDateString()}</span></div>
-                </div>
-              ))}
+              <div className="flex justify-between items-center mb-6">
+                <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>📬 Inbox</h2>
+                {unreadReportsCount > 0 && <span className={`px-3 py-1 bg-red-500 text-white rounded-full animate-pulse ${textSizeClasses.base}`}>{unreadReportsCount} unread</span>}
+                <button onClick={() => { setShowSendReportModal(true); fetchHospitalAdmins(); }} className={`px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl ${textSizeClasses.base}`}>New Report</button>
+              </div>
+              {reportsLoading ? (
+                <div className="text-center py-12"><FaSpinner className="animate-spin text-3xl text-blue-600 mx-auto" /></div>
+              ) : reportsInbox.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">No reports in inbox</div>
+              ) : (
+                reportsInbox.map(report => (
+                  <div key={report.id} className={`white-blue-card cursor-pointer mb-4 ${!report.is_opened ? 'border-blue-300 bg-blue-50' : ''}`} onClick={() => viewReportDetails(report)}>
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-2">
+                        {!report.is_opened ? <FaEnvelope className="text-blue-500" /> : <FaEnvelopeOpen className="text-gray-400" />}
+                        <h3 className={`font-semibold ${textSizeClasses.base}`}>{report.title}</h3>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded-full ${getPriorityBadge(report.priority)}`}>{getPriorityIcon(report.priority)} {report.priority}</span>
+                    </div>
+                    <p className={`text-gray-600 mt-2 ${textSizeClasses.base}`}>{report.body?.substring(0, 100)}...</p>
+                    <div className={`flex justify-between text-gray-400 text-sm mt-2 ${textSizeClasses.base}`}>
+                      <span>From: {report.sender_full_name}</span>
+                      <span>{new Date(report.sent_at).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* Outbox Tab */}
+          {activeTab === 'outbox' && !showScheduleView && (
+            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
+              <h2 className={`font-bold text-gray-800 mb-6 ${textSizeClasses.heading}`}>📤 Sent Reports</h2>
+              {reportsLoading ? (
+                <div className="text-center py-12"><FaSpinner className="animate-spin text-3xl text-blue-600 mx-auto" /></div>
+              ) : reportsOutbox.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">No sent reports</div>
+              ) : (
+                reportsOutbox.map(report => (
+                  <div key={report.id} className="white-blue-card mb-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className={`font-semibold ${textSizeClasses.base}`}>{report.title}</h3>
+                        <p className={`text-gray-500 text-sm mt-1`}>To: {report.recipient_full_name}</p>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded-full ${getPriorityBadge(report.priority)}`}>{getPriorityIcon(report.priority)} {report.priority}</span>
+                    </div>
+                    <p className={`text-gray-600 mt-2 ${textSizeClasses.base}`}>{report.body?.substring(0, 100)}...</p>
+                    <div className={`text-gray-400 text-sm mt-2 ${textSizeClasses.base}`}>
+                      Sent: {new Date(report.sent_at).toLocaleString()}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           )}
 
@@ -1261,10 +1404,22 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
               <h2 className={`font-bold text-gray-800 mb-6 ${textSizeClasses.heading}`}>Card Office Statistics</h2>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="white-blue-card text-center"><p className={`text-blue-600 ${textSizeClasses.base}`}>Today's Registrations</p><p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.today}</p></div>
-                <div className="white-blue-card text-center"><p className={`text-blue-600 ${textSizeClasses.base}`}>In Triage</p><p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.inTriage}</p></div>
-                <div className="white-blue-card text-center"><p className={`text-blue-600 ${textSizeClasses.base}`}>Active Patients</p><p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.active}</p></div>
-                <div className="white-blue-card text-center"><p className={`text-blue-600 ${textSizeClasses.base}`}>Total Patients</p><p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.total}</p></div>
+                <div className="white-blue-card text-center">
+                  <p className={`text-blue-600 ${textSizeClasses.base}`}>Today's Registrations</p>
+                  <p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.today}</p>
+                </div>
+                <div className="white-blue-card text-center">
+                  <p className={`text-blue-600 ${textSizeClasses.base}`}>In Triage</p>
+                  <p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.inTriage}</p>
+                </div>
+                <div className="white-blue-card text-center">
+                  <p className={`text-blue-600 ${textSizeClasses.base}`}>Active Patients</p>
+                  <p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.active}</p>
+                </div>
+                <div className="white-blue-card text-center">
+                  <p className={`text-blue-600 ${textSizeClasses.base}`}>Total Patients</p>
+                  <p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.total}</p>
+                </div>
               </div>
             </div>
           )}
@@ -1273,7 +1428,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
           {showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
               <h2 className={`font-bold text-gray-800 mb-6 ${textSizeClasses.heading}`}>My Work Schedule</h2>
-              <ScheduleViewer user={user} compact={false} />
+              <SimpleScheduleViewer />
             </div>
           )}
 
@@ -1282,22 +1437,80 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
               <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-10">
                 <div className="flex items-center gap-6">
-                  <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center"><FaUserCircle className="text-blue-600 text-6xl" /></div>
-                  <div className="text-white"><h2 className={`font-bold ${textSizeClasses.title}`}>{profileData.first_name} {profileData.last_name}</h2><p className={`text-blue-100 ${textSizeClasses.base}`}>{profileData.department} Staff</p><p className={`text-blue-100 text-sm`}>{user?.hospital_name}</p></div>
+                  <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center">
+                    <FaUserCircle className="text-blue-600 text-6xl" />
+                  </div>
+                  <div className="text-white">
+                    <h2 className={`font-bold ${textSizeClasses.title}`}>{profileData.first_name} {profileData.last_name}</h2>
+                    <p className={`text-blue-100 ${textSizeClasses.base}`}>{profileData.department} Staff</p>
+                    <p className={`text-blue-100 text-sm`}>{user?.hospital_name}</p>
+                  </div>
                 </div>
               </div>
               <div className="p-8">
-                <div className="flex justify-between items-center mb-6"><h3 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>Professional Information</h3>{!isEditingProfile ? <button onClick={() => setIsEditingProfile(true)} className="px-4 py-2 bg-blue-600 text-white rounded-xl"><FaEditIcon /> Edit</button> : <div className="flex gap-2"><button onClick={() => setIsEditingProfile(false)} className="px-4 py-2 border rounded-xl">Cancel</button><button onClick={updateProfile} className="px-4 py-2 bg-emerald-600 text-white rounded-xl"><FaSave /> Save</button></div>}</div>
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>Professional Information</h3>
+                  {!isEditingProfile ? (
+                    <button onClick={() => setIsEditingProfile(true)} className="px-4 py-2 bg-blue-600 text-white rounded-xl flex items-center gap-2"><FaEditIcon /> Edit</button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button onClick={() => setIsEditingProfile(false)} className="px-4 py-2 border rounded-xl">Cancel</button>
+                      <button onClick={updateProfile} className="px-4 py-2 bg-emerald-600 text-white rounded-xl flex items-center gap-2"><FaSave /> Save</button>
+                    </div>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 gap-6">
                   <div className="space-y-4">
-                    <div><label className="text-gray-500">First Name</label>{isEditingProfile ? <input type="text" value={profileData.first_name} onChange={(e) => setProfileData({...profileData, first_name: e.target.value})} className="w-full p-2 border rounded-lg" /> : <p className="font-medium">{profileData.first_name || 'Not set'}</p>}</div>
-                    <div><label className="text-gray-500">Last Name</label>{isEditingProfile ? <input type="text" value={profileData.last_name} onChange={(e) => setProfileData({...profileData, last_name: e.target.value})} className="w-full p-2 border rounded-lg" /> : <p className="font-medium">{profileData.last_name || 'Not set'}</p>}</div>
-                    <div><label className="text-gray-500">Phone</label>{isEditingProfile ? <input type="tel" value={profileData.phone} onChange={(e) => setProfileData({...profileData, phone: e.target.value})} className="w-full p-2 border rounded-lg" /> : <p className="font-medium">{profileData.phone || 'Not set'}</p>}</div>
+                    <div>
+                      <label className="text-gray-500">First Name</label>
+                      {isEditingProfile ? (
+                        <input type="text" value={profileData.first_name} onChange={(e) => setProfileData({...profileData, first_name: e.target.value})} className="w-full p-2 border rounded-lg" />
+                      ) : (
+                        <p className="font-medium">{profileData.first_name || 'Not set'}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="text-gray-500">Last Name</label>
+                      {isEditingProfile ? (
+                        <input type="text" value={profileData.last_name} onChange={(e) => setProfileData({...profileData, last_name: e.target.value})} className="w-full p-2 border rounded-lg" />
+                      ) : (
+                        <p className="font-medium">{profileData.last_name || 'Not set'}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="text-gray-500">Phone</label>
+                      {isEditingProfile ? (
+                        <input type="tel" value={profileData.phone} onChange={(e) => setProfileData({...profileData, phone: e.target.value})} className="w-full p-2 border rounded-lg" />
+                      ) : (
+                        <p className="font-medium">{profileData.phone || 'Not set'}</p>
+                      )}
+                    </div>
                   </div>
                   <div className="space-y-4">
-                    <div><label className="text-gray-500">Gender</label>{isEditingProfile ? <select value={profileData.gender} onChange={(e) => setProfileData({...profileData, gender: e.target.value})} className="w-full p-2 border rounded-lg"><option>Male</option><option>Female</option><option>Other</option></select> : <p className="font-medium">{profileData.gender || 'Not set'}</p>}</div>
-                    <div><label className="text-gray-500">Age</label>{isEditingProfile ? <input type="number" value={profileData.age} onChange={(e) => setProfileData({...profileData, age: e.target.value})} className="w-full p-2 border rounded-lg" /> : <p className="font-medium">{profileData.age ? `${profileData.age} years` : 'Not set'}</p>}</div>
-                    <div><button onClick={() => setShowPasswordModal(true)} className="mt-4 px-4 py-2 border border-blue-600 text-blue-600 rounded-xl"><FaKey /> Change Password</button></div>
+                    <div>
+                      <label className="text-gray-500">Gender</label>
+                      {isEditingProfile ? (
+                        <select value={profileData.gender} onChange={(e) => setProfileData({...profileData, gender: e.target.value})} className="w-full p-2 border rounded-lg">
+                          <option value="">Select</option>
+                          <option>Male</option>
+                          <option>Female</option>
+                          <option>Other</option>
+                        </select>
+                      ) : (
+                        <p className="font-medium">{profileData.gender || 'Not set'}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="text-gray-500">Age</label>
+                      {isEditingProfile ? (
+                        <input type="number" value={profileData.age} onChange={(e) => setProfileData({...profileData, age: e.target.value})} className="w-full p-2 border rounded-lg" />
+                      ) : (
+                        <p className="font-medium">{profileData.age ? `${profileData.age} years` : 'Not set'}</p>
+                      )}
+                    </div>
+                    <div>
+                      <button onClick={() => setShowPasswordModal(true)} className="mt-4 px-4 py-2 border border-blue-600 text-blue-600 rounded-xl flex items-center gap-2"><FaKey /> Change Password</button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1306,46 +1519,144 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
         </div>
       </div>
 
-      {/* Modals - Add all the modal components here */}
-      {/* Send Report Modal, Report Detail Modal, Reply Modal, Change Password Modal, Print Modal */}
+      {/* Send Report Modal */}
       {showSendReportModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-lg w-full p-6">
-            <h2 className={`font-bold mb-4 ${textSizeClasses.heading}`}>Send Report</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className={`font-bold ${textSizeClasses.heading}`}>Send Report</h2>
+              <button onClick={() => setShowSendReportModal(false)} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+            </div>
             <form onSubmit={handleSendReport}>
-              <select value={sendReportForm.recipient_id} onChange={(e) => setSendReportForm({...sendReportForm, recipient_id: e.target.value})} className="w-full p-3 border rounded-xl mb-4" required><option value="">Select Recipient</option>{hospitalAdmins.map(admin => <option key={admin.id} value={admin.id}>{admin.full_name}</option>)}</select>
+              <select value={sendReportForm.recipient_id} onChange={(e) => setSendReportForm({...sendReportForm, recipient_id: e.target.value})} className="w-full p-3 border rounded-xl mb-4" required>
+                <option value="">Select Recipient</option>
+                {hospitalAdmins.map(admin => <option key={admin.id} value={admin.id}>{admin.full_name} ({admin.hospital_name})</option>)}
+              </select>
               <input type="text" placeholder="Title" value={sendReportForm.title} onChange={(e) => setSendReportForm({...sendReportForm, title: e.target.value})} className="w-full p-3 border rounded-xl mb-4" required />
               <textarea placeholder="Message" value={sendReportForm.body} onChange={(e) => setSendReportForm({...sendReportForm, body: e.target.value})} rows="5" className="w-full p-3 border rounded-xl mb-4" required />
-              <div className="flex justify-end gap-3"><button type="button" onClick={() => setShowSendReportModal(false)} className="px-4 py-2 border rounded-xl">Cancel</button><button type="submit" disabled={loading} className="px-4 py-2 bg-blue-600 text-white rounded-xl">{loading ? <FaSpinner className="animate-spin" /> : 'Send'}</button></div>
+              <select value={sendReportForm.priority} onChange={(e) => setSendReportForm({...sendReportForm, priority: e.target.value})} className="w-full p-3 border rounded-xl mb-4">
+                <option value="low">Low Priority</option>
+                <option value="medium">Medium Priority</option>
+                <option value="high">High Priority</option>
+                <option value="urgent">Urgent</option>
+              </select>
+              <div className="flex justify-end gap-3">
+                <button type="button" onClick={() => setShowSendReportModal(false)} className="px-4 py-2 border rounded-xl">Cancel</button>
+                <button type="submit" disabled={loading} className="px-4 py-2 bg-blue-600 text-white rounded-xl flex items-center gap-2">
+                  {loading ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}
+                  {loading ? 'Sending...' : 'Send'}
+                </button>
+              </div>
             </form>
           </div>
         </div>
       )}
 
-      {showPasswordModal && (
+      {/* Report Detail Modal */}
+      {showReportDetailModal && selectedReport && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6">
-            <h2 className={`font-bold mb-4 ${textSizeClasses.heading}`}>Change Password</h2>
-            <input type="password" placeholder="Current Password" value={passwordData.current_password} onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})} className="w-full p-3 border rounded-xl mb-3" />
-            <input type="password" placeholder="New Password" value={passwordData.new_password} onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})} className="w-full p-3 border rounded-xl mb-3" />
-            <input type="password" placeholder="Confirm Password" value={passwordData.confirm_password} onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})} className="w-full p-3 border rounded-xl mb-4" />
-            <div className="flex justify-end gap-3"><button onClick={() => setShowPasswordModal(false)} className="px-4 py-2 border rounded-xl">Cancel</button><button onClick={changePassword} className="px-4 py-2 bg-blue-600 text-white rounded-xl">Change</button></div>
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h2 className={`font-bold ${textSizeClasses.title}`}>{selectedReport.title}</h2>
+                <p className="text-gray-500 text-sm mt-1">Report #{selectedReport.report_number}</p>
+              </div>
+              <button onClick={() => { setShowReportDetailModal(false); setSelectedReport(null); }} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+            </div>
+            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+              <div className="flex justify-between items-center text-sm text-gray-600">
+                <span>From: {selectedReport.sender_full_name}</span>
+                <span className={`px-2 py-1 rounded-full ${getPriorityBadge(selectedReport.priority)}`}>{selectedReport.priority}</span>
+              </div>
+              <div className="flex justify-between text-sm text-gray-500 mt-1">
+                <span>Date: {new Date(selectedReport.sent_at).toLocaleString()}</span>
+              </div>
+            </div>
+            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+              <p className={`text-gray-700 whitespace-pre-wrap ${textSizeClasses.base}`}>{selectedReport.body}</p>
+            </div>
+            {selectedReport.attachments?.length > 0 && (
+              <div className="mb-6">
+                <p className="font-semibold mb-2">Attachments:</p>
+                {selectedReport.attachments.map((att, idx) => (
+                  <div key={idx} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                    <FaPaperclip /> <span>{att.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowReportDetailModal(false)} className="px-4 py-2 border rounded-xl">Close</button>
+              <button onClick={() => { setShowReportDetailModal(false); setShowReplyModal(true); }} className="px-4 py-2 bg-blue-600 text-white rounded-xl flex items-center gap-2"><FaReply /> Reply</button>
+            </div>
           </div>
         </div>
       )}
 
+      {/* Reply Modal */}
+      {showReplyModal && selectedReport && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className={`font-bold ${textSizeClasses.heading}`}>Reply to: {selectedReport.title}</h2>
+              <button onClick={() => { setShowReplyModal(false); setReplyText(''); setReplyAttachment(null); }} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+            </div>
+            <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Type your reply here..." rows="6" className="w-full p-3 border rounded-xl mb-4" />
+            <div className="mb-4">
+              <input type="file" onChange={(e) => setReplyAttachment(e.target.files[0])} className="w-full p-2 border rounded-xl" />
+            </div>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => { setShowReplyModal(false); setReplyText(''); setReplyAttachment(null); }} className="px-4 py-2 border rounded-xl">Cancel</button>
+              <button onClick={handleSendReply} disabled={loading} className="px-4 py-2 bg-blue-600 text-white rounded-xl flex items-center gap-2">
+                {loading ? <FaSpinner className="animate-spin" /> : <FaReply />}
+                {loading ? 'Sending...' : 'Send Reply'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Change Password Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className={`font-bold ${textSizeClasses.heading}`}>Change Password</h2>
+              <button onClick={() => setShowPasswordModal(false)} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+            </div>
+            <input type="password" placeholder="Current Password" value={passwordData.current_password} onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})} className="w-full p-3 border rounded-xl mb-3" />
+            <input type="password" placeholder="New Password" value={passwordData.new_password} onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})} className="w-full p-3 border rounded-xl mb-3" />
+            <input type="password" placeholder="Confirm Password" value={passwordData.confirm_password} onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})} className="w-full p-3 border rounded-xl mb-4" />
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowPasswordModal(false)} className="px-4 py-2 border rounded-xl">Cancel</button>
+              <button onClick={changePassword} className="px-4 py-2 bg-blue-600 text-white rounded-xl">Change</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Print Modal */}
       {showPrintModal && selectedPatient && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6">
-            <h2 className={`font-bold mb-4 ${textSizeClasses.heading}`}>Patient Card</h2>
-            <div className="border-2 border-blue-600 rounded-xl p-4 text-center">
-              <p className="font-bold">{user?.hospital_name}</p>
-              <p className={`font-mono text-xl font-bold text-blue-600 my-2 ${textSizeClasses.title}`}>{selectedPatient.card_number}</p>
-              <p className={`font-bold ${textSizeClasses.heading}`}>{selectedPatient.first_name} {selectedPatient.last_name}</p>
-              <p>{selectedPatient.gender} • {selectedPatient.age} years</p>
-              {selectedPatient.phone && <p>📞 {selectedPatient.phone}</p>}
+            <div className="flex justify-between items-center mb-4">
+              <h2 className={`font-bold ${textSizeClasses.heading}`}>Patient Card</h2>
+              <button onClick={() => setShowPrintModal(false)} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
             </div>
-            <div className="flex justify-end gap-3 mt-4"><button onClick={() => setShowPrintModal(false)} className="px-4 py-2 border rounded-xl">Close</button><button onClick={() => window.print()} className="px-4 py-2 bg-blue-600 text-white rounded-xl">Print</button></div>
+            <div className="border-2 border-blue-600 rounded-xl p-6 text-center">
+              <p className={`font-bold text-gray-800 ${textSizeClasses.base}`}>{user?.hospital_name || 'Hospital'}</p>
+              <p className={`font-mono text-2xl font-bold text-blue-600 my-3 ${textSizeClasses.title}`}>{selectedPatient.card_number}</p>
+              <p className={`font-bold ${textSizeClasses.heading}`}>{selectedPatient.first_name} {selectedPatient.last_name}</p>
+              <p className={`${textSizeClasses.base}`}>{selectedPatient.gender} • {selectedPatient.age} years</p>
+              {selectedPatient.phone && <p className={`${textSizeClasses.base}`}>📞 {selectedPatient.phone}</p>}
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <p className="text-xs text-gray-500">Registered: {new Date(selectedPatient.registered_at).toLocaleDateString()}</p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-4">
+              <button onClick={() => setShowPrintModal(false)} className="px-4 py-2 border rounded-xl">Close</button>
+              <button onClick={() => window.print()} className="px-4 py-2 bg-blue-600 text-white rounded-xl">Print</button>
+            </div>
           </div>
         </div>
       )}
