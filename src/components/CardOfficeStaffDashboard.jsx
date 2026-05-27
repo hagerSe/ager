@@ -21,9 +21,7 @@ import ScheduleViewer from '../components/ScheduleViewer';
 
 const CardOfficeDashboard = ({ user, onLogout }) => {
   // ==================== HELPER: Get Hospital ID ====================
-  console.log('=== CardOfficeDashboard received user prop ===');
-console.log('user:', user);
-console.log('user keys:', user ? Object.keys(user) : 'user is null/undefined');
+  
 const getHospitalId = () => {
   console.log('=== USER OBJECT DEBUG ===');
   console.log('Full user object:', user);
