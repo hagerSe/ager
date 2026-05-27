@@ -16,9 +16,9 @@ import {
 } from 'react-icons/fa';
 
 const CardOfficeDashboard = ({ user, onLogout }) => {
-  // ==================== HELPER: Get Hospital ID ====================
+  // ==================== HELPER: Get Hospital ID (SIMPLIFIED - like Laboratory Dashboard) ====================
   const getHospitalId = () => {
-    return user?.hospital_id || user?.hospitalId || user?.hospital?.id || user?.hospitalID || null;
+    return user?.hospital_id || user?.hospitalId;
   };
 
   // ==================== STATE MANAGEMENT ====================
@@ -224,7 +224,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     return !Object.values(errors).some(error => error !== '');
   };
 
-  // ==================== INPUT HANDLER (FIXED) ====================
+  // ==================== INPUT HANDLER ====================
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
@@ -236,7 +236,10 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   // ==================== FETCH DATA ====================
   const fetchRecentPatients = async () => {
     const hospitalId = getHospitalId();
-    if (!hospitalId) return;
+    if (!hospitalId) {
+      console.warn('No hospital_id available for fetchRecentPatients');
+      return;
+    }
     
     try {
       const token = localStorage.getItem('token');
@@ -252,7 +255,10 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
 
   const fetchStats = async () => {
     const hospitalId = getHospitalId();
-    if (!hospitalId) return;
+    if (!hospitalId) {
+      console.warn('No hospital_id available for fetchStats');
+      return;
+    }
     
     try {
       const token = localStorage.getItem('token');
@@ -271,7 +277,10 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   // ==================== SCHEDULE FUNCTIONS ====================
   const fetchMySchedule = async () => {
     const hospitalId = getHospitalId();
-    if (!hospitalId) return;
+    if (!hospitalId) {
+      console.warn('No hospital_id available for fetchMySchedule');
+      return;
+    }
     
     setScheduleLoading(true);
     try {
@@ -344,7 +353,10 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
 
   const fetchHospitalAdmins = async () => {
     const hospitalId = getHospitalId();
-    if (!hospitalId) return;
+    if (!hospitalId) {
+      console.warn('No hospital_id available for fetchHospitalAdmins');
+      return;
+    }
     
     try {
       const token = localStorage.getItem('token');
@@ -468,10 +480,16 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
 
   // ==================== PROFILE FUNCTIONS ====================
   const fetchProfile = async () => {
+    const hospitalId = getHospitalId();
+    if (!hospitalId) {
+      console.warn('No hospital_id available for fetchProfile');
+      return;
+    }
+    
     try {
       const token = localStorage.getItem('token');
       const res = await axios.get(`${API_URL}/cardoffice/profile`, {
-        params: { hospital_id: getHospitalId() },
+        params: { hospital_id: hospitalId },
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -493,10 +511,11 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   };
 
   const updateProfile = async () => {
+    const hospitalId = getHospitalId();
     try {
       const token = localStorage.getItem('token');
       const res = await axios.put(`${API_URL}/cardoffice/profile`, 
-        { ...profileData, hospital_id: getHospitalId() },
+        { ...profileData, hospital_id: hospitalId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (res.data.success) {
@@ -826,7 +845,11 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
 
   // ==================== INITIAL LOAD ====================
   useEffect(() => {
-    if (!getHospitalId()) return;
+    const hospitalId = getHospitalId();
+    if (!hospitalId) {
+      console.warn('No hospital_id available on initial load');
+      return;
+    }
 
     initializeSocket();
     fetchRecentPatients();
