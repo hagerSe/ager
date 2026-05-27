@@ -111,7 +111,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
 
   const navigate = useNavigate();
   
-  // ✅ CORRECT: API_URL includes /api
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
   const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001';
 
@@ -303,11 +302,12 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     };
   }, [user?.hospital_id]);
 
-  // ==================== FETCH DATA ====================
+  // ==================== FETCH DATA (WITH HOSPITAL ID) ====================
   const fetchRecentPatients = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/api/cardoffice/patients/recent`, {
+      const response = await axios.get(`${API_URL}/cardoffice/patients/recent`, {
+        params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.success) {
@@ -321,7 +321,8 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const fetchStats = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/api/cardoffice/stats`, {
+      const response = await axios.get(`${API_URL}/cardoffice/stats`, {
+        params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.success) {
@@ -332,12 +333,13 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // ==================== REPORT FUNCTIONS ====================
+  // ==================== REPORT FUNCTIONS (WITH HOSPITAL ID) ====================
   const fetchReportsInbox = async () => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/cardoffice/reports/inbox`, {
+      const res = await axios.get(`${API_URL}/cardoffice/reports/inbox`, {
+        params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -355,7 +357,8 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/cardoffice/reports/outbox`, {
+      const res = await axios.get(`${API_URL}/cardoffice/reports/outbox`, {
+        params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -372,6 +375,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       const res = await axios.get(`${API_URL}/cardoffice/hospital-admins`, {
+        params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -403,9 +407,10 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       formData.append('priority', sendReportForm.priority);
       formData.append('recipient_type', sendReportForm.recipient_type);
       formData.append('recipient_id', sendReportForm.recipient_id);
+      formData.append('hospital_id', user?.hospital_id);
       sendReportForm.attachments.forEach((file) => formData.append('attachments', file));
       
-      const res = await axios.post(`${API_URL}/api/cardoffice/reports/send`, formData, {
+      const res = await axios.post(`${API_URL}/cardoffice/reports/send`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
 
@@ -441,9 +446,10 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const markReportAsRead = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/cardoffice/reports/${reportId}/read`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await axios.put(`${API_URL}/cardoffice/reports/${reportId}/read`, 
+        { hospital_id: user?.hospital_id },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       fetchReportsInbox();
     } catch (error) {
       console.error('Error marking report as read:', error);
@@ -462,9 +468,10 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       const token = localStorage.getItem('token');
       const formData = new FormData();
       formData.append('body', replyText);
+      formData.append('hospital_id', user?.hospital_id);
       if (replyAttachment) formData.append('attachment', replyAttachment);
       
-      const res = await axios.post(`${API_URL}/api/cardoffice/reports/${selectedReport.id}/reply`, formData, {
+      const res = await axios.post(`${API_URL}/cardoffice/reports/${selectedReport.id}/reply`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
 
@@ -485,11 +492,12 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // ==================== PROFILE FUNCTIONS ====================
+  // ==================== PROFILE FUNCTIONS (WITH HOSPITAL ID) ====================
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/cardoffice/profile`, {
+      const res = await axios.get(`${API_URL}/cardoffice/profile`, {
+        params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -513,9 +521,10 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const updateProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/cardoffice/profile`, profileData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await axios.put(`${API_URL}/cardoffice/profile`, 
+        { ...profileData, hospital_id: user?.hospital_id },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       if (res.data.success) {
         setIsEditingProfile(false);
         setMessage({ type: 'success', text: 'Profile updated successfully!' });
@@ -535,9 +544,10 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     }
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}api//cardoffice/change-password`, {
+      const res = await axios.put(`${API_URL}/cardoffice/change-password`, {
         current_password: passwordData.current_password,
-        new_password: passwordData.new_password
+        new_password: passwordData.new_password,
+        hospital_id: user?.hospital_id
       }, { headers: { Authorization: `Bearer ${token}` } });
       if (res.data.success) {
         setShowPasswordModal(false);
@@ -551,7 +561,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // ==================== REGISTRATION FUNCTIONS ====================
+  // ==================== REGISTRATION FUNCTIONS (WITH HOSPITAL ID) ====================
   const handleRegister = async (e) => {
     e.preventDefault();
     
@@ -568,7 +578,8 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       const token = localStorage.getItem('token');
       const cleanedFormData = {
         ...formData,
-        phone: formData.phone.replace(/\s/g, '')
+        phone: formData.phone.replace(/\s/g, ''),
+        hospital_id: user?.hospital_id
       };
       
       const response = await axios.post(
@@ -608,7 +619,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // ==================== SEARCH FUNCTIONS ====================
+  // ==================== SEARCH FUNCTIONS (WITH HOSPITAL ID) ====================
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
@@ -622,7 +633,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       const token = localStorage.getItem('token');
       const encodedQuery = encodeURIComponent(searchQuery.trim());
       const response = await axios.get(
-        `${API_URL}/api/cardoffice/patients/search?query=${encodedQuery}`,
+        `${API_URL}/cardoffice/patients/search?query=${encodedQuery}&hospital_id=${user?.hospital_id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -651,7 +662,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       const token = localStorage.getItem('token');
       const response = await axios.post(
         `${API_URL}/cardoffice/patients/send-to-triage`,
-        { patientId: patient.id, reason },
+        { patientId: patient.id, reason, hospital_id: user?.hospital_id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -672,7 +683,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `${API_URL}/cardoffice/patients/${patient.id}`,
+        `${API_URL}/cardoffice/patients/${patient.id}?hospital_id=${user?.hospital_id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
