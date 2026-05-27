@@ -110,7 +110,9 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const [realTimeNotification, setRealTimeNotification] = useState(null);
 
   const navigate = useNavigate();
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+  
+  // ✅ FIXED: Add /api to the base URL so you don't need to add it in each call
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
   const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001';
 
   // ==================== VALIDATION FUNCTIONS ====================
@@ -258,7 +260,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       setTimeout(() => setRealTimeNotification(null), 6000);
     });
 
-    // Listen for weekly schedule ready
     socketRef.current.on('weekly_schedule_ready', (data) => {
       console.log('📅 Weekly schedule ready event received:', data);
       setRealTimeNotification({
@@ -278,7 +279,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       setTimeout(() => setRealTimeNotification(null), 10000);
     });
 
-    // Listen for new schedule assigned
     socketRef.current.on('new_schedule_assigned', (data) => {
       console.log('📅 New schedule assigned event:', data);
       setRealTimeNotification({
@@ -307,7 +307,8 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const fetchRecentPatients = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/api/cardoffice/patients/recent`, {
+      // ✅ FIXED: Removed /api since it's now in API_URL
+      const response = await axios.get(`${API_URL}/cardoffice/patients/recent`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.success) {
@@ -321,7 +322,8 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const fetchStats = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/api/cardoffice/stats`, {
+      // ✅ FIXED: Removed /api since it's now in API_URL
+      const response = await axios.get(`${API_URL}/cardoffice/stats`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.success) {
@@ -337,7 +339,8 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/cardoffice/reports/inbox`, {
+      // ✅ FIXED: Removed /api since it's now in API_URL
+      const res = await axios.get(`${API_URL}/cardoffice/reports/inbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -355,7 +358,8 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/cardoffice/reports/outbox`, {
+      // ✅ FIXED: Removed /api since it's now in API_URL
+      const res = await axios.get(`${API_URL}/cardoffice/reports/outbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -371,7 +375,8 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const fetchHospitalAdmins = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/cardoffice/hospital-admins`, {
+      // ✅ FIXED: Removed /api since it's now in API_URL
+      const res = await axios.get(`${API_URL}/cardoffice/hospital-admins`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -405,7 +410,8 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       formData.append('recipient_id', sendReportForm.recipient_id);
       sendReportForm.attachments.forEach((file) => formData.append('attachments', file));
       
-      const res = await axios.post(`${API_URL}/api/cardoffice/reports/send`, formData, {
+      // ✅ FIXED: Removed /api since it's now in API_URL
+      const res = await axios.post(`${API_URL}/cardoffice/reports/send`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
 
@@ -441,7 +447,8 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const markReportAsRead = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/cardoffice/reports/${reportId}/read`, {}, {
+      // ✅ FIXED: Removed /api since it's now in API_URL
+      await axios.put(`${API_URL}/cardoffice/reports/${reportId}/read`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchReportsInbox();
@@ -464,7 +471,8 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       formData.append('body', replyText);
       if (replyAttachment) formData.append('attachment', replyAttachment);
       
-      const res = await axios.post(`${API_URL}/api/cardoffice/reports/${selectedReport.id}/reply`, formData, {
+      // ✅ FIXED: Removed /api since it's now in API_URL
+      const res = await axios.post(`${API_URL}/cardoffice/reports/${selectedReport.id}/reply`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
 
@@ -489,7 +497,8 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/cardoffice/profile`, {
+      // ✅ FIXED: Removed /api since it's now in API_URL
+      const res = await axios.get(`${API_URL}/cardoffice/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -513,7 +522,8 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const updateProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/cardoffice/profile`, profileData, {
+      // ✅ FIXED: Removed /api since it's now in API_URL
+      const res = await axios.put(`${API_URL}/cardoffice/profile`, profileData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -535,7 +545,8 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     }
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/cardoffice/change-password`, {
+      // ✅ FIXED: Removed /api since it's now in API_URL
+      const res = await axios.put(`${API_URL}/cardoffice/change-password`, {
         current_password: passwordData.current_password,
         new_password: passwordData.new_password
       }, { headers: { Authorization: `Bearer ${token}` } });
@@ -571,8 +582,9 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
         phone: formData.phone.replace(/\s/g, '')
       };
       
+      // ✅ FIXED: Removed /api since it's now in API_URL
       const response = await axios.post(
-        `${API_URL}/api/cardoffice/patients/register`,
+        `${API_URL}/cardoffice/patients/register`,
         cleanedFormData,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -621,8 +633,9 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       const encodedQuery = encodeURIComponent(searchQuery.trim());
+      // ✅ FIXED: Removed /api since it's now in API_URL
       const response = await axios.get(
-        `${API_URL}/api/cardoffice/patients/search?query=${encodedQuery}`,
+        `${API_URL}/cardoffice/patients/search?query=${encodedQuery}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -649,8 +662,9 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
 
     try {
       const token = localStorage.getItem('token');
+      // ✅ FIXED: Removed /api since it's now in API_URL
       const response = await axios.post(
-        `${API_URL}/api/cardoffice/patients/send-to-triage`,
+        `${API_URL}/cardoffice/patients/send-to-triage`,
         { patientId: patient.id, reason },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -671,8 +685,9 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const handleViewHistory = async (patient) => {
     try {
       const token = localStorage.getItem('token');
+      // ✅ FIXED: Removed /api since it's now in API_URL
       const response = await axios.get(
-        `${API_URL}/api/cardoffice/patients/${patient.id}`,
+        `${API_URL}/cardoffice/patients/${patient.id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -1305,7 +1320,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                             <td className="px-4 py-3 text-sm text-gray-500">
                               {new Date(patient.registered_at).toLocaleString()}
                             </td>
-                          </tr>
+                          \)
                         );
                       })}
                     </tbody>
