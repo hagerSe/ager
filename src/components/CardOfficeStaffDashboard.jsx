@@ -345,7 +345,7 @@ const getHospitalId = () => {
     
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/cardoffice/hospital-admins`, {
+      const res = await axios.get(`${API_URL}/cardoffice/hospital-admins`, {
         params: { hospital_id: hospitalId },
         headers: { Authorization: `Bearer ${token}` }
       });
