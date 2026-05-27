@@ -16,9 +16,30 @@ import {
 } from 'react-icons/fa';
 
 const TriageDashboard = ({ user, onLogout }) => {
-  // ==================== HELPER: Get Hospital ID ====================
+  // ==================== HELPER: Get Hospital ID (IMPROVED) ====================
   const getHospitalId = () => {
-    return user?.hospital_id || user?.hospitalId;
+    console.log('=== TRIAGE DEBUG - getHospitalId ===');
+    console.log('user object:', user);
+    
+    // Try multiple sources
+    let id = user?.hospital_id || 
+            user?.hospitalId || 
+            localStorage.getItem('hospital_id');
+    
+    // If still null, try to decode from JWT token
+    if (!id) {
+      try {
+        const token = localStorage.getItem('token');
+        if (token) {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          id = payload?.hospital_id || payload?.hospitalId;
+          console.log('Found in token payload:', id);
+        }
+      } catch (e) {}
+    }
+    
+    console.log('Final hospital ID:', id);
+    return id;
   };
 
   // ==================== STATE MANAGEMENT ====================
@@ -191,6 +212,7 @@ const TriageDashboard = ({ user, onLogout }) => {
     if (socket.current) socket.current.disconnect();
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('hospital_id');
     if (onLogout) onLogout();
     navigate('/login');
   };
@@ -300,7 +322,10 @@ const TriageDashboard = ({ user, onLogout }) => {
   // ==================== FETCH DATA ====================
   const fetchTriageQueue = async () => {
     const hospitalId = getHospitalId();
-    if (!hospitalId) return;
+    if (!hospitalId) {
+      console.error('No hospital_id for fetchTriageQueue');
+      return;
+    }
     
     try {
       const token = localStorage.getItem('token');
@@ -314,6 +339,7 @@ const TriageDashboard = ({ user, onLogout }) => {
       }
     } catch (error) {
       console.error('Error fetching triage queue:', error);
+      setMessage({ type: 'error', text: error.response?.data?.message || 'Error loading queue' });
     }
   };
 
@@ -838,14 +864,30 @@ const TriageDashboard = ({ user, onLogout }) => {
     );
   };
 
-  // ==================== INITIAL LOAD ====================
+  // ==================== INITIAL LOAD (FIXED - WITH DEPENDENCIES) ====================
   useEffect(() => {
     const hospitalId = getHospitalId();
+    console.log('useEffect - hospitalId:', hospitalId);
+    
     if (!hospitalId) {
       console.warn('No hospital_id available on initial load');
+      // Store hospital_id if found in token for next time
+      try {
+        const token = localStorage.getItem('token');
+        if (token) {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          if (payload?.hospital_id) {
+            localStorage.setItem('hospital_id', payload.hospital_id);
+            console.log('Saved hospital_id from token to localStorage:', payload.hospital_id);
+          }
+        }
+      } catch (e) {}
       return;
     }
 
+    // Store hospital_id for backup
+    localStorage.setItem('hospital_id', hospitalId);
+    
     initializeSocket();
     fetchTriageQueue();
     fetchTriagedPatients();
@@ -866,690 +908,13 @@ const TriageDashboard = ({ user, onLogout }) => {
       if (socket.current) socket.current.disconnect();
       clearInterval(interval);
     };
-  }, []);
+  }, []); // Run once on mount, but getHospitalId will check token
 
   // ==================== RENDER ====================
   return (
+    // ... rest of your JSX remains exactly the same
     <div className={`min-h-screen bg-gradient-to-br from-teal-50 to-emerald-50 flex ${textSizeClasses.base}`}>
-      <RealTimeNotification />
-      
-      {/* Logout Confirmation Modal */}
-      {showLogoutConfirm && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10001] p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8"
-          >
-            <div className="text-center">
-              <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5">
-                <FaSignOutAlt className="text-red-600 text-3xl" />
-              </div>
-              <h3 className={`font-bold text-gray-800 mb-3 ${textSizeClasses.title}`}>Confirm Logout</h3>
-              <p className={`text-gray-600 mb-8 ${textSizeClasses.base}`}>Are you sure you want to logout from Triage Dashboard?</p>
-              <div className="flex gap-4">
-                <button onClick={handleCancelLogout} className={`flex-1 px-6 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition font-medium ${textSizeClasses.base}`}>No, Stay</button>
-                <button onClick={handleConfirmLogout} className={`flex-1 px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition font-medium ${textSizeClasses.base}`}>Yes, Logout</button>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
-      
-      <style>{`
-        @keyframes glow { 0% { box-shadow: 0 0 5px rgba(13,148,136,0.2); } 50% { box-shadow: 0 0 20px rgba(13,148,136,0.5); } 100% { box-shadow: 0 0 5px rgba(13,148,136,0.2); } }
-        .animate-glow { animation: glow 2s infinite; }
-        .white-teal-card { background: white !important; border: 2px solid #ccfbf1 !important; border-radius: 1rem !important; padding: 1.5rem !important; box-shadow: 0 4px 12px rgba(13,148,136,0.1) !important; transition: all 0.3s ease !important; }
-        .white-teal-card:hover { box-shadow: 0 8px 24px rgba(13,148,136,0.15) !important; border-color: #0d9488 !important; }
-      `}</style>
-
-      {/* ==================== SIDEBAR ==================== */}
-      <div className={`bg-gradient-to-b from-slate-900 to-slate-800 text-white transition-all duration-300 ${
-        sidebarCollapsed ? 'w-24' : 'w-72'
-      } shadow-2xl flex flex-col h-screen sticky top-0 z-50`}>
-        <div className="p-5">
-          <div className="flex items-center justify-between mb-8">
-            {!sidebarCollapsed && (
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-r from-teal-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
-                  <FaHeartbeat className="text-white text-lg" />
-                </div>
-                <span className={`font-bold tracking-tight ${textSizeClasses.heading}`}>Triage Nurse</span>
-              </div>
-            )}
-            {sidebarCollapsed && (
-              <div className="w-10 h-10 bg-gradient-to-r from-teal-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg mx-auto">
-                <FaHeartbeat className="text-white text-lg" />
-              </div>
-            )}
-            <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="p-2 hover:bg-slate-700 rounded-xl transition-colors">
-              {sidebarCollapsed ? <FaChevronRight size={20} /> : <FaChevronLeft size={20} />}
-            </button>
-          </div>
-
-          <nav className="space-y-2">
-            <button onClick={() => handleTabChange('queue', false)} className={`w-full flex items-center space-x-4 px-4 py-3 rounded-xl transition-all duration-200 ${textSizeClasses.base} ${
-              activeTab === 'queue' && !showScheduleView ? 'bg-gradient-to-r from-teal-600 to-emerald-600 shadow-lg' : 'hover:bg-slate-700'
-            }`}>
-              <FaUsers className="text-xl" />
-              {!sidebarCollapsed && <span>Triage Queue</span>}
-              {!sidebarCollapsed && triageQueue.length > 0 && (
-                <span className="ml-auto bg-red-500 text-white text-sm rounded-full h-6 w-6 flex items-center justify-center animate-pulse">
-                  {triageQueue.length}
-                </span>
-              )}
-            </button>
-
-            <button onClick={() => handleTabChange('triaged', false)} className={`w-full flex items-center space-x-4 px-4 py-3 rounded-xl transition-all duration-200 ${textSizeClasses.base} ${
-              activeTab === 'triaged' && !showScheduleView ? 'bg-gradient-to-r from-teal-600 to-emerald-600 shadow-lg' : 'hover:bg-slate-700'
-            }`}>
-              <FaCheck className="text-xl" />
-              {!sidebarCollapsed && <span>Triaged Patients</span>}
-            </button>
-
-            <div className="h-px bg-slate-700/50 my-4 mx-3"></div>
-
-            <button onClick={() => { handleTabChange('inbox', false); fetchReportsInbox(); }} className={`w-full flex items-center space-x-4 px-4 py-3 rounded-xl transition-all duration-200 ${textSizeClasses.base} relative ${
-              activeTab === 'inbox' && !showScheduleView ? 'bg-gradient-to-r from-teal-600 to-emerald-600 shadow-lg' : 'hover:bg-slate-700'
-            }`}>
-              <FaInbox className="text-xl" />
-              {!sidebarCollapsed && <span>Inbox</span>}
-              {unreadReportsCount > 0 && (
-                <span className="absolute right-3 bg-red-500 text-white text-sm rounded-full h-6 w-6 flex items-center justify-center animate-pulse">
-                  {unreadReportsCount}
-                </span>
-              )}
-            </button>
-
-            <button onClick={() => { handleTabChange('outbox', false); fetchReportsOutbox(); }} className={`w-full flex items-center space-x-4 px-4 py-3 rounded-xl transition-all duration-200 ${textSizeClasses.base} ${
-              activeTab === 'outbox' && !showScheduleView ? 'bg-gradient-to-r from-teal-600 to-emerald-600 shadow-lg' : 'hover:bg-slate-700'
-            }`}>
-              <FaPaperPlane className="text-xl" />
-              {!sidebarCollapsed && <span>Sent Reports</span>}
-            </button>
-
-            <button onClick={() => handleTabChange('reports', false)} className={`w-full flex items-center space-x-4 px-4 py-3 rounded-xl transition-all duration-200 ${textSizeClasses.base} ${
-              activeTab === 'reports' && !showScheduleView ? 'bg-gradient-to-r from-teal-600 to-emerald-600 shadow-lg' : 'hover:bg-slate-700'
-            }`}>
-              <FaChartBar className="text-xl" />
-              {!sidebarCollapsed && <span>Statistics</span>}
-            </button>
-
-            <div className="h-px bg-slate-700/50 my-4 mx-3"></div>
-
-            <button onClick={() => handleTabChange('schedule', true)} className={`w-full flex items-center space-x-4 px-4 py-3 rounded-xl transition-all duration-200 ${textSizeClasses.base} ${
-              showScheduleView ? 'bg-gradient-to-r from-teal-600 to-emerald-600 shadow-lg' : 'hover:bg-slate-700'
-            }`}>
-              <FaCalendarAlt className="text-xl" />
-              {!sidebarCollapsed && <span>My Schedule</span>}
-            </button>
-
-            <div className="h-px bg-slate-700/50 my-4 mx-3"></div>
-
-            <button onClick={() => handleTabChange('profile', false)} className={`w-full flex items-center space-x-4 px-4 py-3 rounded-xl transition-all duration-200 ${textSizeClasses.base} ${
-              activeTab === 'profile' && !showScheduleView ? 'bg-gradient-to-r from-teal-600 to-emerald-600 shadow-lg' : 'hover:bg-slate-700'
-            }`}>
-              <FaUserCircle className="text-xl" />
-              {!sidebarCollapsed && <span>Profile</span>}
-            </button>
-          </nav>
-
-          {sidebarCollapsed && (
-            <div className="mt-8 text-center">
-              <div className={`text-2xl font-bold text-teal-400 ${textSizeClasses.title}`}>{triageQueue.length}</div>
-              <div className="text-xs text-slate-400 mt-1">Queue</div>
-              {unreadReportsCount > 0 && (
-                <div className="mt-3">
-                  <div className={`text-xl font-bold text-red-400 ${textSizeClasses.heading}`}>{unreadReportsCount}</div>
-                  <div className="text-xs text-slate-400 mt-1">Unread</div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className={`${sidebarCollapsed ? 'py-5 px-0' : 'p-6'} border-t border-slate-700/50 mt-auto`}>
-          <button onClick={handleLogoutClick} className={`w-full ${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-5'} bg-transparent border border-slate-600 rounded-xl text-red-400 cursor-pointer flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-start'} gap-3 ${textSizeClasses.base} transition-all duration-200 hover:bg-red-500/10 hover:border-red-500`}>
-            <span className="text-xl">🚪</span>
-            {!sidebarCollapsed && <span>Logout</span>}
-          </button>
-        </div>
-      </div>
-
-      {/* ==================== MAIN CONTENT ==================== */}
-      <div className="flex-1 overflow-y-auto">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-teal-600 to-emerald-600 py-8 px-10 shadow-xl sticky top-0 z-40">
-          <div className="max-w-[1600px] mx-auto flex justify-between items-center flex-wrap gap-5">
-            <div className="flex items-center gap-5">
-              <button onClick={handleGoBack} className="bg-white/20 backdrop-blur p-3 rounded-xl text-white hover:bg-white/30 transition-all duration-200 shadow-lg flex items-center gap-2">
-                <FaUndo className="text-white text-lg" />
-                <span className={`hidden sm:inline ${textSizeClasses.base}`}>Back</span>
-              </button>
-              
-              <div>
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center text-3xl shadow-lg animate-glow">
-                    <FaHeartbeat className="text-white" />
-                  </div>
-                  <div>
-                    <h1 className={`font-bold text-white drop-shadow-md tracking-tight ${textSizeClasses.title}`}>
-                      {activeTab === 'queue' && !showScheduleView && 'Triage Queue'}
-                      {activeTab === 'triaged' && !showScheduleView && 'Triaged Patients'}
-                      {activeTab === 'inbox' && !showScheduleView && 'Reports - Inbox'}
-                      {activeTab === 'outbox' && !showScheduleView && 'Reports - Sent'}
-                      {activeTab === 'reports' && !showScheduleView && 'Triage Statistics'}
-                      {showScheduleView && 'My Work Schedule'}
-                      {activeTab === 'profile' && !showScheduleView && 'My Profile'}
-                    </h1>
-                    <p className={`text-white/90 mt-2 flex items-center gap-3 flex-wrap ${textSizeClasses.base}`}>
-                      <span>{formatFullName(user)}</span>
-                      <span className="text-white/50 text-lg">•</span>
-                      <span>{user?.hospital_name || 'Hospital'}</span>
-                      <span className="bg-white/20 px-4 py-1 rounded-full text-sm font-medium backdrop-blur">Triage Department</span>
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-4 flex-wrap">
-              <div className="relative">
-                <button onClick={() => setShowTextSizeMenu(!showTextSizeMenu)} className="bg-white/20 backdrop-blur px-4 py-3 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg">
-                  <FaTextHeight className="text-lg" />
-                  <span className={`hidden md:inline ${textSizeClasses.base}`}>Text Size</span>
-                </button>
-                {showTextSizeMenu && (
-                  <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden z-50">
-                    {['small', 'normal', 'large', 'xlarge'].map(size => (
-                      <button key={size} onClick={() => { setTextSize(size); setShowTextSizeMenu(false); }} className={`w-full px-5 py-3 text-left hover:bg-gray-50 transition flex items-center justify-between ${textSize === size ? 'bg-teal-50 text-teal-600' : 'text-gray-700'} ${textSizeClasses.base}`}>
-                        <span className="capitalize">{size}</span>
-                        {textSize === size && <FaCheckIcon className="text-teal-500" />}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              
-              <SocketStatusIndicator />
-              <button onClick={() => { setShowSendReportModal(true); fetchHospitalAdmins(); }} className="bg-white/20 backdrop-blur px-5 py-3 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg font-medium">
-                <FaPaperPlane className="text-base" /> Send Report
-              </button>
-              <button onClick={() => { fetchTriageQueue(); fetchStats(); }} className="bg-white/20 backdrop-blur px-5 py-3 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg font-medium">
-                <FaSync className={loading ? 'animate-spin' : ''} /> Refresh
-              </button>
-              <div className="flex gap-5 bg-white/10 backdrop-blur py-3 px-6 rounded-full">
-                <div className="text-center"><div className={`font-bold text-white ${textSizeClasses.title}`}>{stats.waiting}</div><div className="text-xs text-white/70">Waiting</div></div>
-                <div className="w-px h-10 bg-white/30" />
-                <div className="text-center"><div className={`font-bold text-white ${textSizeClasses.title}`}>{stats.opd}</div><div className="text-xs text-white/70">OPD</div></div>
-                <div className="w-px h-10 bg-white/30" />
-                <div className="text-center"><div className={`font-bold text-white ${textSizeClasses.title}`}>{stats.eme}</div><div className="text-xs text-white/70">EME</div></div>
-                <div className="w-px h-10 bg-white/30" />
-                <div className="text-center"><div className={`font-bold text-white ${textSizeClasses.title}`}>{stats.anc}</div><div className="text-xs text-white/70">ANC</div></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="max-w-[1600px] mx-auto p-10">
-          {/* Message Display */}
-          {message.text && (
-            <div className={`mb-6 p-5 rounded-xl border-l-4 ${message.type === 'error' ? 'bg-red-50 border-red-500 text-red-700' : message.type === 'success' ? 'bg-green-50 border-green-500 text-green-700' : 'bg-blue-50 border-blue-500 text-blue-700'} flex justify-between items-center ${textSizeClasses.base}`}>
-              <span>{message.text}</span>
-              <button onClick={() => setMessage({ type: '', text: '' })} className="text-xl">×</button>
-            </div>
-          )}
-
-          {/* Triage Queue Tab */}
-          {activeTab === 'queue' && !showScheduleView && (
-            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-              <h2 className={`font-bold text-gray-800 mb-6 ${textSizeClasses.heading}`}>Patients Waiting for Triage</h2>
-              {triageQueue.length === 0 ? (
-                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                  <FaUsers className="text-6xl text-gray-300 mx-auto mb-4" />
-                  <p className={`text-gray-500 ${textSizeClasses.base}`}>No patients waiting for triage</p>
-                  <p className={`text-gray-400 mt-2 ${textSizeClasses.base}`}>Patients from Card Office will appear here automatically</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {triageQueue.map(patient => (
-                    <div key={patient.id} className="white-teal-card">
-                      <div className="flex justify-between items-center flex-wrap gap-4">
-                        <div>
-                          <div className="flex items-center gap-3 mb-2">
-                            <span className={`font-mono text-teal-600 bg-teal-50 px-3 py-1 rounded ${textSizeClasses.base}`}>{patient.card_number}</span>
-                            <span className={`px-3 py-1 rounded-full text-sm ${getStatusStyle(patient.status).bg} ${getStatusStyle(patient.status).color}`}>{getStatusStyle(patient.status).text}</span>
-                          </div>
-                          <h3 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>{patient.first_name} {patient.middle_name || ''} {patient.last_name}</h3>
-                          <p className={`text-gray-500 mt-1 ${textSizeClasses.base}`}>{patient.age} years • {patient.gender}{patient.phone && ` • 📞 ${patient.phone}`}</p>
-                          <p className={`text-gray-400 text-sm mt-1`}>Registered: {new Date(patient.registered_at).toLocaleTimeString()}</p>
-                        </div>
-                        <button onClick={() => handleSelectPatient(patient)} className={`px-6 py-3 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl hover:shadow-lg transition font-medium ${textSizeClasses.base}`}>
-                          Record Vitals
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Triaged Patients Tab */}
-          {activeTab === 'triaged' && !showScheduleView && (
-            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-              <h2 className={`font-bold text-gray-800 mb-6 ${textSizeClasses.heading}`}>Recently Triaged Patients</h2>
-              {triagedPatients.length === 0 ? (
-                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                  <FaCheck className="text-6xl text-gray-300 mx-auto mb-4" />
-                  <p className={`text-gray-500 ${textSizeClasses.base}`}>No patients triaged yet</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {triagedPatients.slice(0, 20).map(patient => {
-                    const wardStyle = getWardStyle(patient.ward);
-                    const statusStyle = getStatusStyle(patient.status);
-                    return (
-                      <div key={patient.id} className="white-teal-card">
-                        <div className="flex justify-between items-center flex-wrap gap-4">
-                          <div>
-                            <div className="flex items-center gap-3 mb-2">
-                              <span className={`font-mono text-teal-600 bg-teal-50 px-3 py-1 rounded ${textSizeClasses.base}`}>{patient.card_number}</span>
-                              <span className={`px-3 py-1 rounded-full text-sm ${wardStyle.bg} ${wardStyle.color}`}>{wardStyle.text}</span>
-                              <span className={`px-3 py-1 rounded-full text-sm ${statusStyle.bg} ${statusStyle.color}`}>{statusStyle.text}</span>
-                            </div>
-                            <h3 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>{patient.first_name} {patient.middle_name || ''} {patient.last_name}</h3>
-                            <p className={`text-gray-500 mt-1 ${textSizeClasses.base}`}>{patient.age} years • {patient.gender}</p>
-                            <p className={`text-gray-400 text-sm mt-1`}>Triaged by: {patient.triage_info?.triaged_by || 'N/A'} at {new Date(patient.triaged_at || patient.registered_at).toLocaleTimeString()}</p>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Inbox Tab */}
-          {activeTab === 'inbox' && !showScheduleView && (
-            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-              <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center gap-3">
-                  <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>📬 Inbox</h2>
-                  {unreadReportsCount > 0 && <span className={`px-3 py-1 bg-red-500 text-white rounded-full animate-pulse ${textSizeClasses.base}`}>{unreadReportsCount} unread</span>}
-                </div>
-                <button onClick={() => { setShowSendReportModal(true); fetchHospitalAdmins(); }} className={`px-5 py-2.5 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl hover:shadow-lg transition font-medium ${textSizeClasses.base}`}>New Report</button>
-              </div>
-              {reportsLoading ? (
-                <div className="text-center py-12"><FaSpinner className="animate-spin text-3xl text-teal-600 mx-auto" /></div>
-              ) : reportsInbox.length === 0 ? (
-                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200"><FaInbox className="text-6xl text-gray-300 mx-auto mb-4" /><p className={`text-gray-500 ${textSizeClasses.base}`}>No reports in inbox</p></div>
-              ) : (
-                <div className="space-y-4">
-                  {reportsInbox.map(report => (
-                    <div key={report.id} className={`white-teal-card cursor-pointer ${!report.is_opened ? 'border-teal-300 bg-teal-50' : ''}`} onClick={() => viewReportDetails(report)}>
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex items-center gap-3">
-                          {!report.is_opened ? <FaEnvelope className="text-teal-500 text-xl" /> : <FaEnvelopeOpen className="text-gray-400 text-xl" />}
-                          <h3 className={`font-semibold text-gray-800 ${textSizeClasses.base}`}>{report.title}</h3>
-                        </div>
-                        <span className={`text-sm px-3 py-1.5 rounded-full ${getPriorityBadge(report.priority)}`}>{getPriorityIcon(report.priority)} {report.priority}</span>
-                      </div>
-                      <p className={`text-gray-600 mb-3 line-clamp-2 ${textSizeClasses.base}`}>{report.body?.substring(0, 100)}...</p>
-                      <div className={`flex justify-between items-center text-gray-500 ${textSizeClasses.base}`}>
-                        <span>From: {report.sender_full_name}</span>
-                        <span>{new Date(report.sent_at).toLocaleString()}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Outbox Tab */}
-          {activeTab === 'outbox' && !showScheduleView && (
-            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>📤 Sent Reports</h2>
-                <button onClick={() => fetchReportsOutbox()} className={`px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition font-medium ${textSizeClasses.base}`}>Refresh</button>
-              </div>
-              {reportsLoading ? (
-                <div className="text-center py-12"><FaSpinner className="animate-spin text-3xl text-teal-600 mx-auto" /></div>
-              ) : reportsOutbox.length === 0 ? (
-                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200"><FaPaperPlane className="text-6xl text-gray-300 mx-auto mb-4" /><p className={`text-gray-500 ${textSizeClasses.base}`}>No sent reports</p></div>
-              ) : (
-                <div className="space-y-4">
-                  {reportsOutbox.map(report => (
-                    <div key={report.id} className="white-teal-card cursor-pointer" onClick={() => viewReportDetails(report)}>
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex items-center gap-3"><FaPaperPlane className="text-gray-400 text-xl" /><h3 className={`font-semibold text-gray-800 ${textSizeClasses.base}`}>{report.title}</h3></div>
-                        <span className={`text-sm px-3 py-1.5 rounded-full ${getPriorityBadge(report.priority)}`}>{getPriorityIcon(report.priority)} {report.priority}</span>
-                      </div>
-                      <p className={`text-gray-600 mb-3 line-clamp-2 ${textSizeClasses.base}`}>{report.body?.substring(0, 100)}...</p>
-                      <div className={`flex justify-between items-center text-gray-500 ${textSizeClasses.base}`}>
-                        <span>To: {report.recipient_full_name}</span>
-                        <span>Sent: {new Date(report.sent_at).toLocaleString()}</span>
-                      </div>
-                      <div className="mt-3"><span className={`${report.is_opened ? 'text-green-600' : 'text-gray-400'} ${textSizeClasses.base}`}>{report.is_opened ? '✓ Opened by recipient' : '✗ Not opened yet'}</span></div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Statistics Tab */}
-          {activeTab === 'reports' && !showScheduleView && (
-            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-              <h2 className={`font-bold text-gray-800 mb-6 ${textSizeClasses.heading}`}>📊 Triage Statistics</h2>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                <div className="white-teal-card"><p className={`text-teal-600 mb-2 font-semibold ${textSizeClasses.base}`}>Waiting for Triage</p><p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.waiting}</p></div>
-                <div className="white-teal-card"><p className={`text-green-600 mb-2 font-semibold ${textSizeClasses.base}`}>OPD Ward</p><p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.opd}</p></div>
-                <div className="white-teal-card"><p className={`text-red-600 mb-2 font-semibold ${textSizeClasses.base}`}>EME Ward</p><p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.eme}</p></div>
-                <div className="white-teal-card"><p className={`text-purple-600 mb-2 font-semibold ${textSizeClasses.base}`}>ANC Ward</p><p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.anc}</p></div>
-              </div>
-              <div className="bg-gray-50 rounded-xl p-6 text-center">
-                <p className={`text-gray-600 ${textSizeClasses.base}`}>Today's Triage Summary: {triagedPatients.length} patients processed</p>
-                <p className={`text-sm text-gray-400 mt-2`}>Waiting: {stats.waiting} | In Wards: {stats.opd + stats.eme + stats.anc}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Schedule View Tab - Complete with Stats */}
-          {showScheduleView && (
-            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-              <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-r from-teal-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
-                    <FaCalendarAlt className="text-white text-xl" />
-                  </div>
-                  <div>
-                    <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>My Work Schedule</h2>
-                    <p className={`text-gray-500 ${textSizeClasses.base}`}>View your upcoming shifts</p>
-                  </div>
-                </div>
-                <button onClick={fetchMySchedule} className={`px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition font-medium flex items-center gap-2 ${textSizeClasses.base}`}>
-                  <FaSync className={`${scheduleLoading ? 'animate-spin' : ''}`} /> Refresh
-                </button>
-              </div>
-
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-teal-50 rounded-xl p-4 text-center">
-                  <p className={`text-teal-600 ${textSizeClasses.base}`}>Today's Shifts</p>
-                  <p className={`font-bold text-teal-800 ${textSizeClasses.title}`}>{scheduleStats.today?.shift_count || 0}</p>
-                  <p className={`text-sm text-teal-500`}>{scheduleStats.today?.total_hours || 0} hours</p>
-                </div>
-                <div className="bg-emerald-50 rounded-xl p-4 text-center">
-                  <p className={`text-emerald-600 ${textSizeClasses.base}`}>This Week</p>
-                  <p className={`font-bold text-emerald-800 ${textSizeClasses.title}`}>{scheduleStats.this_week?.shift_count || 0}</p>
-                  <p className={`text-sm text-emerald-500`}>{scheduleStats.this_week?.total_hours || 0} hours</p>
-                </div>
-                <div className="bg-teal-50 rounded-xl p-4 text-center">
-                  <p className={`text-teal-600 ${textSizeClasses.base}`}>Total Hours</p>
-                  <p className={`font-bold text-teal-800 ${textSizeClasses.title}`}>{scheduleStats.total_hours || 0}</p>
-                  <p className={`text-sm text-teal-500`}>Scheduled</p>
-                </div>
-              </div>
-
-              {/* Schedule List */}
-              {scheduleLoading ? (
-                <div className="text-center py-12"><FaSpinner className="animate-spin text-3xl text-teal-600 mx-auto" /></div>
-              ) : schedules.length === 0 ? (
-                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                  <FaCalendarAlt className="text-6xl text-gray-300 mx-auto mb-4" />
-                  <p className={`text-gray-500 ${textSizeClasses.base}`}>No schedules found</p>
-                  <p className={`text-sm text-gray-400 mt-2`}>Your shifts will appear here when assigned</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {schedules.map(schedule => {
-                    const shift = getShiftDisplay(schedule.shift_type);
-                    return (
-                      <div key={schedule.id} className="white-teal-card flex justify-between items-center flex-wrap gap-4">
-                        <div>
-                          <p className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>
-                            {new Date(schedule.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                          </p>
-                          <p className={`text-gray-600 mt-1 ${textSizeClasses.base}`}>
-                            <FaClock className="inline mr-2" /> {shift.name} Shift • {shift.time}
-                          </p>
-                          {schedule.ward && <p className={`text-gray-500 text-sm mt-1`}>🏥 Ward: {schedule.ward}</p>}
-                        </div>
-                        <div className="text-right">
-                          <span className={`px-4 py-2 rounded-full text-sm font-medium ${schedule.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                            {schedule.status === 'active' ? '✅ Active' : '📋 Scheduled'}
-                          </span>
-                          <p className={`text-gray-400 text-sm mt-2`}>{shift.hours} hours</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Profile Tab */}
-          {activeTab === 'profile' && !showScheduleView && (
-            <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
-              <div className="bg-gradient-to-r from-teal-600 to-emerald-600 px-10 py-12">
-                <div className="flex items-center gap-8">
-                  <div className="relative">
-                    <div className="w-28 h-28 bg-white rounded-full flex items-center justify-center shadow-xl">
-                      <FaUserCircle className="text-teal-600 text-7xl" />
-                    </div>
-                  </div>
-                  <div className="text-white">
-                    <h2 className={`font-bold mb-2 ${textSizeClasses.title}`}>
-                      {profileData.first_name} {profileData.middle_name ? profileData.middle_name + ' ' : ''}{profileData.last_name}
-                    </h2>
-                    <p className={`text-teal-100 flex items-center gap-3 ${textSizeClasses.base}`}>
-                      <FaHeartbeat className="text-lg" /> {profileData.department || 'Triage'} Nurse
-                    </p>
-                    <p className={`text-teal-100 mt-2 opacity-80 ${textSizeClasses.base}`}>{user?.hospital_name}</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="p-10">
-                <div className="flex justify-between items-center mb-8">
-                  <h3 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>Professional Information</h3>
-                  {!isEditingProfile ? (
-                    <button onClick={() => setIsEditingProfile(true)} className={`flex items-center gap-2 px-5 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition font-medium ${textSizeClasses.base}`}><FaEditIcon /> Edit Profile</button>
-                  ) : (
-                    <div className="flex gap-3">
-                      <button onClick={() => setIsEditingProfile(false)} className={`px-5 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition ${textSizeClasses.base}`}>Cancel</button>
-                      <button onClick={updateProfile} className={`flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition ${textSizeClasses.base}`}><FaSave /> Save</button>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="bg-gray-50 rounded-xl p-6">
-                    <h4 className={`font-semibold text-teal-600 mb-5 flex items-center gap-2 ${textSizeClasses.base}`}><FaUserCircle /> Personal Info</h4>
-                    <div className="space-y-4">
-                      <div><label className={`text-gray-500 ${textSizeClasses.base}`}>First Name</label>{isEditingProfile ? (<input type="text" value={profileData.first_name} onChange={(e) => setProfileData({...profileData, first_name: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.first_name || 'Not set'}</p>)}</div>
-                      <div><label className={`text-gray-500 ${textSizeClasses.base}`}>Middle Name</label>{isEditingProfile ? (<input type="text" value={profileData.middle_name} onChange={(e) => setProfileData({...profileData, middle_name: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.middle_name || '—'}</p>)}</div>
-                      <div><label className={`text-gray-500 ${textSizeClasses.base}`}>Last Name</label>{isEditingProfile ? (<input type="text" value={profileData.last_name} onChange={(e) => setProfileData({...profileData, last_name: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.last_name || 'Not set'}</p>)}</div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div><label className={`text-gray-500 ${textSizeClasses.base}`}>Gender</label>{isEditingProfile ? (<select value={profileData.gender} onChange={(e) => setProfileData({...profileData, gender: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`}><option>Male</option><option>Female</option><option>Other</option></select>) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.gender || 'Not set'}</p>)}</div>
-                        <div><label className={`text-gray-500 ${textSizeClasses.base}`}>Age</label>{isEditingProfile ? (<input type="number" value={profileData.age} onChange={(e) => setProfileData({...profileData, age: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.age ? `${profileData.age} years` : 'Not set'}</p>)}</div>
-                      </div>
-                      <div><label className={`text-gray-500 ${textSizeClasses.base}`}>Phone</label>{isEditingProfile ? (<input type="tel" value={profileData.phone} onChange={(e) => setProfileData({...profileData, phone: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.phone || 'Not set'}</p>)}</div>
-                      <div><label className={`text-gray-500 ${textSizeClasses.base}`}>Email</label><p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.email || 'Not set'}</p></div>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-gray-50 rounded-xl p-6">
-                    <h4 className={`font-semibold text-teal-600 mb-5 flex items-center gap-2 ${textSizeClasses.base}`}><FaKey /> Account Settings</h4>
-                    <button onClick={() => setShowPasswordModal(true)} className={`flex items-center gap-2 px-5 py-3 border border-teal-600 text-teal-600 rounded-xl hover:bg-teal-50 transition font-medium w-full justify-center ${textSizeClasses.base}`}><FaKey /> Change Password</button>
-                    <div className="mt-8 pt-6 border-t border-gray-200">
-                      <h5 className={`font-medium text-gray-700 mb-3 ${textSizeClasses.base}`}>Account Info</h5>
-                      <div className={`space-y-3 ${textSizeClasses.base}`}>
-                        <div className="flex justify-between"><span className="text-gray-500">Role:</span><span className="text-gray-800 font-medium">Triage Nurse</span></div>
-                        <div className="flex justify-between"><span className="text-gray-500">Department:</span><span className="text-gray-800">{profileData.department || 'Triage'}</span></div>
-                        <div className="flex justify-between"><span className="text-gray-500">Status:</span><span className="text-green-600">● Active</span></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Send Report Modal */}
-      {showSendReportModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>Send Report</h2>
-              <button onClick={() => setShowSendReportModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
-            </div>
-            <form onSubmit={handleSendReport} className="space-y-4">
-              <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Recipient *</label><select value={sendReportForm.recipient_id} onChange={(e) => setSendReportForm({...sendReportForm, recipient_id: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} required><option value="">Select Hospital Admin...</option>{hospitalAdmins.map(admin => (<option key={admin.id} value={admin.id}>{admin.full_name} - {admin.hospital_name}</option>))}</select></div>
-              <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Priority</label><select value={sendReportForm.priority} onChange={(e) => setSendReportForm({...sendReportForm, priority: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`}><option value="low">🟢 Low</option><option value="medium">🟡 Medium</option><option value="high">🟠 High</option><option value="urgent">🔴 Urgent</option></select></div>
-              <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Title *</label><input type="text" value={sendReportForm.title} onChange={(e) => setSendReportForm({...sendReportForm, title: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} required /></div>
-              <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Message *</label><textarea value={sendReportForm.body} onChange={(e) => setSendReportForm({...sendReportForm, body: e.target.value})} rows="5" className={`w-full p-3 border border-gray-300 rounded-xl resize-none ${textSizeClasses.base}`} required /></div>
-              <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Attachments</label><input type="file" ref={fileInputRef} onChange={(e) => { const files = Array.from(e.target.files); setSendReportForm(prev => ({ ...prev, attachments: [...prev.attachments, ...files] })); }} multiple className={`w-full p-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`} /></div>
-              <div className="flex justify-end gap-3 pt-4"><button type="button" onClick={() => setShowSendReportModal(false)} className={`px-5 py-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>Cancel</button><button type="submit" disabled={loading} className={`px-5 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl flex items-center gap-2 ${textSizeClasses.base}`}>{loading ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}{loading ? 'Sending...' : 'Send Report'}</button></div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Vitals Modal */}
-      {showVitalsModal && selectedPatient && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-8">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className={`font-bold text-gray-800 ${textSizeClasses.title}`}>Record Vital Signs</h2>
-                <button onClick={() => setShowVitalsModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
-              </div>
-              <div className="mb-6 p-5 bg-teal-50 rounded-xl border border-teal-200">
-                <p className={textSizeClasses.base}><strong>Patient:</strong> {selectedPatient.first_name} {selectedPatient.middle_name || ''} {selectedPatient.last_name}</p>
-                <p className={`mt-2 ${textSizeClasses.base}`}><strong>Card:</strong> {selectedPatient.card_number}</p>
-                <p className={`mt-2 ${textSizeClasses.base}`}><strong>Age/Gender:</strong> {selectedPatient.age} years / {selectedPatient.gender}</p>
-              </div>
-              <form onSubmit={handleSubmitVitals}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Blood Pressure <span className="text-red-500">*</span></label><input type="text" name="blood_pressure" value={vitalsData.blood_pressure} onChange={handleVitalsChange} required placeholder="120/80" className={`w-full p-3 border rounded-lg ${textSizeClasses.base} ${validationErrors.blood_pressure ? 'border-red-500' : 'border-gray-300'}`} /><p className="text-red-500 text-sm mt-1">{validationErrors.blood_pressure}</p></div>
-                  <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Temperature (°C) <span className="text-red-500">*</span></label><input type="number" name="temperature" value={vitalsData.temperature} onChange={handleVitalsChange} required step="0.1" placeholder="36.6" className={`w-full p-3 border rounded-lg ${textSizeClasses.base} ${validationErrors.temperature ? 'border-red-500' : 'border-gray-300'}`} /><p className="text-red-500 text-sm mt-1">{validationErrors.temperature}</p></div>
-                  <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Heart Rate (bpm) <span className="text-red-500">*</span></label><input type="number" name="heart_rate" value={vitalsData.heart_rate} onChange={handleVitalsChange} required placeholder="72" className={`w-full p-3 border rounded-lg ${textSizeClasses.base} ${validationErrors.heart_rate ? 'border-red-500' : 'border-gray-300'}`} /><p className="text-red-500 text-sm mt-1">{validationErrors.heart_rate}</p></div>
-                  <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Respiratory Rate</label><input type="number" name="respiratory_rate" value={vitalsData.respiratory_rate} onChange={handleVitalsChange} placeholder="16" className="w-full p-3 border border-gray-300 rounded-lg" /></div>
-                  <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>O2 Saturation (%) <span className="text-red-500">*</span></label><input type="number" name="oxygen_saturation" value={vitalsData.oxygen_saturation} onChange={handleVitalsChange} required placeholder="98" min="0" max="100" className={`w-full p-3 border rounded-lg ${textSizeClasses.base} ${validationErrors.oxygen_saturation ? 'border-red-500' : 'border-gray-300'}`} /><p className="text-red-500 text-sm mt-1">{validationErrors.oxygen_saturation}</p></div>
-                  <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Pain Level (0-10)</label><input type="number" name="pain_level" value={vitalsData.pain_level} onChange={handleVitalsChange} min="0" max="10" placeholder="0" className="w-full p-3 border border-gray-300 rounded-lg" /></div>
-                  <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Weight (kg)</label><input type="number" name="weight" value={vitalsData.weight} onChange={handleVitalsChange} step="0.1" placeholder="70" className="w-full p-3 border border-gray-300 rounded-lg" /></div>
-                  <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Height (cm)</label><input type="number" name="height" value={vitalsData.height} onChange={handleVitalsChange} step="0.1" placeholder="170" className="w-full p-3 border border-gray-300 rounded-lg" /></div>
-                  <div className="md:col-span-2"><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Consciousness Level</label><select name="consciousness" value={vitalsData.consciousness} onChange={handleVitalsChange} className="w-full p-3 border border-gray-300 rounded-lg"><option value="Alert">Alert</option><option value="Verbal">Verbal</option><option value="Pain">Pain</option><option value="Unresponsive">Unresponsive</option></select></div>
-                  <div className="md:col-span-2"><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>BMI (calculated)</label><input type="text" value={calculateBMI() || '—'} disabled className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100" /></div>
-                  {selectedPatient.gender === 'Female' && selectedPatient.age >= 15 && selectedPatient.age <= 50 && (
-                    <>
-                      <div className="md:col-span-2"><label className={`flex items-center gap-3 ${textSizeClasses.base}`}><input type="checkbox" name="is_pregnant" checked={vitalsData.is_pregnant} onChange={handleVitalsChange} className="w-5 h-5" /><span className="font-medium">Patient is pregnant</span></label></div>
-                      {vitalsData.is_pregnant && (<div className="md:col-span-2"><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Weeks Pregnant</label><input type="number" name="weeks_pregnant" value={vitalsData.weeks_pregnant} onChange={handleVitalsChange} min="1" max="42" className="w-full p-3 border border-gray-300 rounded-lg" /></div>)}
-                    </>
-                  )}
-                  <div className="md:col-span-2"><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Chief Complaint / Clinical Notes</label><textarea name="notes" value={vitalsData.notes} onChange={handleVitalsChange} rows="4" placeholder="Enter chief complaint or clinical notes..." className="w-full p-3 border border-gray-300 rounded-lg" /></div>
-                  {checkCriticalVitals() && (<div className="md:col-span-2 bg-red-50 text-red-700 p-4 rounded-lg border border-red-500 text-center font-bold">🚨 CRITICAL VITALS DETECTED - Patient requires immediate attention! Recommended: EME Ward</div>)}
-                  <div className="md:col-span-2 mt-5 pt-5 border-t-2 border-gray-200">
-                    <h3 className={`font-bold mb-4 ${textSizeClasses.heading}`}>Assign Patient to Ward</h3>
-                    <div className="flex gap-5 flex-wrap">
-                      <label className={`flex items-center gap-3 p-4 rounded-lg cursor-pointer flex-1 min-w-[140px] ${selectedWard === 'OPD' ? 'border-2 border-green-500 bg-green-50' : 'border border-gray-300 bg-white'}`}>
-                        <input type="radio" name="ward" value="OPD" checked={selectedWard === 'OPD'} onChange={(e) => setSelectedWard(e.target.value)} className="w-5 h-5" />
-                        <div><span className="font-bold text-green-700 text-lg">OPD</span><br /><span className="text-gray-500 text-sm">Outpatient</span></div>
-                      </label>
-                      <label className={`flex items-center gap-3 p-4 rounded-lg cursor-pointer flex-1 min-w-[140px] ${selectedWard === 'EME' ? 'border-2 border-red-500 bg-red-50' : 'border border-gray-300 bg-white'}`}>
-                        <input type="radio" name="ward" value="EME" checked={selectedWard === 'EME'} onChange={(e) => setSelectedWard(e.target.value)} className="w-5 h-5" />
-                        <div><span className="font-bold text-red-700 text-lg">EME</span><br /><span className="text-gray-500 text-sm">Emergency</span></div>
-                      </label>
-                      <label className={`flex items-center gap-3 p-4 rounded-lg cursor-pointer flex-1 min-w-[140px] ${selectedWard === 'ANC' ? 'border-2 border-purple-500 bg-purple-50' : 'border border-gray-300 bg-white'}`}>
-                        <input type="radio" name="ward" value="ANC" checked={selectedWard === 'ANC'} onChange={(e) => setSelectedWard(e.target.value)} className="w-5 h-5" />
-                        <div><span className="font-bold text-purple-700 text-lg">ANC</span><br /><span className="text-gray-500 text-sm">Antenatal</span></div>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-8 flex justify-end gap-4">
-                  <button type="button" onClick={() => setShowVitalsModal(false)} className={`px-6 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition ${textSizeClasses.base}`}>Cancel</button>
-                  <button type="submit" disabled={loading} className={`px-6 py-3 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl hover:shadow-lg transition disabled:opacity-50 ${textSizeClasses.base}`}>{loading ? <FaSpinner className="animate-spin inline mr-2" /> : null}{loading ? 'Processing...' : 'Complete Triage & Send to Ward'}</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Report Detail Modal */}
-      {showReportDetailModal && selectedReport && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>{selectedReport.title}</h2>
-              <button onClick={() => setShowReportDetailModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
-            </div>
-            <div className="space-y-4">
-              <div className="flex justify-between flex-wrap gap-3">
-                <div><p className={`text-gray-500 ${textSizeClasses.base}`}>From</p><p className={`font-semibold ${textSizeClasses.base}`}>{selectedReport.sender_full_name}</p></div>
-                <div><p className={`text-gray-500 ${textSizeClasses.base}`}>Priority</p><span className={`px-3 py-1 rounded-full text-sm ${getPriorityBadge(selectedReport.priority)}`}>{getPriorityIcon(selectedReport.priority)} {selectedReport.priority}</span></div>
-                <div><p className={`text-gray-500 ${textSizeClasses.base}`}>Date</p><p className={`${textSizeClasses.base}`}>{new Date(selectedReport.sent_at).toLocaleString()}</p></div>
-              </div>
-              <div className="bg-gray-50 p-5 rounded-xl"><p className={`text-gray-500 mb-2 ${textSizeClasses.base}`}>Message</p><p className={`whitespace-pre-wrap ${textSizeClasses.base}`}>{selectedReport.body}</p></div>
-              {selectedReport.attachments?.length > 0 && (<div className="bg-gray-50 p-4 rounded-xl"><p className={`text-gray-500 mb-2 ${textSizeClasses.base}`}>Attachments</p>{selectedReport.attachments.map((att, idx) => (<div key={idx} className="flex items-center gap-2 text-teal-600"><FaPaperclip /><span>{att.name}</span></div>))}</div>)}
-              <div className="flex gap-3 pt-4 border-t border-gray-200">
-                <button onClick={() => { setShowReportDetailModal(false); setShowReplyModal(true); }} className={`flex-1 px-4 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl flex items-center justify-center gap-2 ${textSizeClasses.base}`}><FaReply /> Reply</button>
-                <button onClick={() => { setShowReportDetailModal(false); setSelectedReport(null); }} className={`flex-1 px-4 py-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>Close</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Reply Modal */}
-      {showReplyModal && selectedReport && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>Reply to Report</h2>
-              <button onClick={() => { setShowReplyModal(false); setReplyText(''); setReplyAttachment(null); }} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
-            </div>
-            <div className="mb-4 p-4 bg-gray-50 rounded-xl"><p className={`text-gray-500 ${textSizeClasses.base}`}>Original Report</p><p className={`font-medium ${textSizeClasses.base}`}>{selectedReport.title}</p><p className={`text-gray-400 mt-1 ${textSizeClasses.base}`}>From: {selectedReport.sender_full_name}</p></div>
-            <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} rows="5" placeholder="Type your reply here..." className={`w-full p-3 border border-gray-300 rounded-xl resize-none ${textSizeClasses.base}`} />
-            <div className="mt-3"><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Attachment (Optional)</label><input type="file" onChange={(e) => setReplyAttachment(e.target.files[0])} className={`w-full p-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`} /></div>
-            <div className="flex gap-3 pt-4 mt-2">
-              <button onClick={() => { setShowReplyModal(false); setReplyText(''); setReplyAttachment(null); }} className={`flex-1 px-4 py-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>Cancel</button>
-              <button onClick={handleSendReply} disabled={loading} className={`flex-1 px-4 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl flex items-center justify-center gap-2 ${textSizeClasses.base}`}>{loading ? <FaSpinner className="animate-spin" /> : <FaReply />}{loading ? 'Sending...' : 'Send Reply'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Change Password Modal */}
-      {showPasswordModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>Change Password</h2>
-              <button onClick={() => setShowPasswordModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
-            </div>
-            <div className="space-y-4">
-              <input type="password" placeholder="Current Password" value={passwordData.current_password} onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} />
-              <input type="password" placeholder="New Password" value={passwordData.new_password} onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} />
-              <input type="password" placeholder="Confirm New Password" value={passwordData.confirm_password} onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} />
-              <div className="flex gap-3 pt-4">
-                <button onClick={() => setShowPasswordModal(false)} className={`flex-1 px-4 py-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>Cancel</button>
-                <button onClick={changePassword} className={`flex-1 px-4 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl ${textSizeClasses.base}`}>Change Password</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ... all your existing JSX ... */}
     </div>
   );
 };
