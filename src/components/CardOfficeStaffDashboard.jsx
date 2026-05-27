@@ -4,16 +4,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { io } from 'socket.io-client';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   FaIdCard, FaUserPlus, FaSearch, FaHistory, FaChartBar,
   FaCalendarAlt, FaSync, FaUserCircle, FaSignOutAlt, 
   FaChevronLeft, FaChevronRight, FaInbox, FaPaperPlane, 
   FaEnvelope, FaEnvelopeOpen, FaReply, FaKey, FaSave, 
-  FaSpinner, FaCheck, FaEye, FaPhone, FaVenusMars, 
-  FaCalendarDay, FaCreditCard, FaTextHeight, FaUndo,
-  FaHeartbeat, FaEdit as FaEditIcon, FaTimes, FaPaperclip,
-  FaFileAlt, FaArrowLeft, FaArrowRight
+  FaSpinner, FaCheck, FaTextHeight, FaUndo,
+  FaHeartbeat, FaEdit as FaEditIcon, FaPaperclip,
+  FaCreditCard, FaClock, FaEye, FaTimes
 } from 'react-icons/fa';
 
 const CardOfficeDashboard = ({ user, onLogout }) => {
@@ -93,8 +92,12 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     priority: 'medium',
     attachments: []
   });
-  const fileInputRef = useRef(null);
   const [reportsLoading, setReportsLoading] = useState(false);
+  
+  // ==================== SCHEDULE STATES ====================
+  const [schedules, setSchedules] = useState([]);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [scheduleStats, setScheduleStats] = useState({ today: { shift_count: 0, total_hours: 0 }, this_week: { shift_count: 0, total_hours: 0 }, total_hours: 0 });
   
   // ==================== PROFILE STATES ====================
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -144,6 +147,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       setTabHistory(prev => [...prev, activeTab]);
       setActiveTab(tab);
       setShowScheduleView(isSchedule);
+      if (isSchedule) fetchMySchedule();
     }
   };
   
@@ -224,7 +228,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
-    // Clear error for this field when user starts typing
     if (formErrors[name]) {
       setFormErrors({ ...formErrors, [name]: '' });
     }
@@ -233,10 +236,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   // ==================== FETCH DATA ====================
   const fetchRecentPatients = async () => {
     const hospitalId = getHospitalId();
-    if (!hospitalId) {
-      console.error('No hospital ID available for fetchRecentPatients');
-      return;
-    }
+    if (!hospitalId) return;
     
     try {
       const token = localStorage.getItem('token');
@@ -252,10 +252,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
 
   const fetchStats = async () => {
     const hospitalId = getHospitalId();
-    if (!hospitalId) {
-      console.error('No hospital ID available for fetchStats');
-      return;
-    }
+    if (!hospitalId) return;
     
     try {
       const token = localStorage.getItem('token');
@@ -269,6 +266,43 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     } catch (error) {
       console.error('Error fetching stats:', error);
     }
+  };
+
+  // ==================== SCHEDULE FUNCTIONS ====================
+  const fetchMySchedule = async () => {
+    const hospitalId = getHospitalId();
+    if (!hospitalId) return;
+    
+    setScheduleLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/cardoffice/schedule/my`, {
+        params: { hospital_id: hospitalId },
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data.success) {
+        setSchedules(response.data.schedules || []);
+        setScheduleStats({
+          today: response.data.stats?.today || { shift_count: 0, total_hours: 0 },
+          this_week: response.data.stats?.this_week || { shift_count: 0, total_hours: 0 },
+          total_hours: response.data.total_hours || 0
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching schedule:', error);
+      setSchedules([]);
+    } finally {
+      setScheduleLoading(false);
+    }
+  };
+
+  const getShiftDisplay = (shiftType) => {
+    const shifts = {
+      morning: { name: '🌅 Morning', time: '08:00 - 14:00', hours: 6 },
+      afternoon: { name: '☀️ Afternoon', time: '14:00 - 20:00', hours: 6 },
+      night: { name: '🌙 Night', time: '20:00 - 08:00', hours: 12 }
+    };
+    return shifts[shiftType] || { name: shiftType, time: '--:-- - --:--', hours: 0 };
   };
 
   // ==================== REPORT FUNCTIONS ====================
@@ -655,82 +689,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     setMessage({ type: '', text: '' });
   };
 
-  // ==================== SIMPLE SCHEDULE VIEWER (Fallback) ====================
-  const SimpleScheduleViewer = () => {
-    const [schedules, setSchedules] = useState([]);
-    const [scheduleLoading, setScheduleLoading] = useState(false);
-    const [dateRange, setDateRange] = useState({ start: '', end: '' });
-
-    useEffect(() => {
-      fetchMySchedule();
-    }, []);
-
-    const fetchMySchedule = async () => {
-      setScheduleLoading(true);
-      try {
-        const token = localStorage.getItem('token');
-        const params = {};
-        if (dateRange.start && dateRange.end) {
-          params.start_date = dateRange.start;
-          params.end_date = dateRange.end;
-        }
-        const res = await axios.get(`${API_URL}/cardoffice/schedule/my`, {
-          params: { ...params, hospital_id: getHospitalId() },
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.data.success) {
-          setSchedules(res.data.schedules || []);
-        }
-      } catch (error) {
-        console.error('Error fetching schedule:', error);
-      } finally {
-        setScheduleLoading(false);
-      }
-    };
-
-    const getShiftInfo = (shiftType) => {
-      const shifts = {
-        morning: { name: '🌅 Morning', time: '08:00 - 14:00', hours: 6 },
-        afternoon: { name: '☀️ Afternoon', time: '14:00 - 20:00', hours: 6 },
-        night: { name: '🌙 Night', time: '20:00 - 08:00', hours: 12 }
-      };
-      return shifts[shiftType] || { name: shiftType, time: '--:-- - --:--', hours: 0 };
-    };
-
-    return (
-      <div>
-        <div className="flex gap-4 mb-6 flex-wrap">
-          <input type="date" value={dateRange.start} onChange={(e) => setDateRange({...dateRange, start: e.target.value})} className="p-2 border rounded-lg" />
-          <input type="date" value={dateRange.end} onChange={(e) => setDateRange({...dateRange, end: e.target.value})} className="p-2 border rounded-lg" />
-          <button onClick={fetchMySchedule} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Filter</button>
-        </div>
-        {scheduleLoading ? (
-          <div className="text-center py-10"><FaSpinner className="animate-spin text-3xl text-blue-600 mx-auto" /></div>
-        ) : schedules.length === 0 ? (
-          <div className="text-center py-10 text-gray-500">No schedules found</div>
-        ) : (
-          <div className="space-y-3">
-            {schedules.map(schedule => {
-              const shift = getShiftInfo(schedule.shift_type);
-              return (
-                <div key={schedule.id} className="white-blue-card flex justify-between items-center">
-                  <div>
-                    <p className="font-bold text-gray-800">{new Date(schedule.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                    <p className="text-gray-600">{shift.name} Shift • {shift.time}</p>
-                    {schedule.ward && <p className="text-gray-500 text-sm">Ward: {schedule.ward}</p>}
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-sm ${schedule.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                    {schedule.status || 'Scheduled'}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
-  };
-
   // ==================== SOCKET CONNECTION ====================
   const initializeSocket = () => {
     const token = localStorage.getItem('token');
@@ -825,45 +783,28 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
 
   const RealTimeNotification = () => {
     if (!realTimeNotification) return null;
-    const priorityColors = {
-      low: 'border-teal-500 bg-teal-50',
-      medium: 'border-yellow-500 bg-yellow-50',
-      high: 'border-orange-500 bg-orange-50',
-      urgent: 'border-red-500 bg-red-50 animate-pulse'
-    };
     return (
       <motion.div
         initial={{ opacity: 0, x: 100, scale: 0.9 }}
         animate={{ opacity: 1, x: 0, scale: 1 }}
         exit={{ opacity: 0, x: 100, scale: 0.9 }}
-        className={`fixed bottom-6 right-6 z-[10000] max-w-md bg-white rounded-2xl shadow-2xl border-l-4 ${priorityColors[realTimeNotification.priority] || 'border-teal-500'} overflow-hidden`}
+        className="fixed bottom-6 right-6 z-[10000] max-w-md bg-white rounded-2xl shadow-2xl border-l-4 border-blue-500 overflow-hidden"
       >
         <div className="p-5">
           <div className="flex items-start gap-4">
             <div className="flex-shrink-0">
               <div className="w-14 h-14 rounded-full flex items-center justify-center text-3xl bg-blue-100">
-                {realTimeNotification.type === 'reply' ? '💬' : realTimeNotification.type === 'new_patient' ? '🆕' : '📬'}
+                {realTimeNotification.type === 'new_patient' ? '🆕' : '📬'}
               </div>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between mb-2">
-                <p className={`font-bold text-gray-900 ${textSizeClasses.heading}`}>{realTimeNotification.title}</p>
-                <span className={`text-gray-400 ml-2 ${textSizeClasses.base}`}>{getPriorityIcon(realTimeNotification.priority)} {realTimeNotification.priority}</span>
-              </div>
-              <p className={`text-gray-600 mb-2 ${textSizeClasses.base}`}>{realTimeNotification.message}</p>
-              <div className="flex items-center gap-3 text-gray-400" style={{ fontSize: '0.875rem' }}>
-                <span>🕒 {new Date(realTimeNotification.timestamp).toLocaleTimeString()}</span>
-              </div>
+              <p className={`font-bold text-gray-900 ${textSizeClasses.heading}`}>{realTimeNotification.title}</p>
+              <p className={`text-gray-600 mt-1 ${textSizeClasses.base}`}>{realTimeNotification.message}</p>
+              <p className="text-gray-400 text-sm mt-2">{new Date(realTimeNotification.timestamp).toLocaleTimeString()}</p>
             </div>
-            <button onClick={() => setRealTimeNotification(null)} className="flex-shrink-0 text-gray-400 hover:text-gray-600 text-2xl">×</button>
+            <button onClick={() => setRealTimeNotification(null)} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
           </div>
         </div>
-        <motion.div
-          initial={{ width: '100%' }}
-          animate={{ width: '0%' }}
-          transition={{ duration: 6, ease: 'linear' }}
-          className={`h-1 ${realTimeNotification.priority === 'urgent' ? 'bg-red-500' : 'bg-blue-500'}`}
-        />
       </motion.div>
     );
   };
@@ -894,6 +835,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     fetchReportsOutbox();
     fetchHospitalAdmins();
     fetchProfile();
+    fetchMySchedule();
 
     const interval = setInterval(() => {
       fetchStats();
@@ -927,18 +869,8 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
               <h3 className={`font-bold text-gray-800 mb-3 ${textSizeClasses.title}`}>Confirm Logout</h3>
               <p className={`text-gray-600 mb-8 ${textSizeClasses.base}`}>Are you sure you want to logout from Card Office Dashboard?</p>
               <div className="flex gap-4">
-                <button
-                  onClick={handleCancelLogout}
-                  className={`flex-1 px-6 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition font-medium ${textSizeClasses.base}`}
-                >
-                  No, Stay
-                </button>
-                <button
-                  onClick={handleConfirmLogout}
-                  className={`flex-1 px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition font-medium ${textSizeClasses.base}`}
-                >
-                  Yes, Logout
-                </button>
+                <button onClick={handleCancelLogout} className={`flex-1 px-6 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition font-medium ${textSizeClasses.base}`}>No, Stay</button>
+                <button onClick={handleConfirmLogout} className={`flex-1 px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition font-medium ${textSizeClasses.base}`}>Yes, Logout</button>
               </div>
             </div>
           </motion.div>
@@ -946,23 +878,10 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       )}
       
       <style>{`
-        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @keyframes glow { 0% { box-shadow: 0 0 5px rgba(59,130,246,0.2); } 50% { box-shadow: 0 0 20px rgba(59,130,246,0.5); } 100% { box-shadow: 0 0 5px rgba(59,130,246,0.2); } }
-        .animate-slide-in { animation: slideIn 0.3s ease-out; }
         .animate-glow { animation: glow 2s infinite; }
-        
-        .white-blue-card {
-          background: white !important;
-          border: 2px solid #e0e7ff !important;
-          border-radius: 1rem !important;
-          padding: 1.5rem !important;
-          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1) !important;
-          transition: all 0.3s ease !important;
-        }
-        .white-blue-card:hover {
-          box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15) !important;
-          border-color: #3b82f6 !important;
-        }
+        .white-blue-card { background: white !important; border: 2px solid #e0e7ff !important; border-radius: 1rem !important; padding: 1.5rem !important; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1) !important; transition: all 0.3s ease !important; }
+        .white-blue-card:hover { box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15) !important; border-color: #3b82f6 !important; }
       `}</style>
 
       {/* Sidebar */}
@@ -1143,8 +1062,9 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
           </div>
         </div>
 
-        {/* Main Content */}
+        {/* Main Content Area */}
         <div className="max-w-[1600px] mx-auto p-10">
+          {/* Message Display */}
           {message.text && (
             <div className={`mb-6 p-5 rounded-xl border-l-4 ${message.type === 'error' ? 'bg-red-50 border-red-500 text-red-700' : message.type === 'success' ? 'bg-green-50 border-green-500 text-green-700' : 'bg-blue-50 border-blue-500 text-blue-700'} flex justify-between items-center ${textSizeClasses.base}`}>
               <span>{message.text}</span>
@@ -1164,111 +1084,48 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                 <form onSubmit={handleRegister} className="max-w-2xl">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
-                      <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>
-                        First Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        name="first_name"
-                        value={formData.first_name}
-                        onChange={handleInputChange}
-                        className={`w-full p-3 border ${formErrors.first_name ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
-                        placeholder="Enter first name"
-                      />
+                      <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>First Name <span className="text-red-500">*</span></label>
+                      <input type="text" name="first_name" value={formData.first_name} onChange={handleInputChange} className={`w-full p-3 border ${formErrors.first_name ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`} placeholder="Enter first name" />
                       {formErrors.first_name && <p className={`text-red-500 mt-1 ${textSizeClasses.base}`}>{formErrors.first_name}</p>}
                     </div>
-                    
                     <div>
                       <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Middle Name</label>
-                      <input
-                        type="text"
-                        name="middle_name"
-                        value={formData.middle_name}
-                        onChange={handleInputChange}
-                        className={`w-full p-3 border ${formErrors.middle_name ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
-                        placeholder="Enter middle name"
-                      />
+                      <input type="text" name="middle_name" value={formData.middle_name} onChange={handleInputChange} className={`w-full p-3 border ${formErrors.middle_name ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`} placeholder="Enter middle name" />
                       {formErrors.middle_name && <p className={`text-red-500 mt-1 ${textSizeClasses.base}`}>{formErrors.middle_name}</p>}
                     </div>
-                    
                     <div>
-                      <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>
-                        Last Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        name="last_name"
-                        value={formData.last_name}
-                        onChange={handleInputChange}
-                        className={`w-full p-3 border ${formErrors.last_name ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
-                        placeholder="Enter last name"
-                      />
+                      <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Last Name <span className="text-red-500">*</span></label>
+                      <input type="text" name="last_name" value={formData.last_name} onChange={handleInputChange} className={`w-full p-3 border ${formErrors.last_name ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`} placeholder="Enter last name" />
                       {formErrors.last_name && <p className={`text-red-500 mt-1 ${textSizeClasses.base}`}>{formErrors.last_name}</p>}
                     </div>
-                    
                     <div>
-                      <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>
-                        Age <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="number"
-                        name="age"
-                        value={formData.age}
-                        onChange={handleInputChange}
-                        min="0"
-                        max="120"
-                        className={`w-full p-3 border ${formErrors.age ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
-                        placeholder="Enter age"
-                      />
+                      <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Age <span className="text-red-500">*</span></label>
+                      <input type="number" name="age" value={formData.age} onChange={handleInputChange} min="0" max="120" className={`w-full p-3 border ${formErrors.age ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`} placeholder="Enter age" />
                       {formErrors.age && <p className={`text-red-500 mt-1 ${textSizeClasses.base}`}>{formErrors.age}</p>}
                     </div>
-                    
                     <div>
-                      <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>
-                        Gender <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        name="gender"
-                        value={formData.gender}
-                        onChange={handleInputChange}
-                        className={`w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
-                      >
+                      <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Gender <span className="text-red-500">*</span></label>
+                      <select name="gender" value={formData.gender} onChange={handleInputChange} className={`w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}>
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
                         <option value="Other">Other</option>
                       </select>
                     </div>
-                    
                     <div>
                       <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Phone Number</label>
-                      <input
-                        type="tel"
-                        name="phone"
-                        value={formData.phone}
-                        onChange={handleInputChange}
-                        className={`w-full p-3 border ${formErrors.phone ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
-                        placeholder="Enter phone number"
-                      />
+                      <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} className={`w-full p-3 border ${formErrors.phone ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`} placeholder="Enter phone number" />
                       {formErrors.phone && <p className={`text-red-500 mt-1 ${textSizeClasses.base}`}>{formErrors.phone}</p>}
                     </div>
                   </div>
-
                   <div className="mt-8 flex justify-end">
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className={`px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 disabled:opacity-50 flex items-center gap-2 ${textSizeClasses.base}`}
-                    >
+                    <button type="submit" disabled={loading} className={`px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 disabled:opacity-50 flex items-center gap-2 ${textSizeClasses.base}`}>
                       {loading ? <FaSpinner className="animate-spin" /> : <FaUserPlus />}
                       {loading ? 'Registering...' : 'Register Patient'}
                     </button>
                   </div>
                 </form>
-
                 <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                  <p className={`text-blue-800 ${textSizeClasses.base}`}>
-                    <strong>📌 Note:</strong> After registration, patient will automatically be sent to Triage
-                  </p>
+                  <p className={`text-blue-800 ${textSizeClasses.base}`}><strong>📌 Note:</strong> After registration, patient will automatically be sent to Triage</p>
                 </div>
               </div>
             </div>
@@ -1342,31 +1199,35 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
           {activeTab === 'inbox' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
               <div className="flex justify-between items-center mb-6">
-                <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>📬 Inbox</h2>
-                {unreadReportsCount > 0 && <span className={`px-3 py-1 bg-red-500 text-white rounded-full animate-pulse ${textSizeClasses.base}`}>{unreadReportsCount} unread</span>}
-                <button onClick={() => { setShowSendReportModal(true); fetchHospitalAdmins(); }} className={`px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl ${textSizeClasses.base}`}>New Report</button>
+                <div className="flex items-center gap-3">
+                  <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>📬 Inbox</h2>
+                  {unreadReportsCount > 0 && <span className={`px-3 py-1 bg-red-500 text-white rounded-full animate-pulse ${textSizeClasses.base}`}>{unreadReportsCount} unread</span>}
+                </div>
+                <button onClick={() => { setShowSendReportModal(true); fetchHospitalAdmins(); }} className={`px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition font-medium ${textSizeClasses.base}`}>New Report</button>
               </div>
               {reportsLoading ? (
                 <div className="text-center py-12"><FaSpinner className="animate-spin text-3xl text-blue-600 mx-auto" /></div>
               ) : reportsInbox.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">No reports in inbox</div>
+                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200"><FaInbox className="text-6xl text-gray-300 mx-auto mb-4" /><p className={`text-gray-500 ${textSizeClasses.base}`}>No reports in inbox</p></div>
               ) : (
-                reportsInbox.map(report => (
-                  <div key={report.id} className={`white-blue-card cursor-pointer mb-4 ${!report.is_opened ? 'border-blue-300 bg-blue-50' : ''}`} onClick={() => viewReportDetails(report)}>
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-center gap-2">
-                        {!report.is_opened ? <FaEnvelope className="text-blue-500" /> : <FaEnvelopeOpen className="text-gray-400" />}
-                        <h3 className={`font-semibold ${textSizeClasses.base}`}>{report.title}</h3>
+                <div className="space-y-4">
+                  {reportsInbox.map(report => (
+                    <div key={report.id} className={`white-blue-card cursor-pointer ${!report.is_opened ? 'border-blue-300 bg-blue-50' : ''}`} onClick={() => viewReportDetails(report)}>
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex items-center gap-3">
+                          {!report.is_opened ? <FaEnvelope className="text-blue-500 text-xl" /> : <FaEnvelopeOpen className="text-gray-400 text-xl" />}
+                          <h3 className={`font-semibold text-gray-800 ${textSizeClasses.base}`}>{report.title}</h3>
+                        </div>
+                        <span className={`text-sm px-3 py-1.5 rounded-full ${getPriorityBadge(report.priority)}`}>{getPriorityIcon(report.priority)} {report.priority}</span>
                       </div>
-                      <span className={`text-xs px-2 py-1 rounded-full ${getPriorityBadge(report.priority)}`}>{getPriorityIcon(report.priority)} {report.priority}</span>
+                      <p className={`text-gray-600 mb-3 line-clamp-2 ${textSizeClasses.base}`}>{report.body?.substring(0, 100)}...</p>
+                      <div className={`flex justify-between items-center text-gray-500 ${textSizeClasses.base}`}>
+                        <span>From: {report.sender_full_name}</span>
+                        <span>{new Date(report.sent_at).toLocaleString()}</span>
+                      </div>
                     </div>
-                    <p className={`text-gray-600 mt-2 ${textSizeClasses.base}`}>{report.body?.substring(0, 100)}...</p>
-                    <div className={`flex justify-between text-gray-400 text-sm mt-2 ${textSizeClasses.base}`}>
-                      <span>From: {report.sender_full_name}</span>
-                      <span>{new Date(report.sent_at).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
           )}
@@ -1374,27 +1235,30 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
           {/* Outbox Tab */}
           {activeTab === 'outbox' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-              <h2 className={`font-bold text-gray-800 mb-6 ${textSizeClasses.heading}`}>📤 Sent Reports</h2>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>📤 Sent Reports</h2>
+                <button onClick={() => fetchReportsOutbox()} className={`px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition font-medium ${textSizeClasses.base}`}>Refresh</button>
+              </div>
               {reportsLoading ? (
                 <div className="text-center py-12"><FaSpinner className="animate-spin text-3xl text-blue-600 mx-auto" /></div>
               ) : reportsOutbox.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">No sent reports</div>
+                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200"><FaPaperPlane className="text-6xl text-gray-300 mx-auto mb-4" /><p className={`text-gray-500 ${textSizeClasses.base}`}>No sent reports</p></div>
               ) : (
-                reportsOutbox.map(report => (
-                  <div key={report.id} className="white-blue-card mb-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className={`font-semibold ${textSizeClasses.base}`}>{report.title}</h3>
-                        <p className={`text-gray-500 text-sm mt-1`}>To: {report.recipient_full_name}</p>
+                <div className="space-y-4">
+                  {reportsOutbox.map(report => (
+                    <div key={report.id} className="white-blue-card cursor-pointer" onClick={() => viewReportDetails(report)}>
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex items-center gap-3"><FaPaperPlane className="text-gray-400 text-xl" /><h3 className={`font-semibold text-gray-800 ${textSizeClasses.base}`}>{report.title}</h3></div>
+                        <span className={`text-sm px-3 py-1.5 rounded-full ${getPriorityBadge(report.priority)}`}>{getPriorityIcon(report.priority)} {report.priority}</span>
                       </div>
-                      <span className={`text-xs px-2 py-1 rounded-full ${getPriorityBadge(report.priority)}`}>{getPriorityIcon(report.priority)} {report.priority}</span>
+                      <p className={`text-gray-600 mb-3 line-clamp-2 ${textSizeClasses.base}`}>{report.body?.substring(0, 100)}...</p>
+                      <div className={`flex justify-between items-center text-gray-500 ${textSizeClasses.base}`}>
+                        <span>To: {report.recipient_full_name}</span>
+                        <span>Sent: {new Date(report.sent_at).toLocaleString()}</span>
+                      </div>
                     </div>
-                    <p className={`text-gray-600 mt-2 ${textSizeClasses.base}`}>{report.body?.substring(0, 100)}...</p>
-                    <div className={`text-gray-400 text-sm mt-2 ${textSizeClasses.base}`}>
-                      Sent: {new Date(report.sent_at).toLocaleString()}
-                    </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
           )}
@@ -1402,114 +1266,155 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
           {/* Statistics Tab */}
           {activeTab === 'reports' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-              <h2 className={`font-bold text-gray-800 mb-6 ${textSizeClasses.heading}`}>Card Office Statistics</h2>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="white-blue-card text-center">
-                  <p className={`text-blue-600 ${textSizeClasses.base}`}>Today's Registrations</p>
-                  <p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.today}</p>
-                </div>
-                <div className="white-blue-card text-center">
-                  <p className={`text-blue-600 ${textSizeClasses.base}`}>In Triage</p>
-                  <p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.inTriage}</p>
-                </div>
-                <div className="white-blue-card text-center">
-                  <p className={`text-blue-600 ${textSizeClasses.base}`}>Active Patients</p>
-                  <p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.active}</p>
-                </div>
-                <div className="white-blue-card text-center">
-                  <p className={`text-blue-600 ${textSizeClasses.base}`}>Total Patients</p>
-                  <p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.total}</p>
-                </div>
+              <h2 className={`font-bold text-gray-800 mb-6 ${textSizeClasses.heading}`}>📊 Card Office Statistics</h2>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                <div className="white-blue-card"><p className={`text-blue-600 mb-2 font-semibold ${textSizeClasses.base}`}>Today's Registrations</p><p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.today}</p></div>
+                <div className="white-blue-card"><p className={`text-blue-600 mb-2 font-semibold ${textSizeClasses.base}`}>In Triage</p><p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.inTriage}</p></div>
+                <div className="white-blue-card"><p className={`text-blue-600 mb-2 font-semibold ${textSizeClasses.base}`}>Active Patients</p><p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.active}</p></div>
+                <div className="white-blue-card"><p className={`text-blue-600 mb-2 font-semibold ${textSizeClasses.base}`}>Total Patients</p><p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.total}</p></div>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-6 text-center">
+                <p className={`text-gray-600 ${textSizeClasses.base}`}>Today's Summary: {stats.today} patients registered, {stats.inTriage} waiting for triage</p>
+                <p className={`text-sm text-gray-400 mt-2`}>Active patients: {stats.active} | Total patients: {stats.total}</p>
               </div>
             </div>
           )}
 
-          {/* Schedule View */}
+          {/* Schedule View Tab */}
           {showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-              <h2 className={`font-bold text-gray-800 mb-6 ${textSizeClasses.heading}`}>My Work Schedule</h2>
-              <SimpleScheduleViewer />
+              <div className="flex justify-between items-center mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg">
+                    <FaCalendarAlt className="text-white text-xl" />
+                  </div>
+                  <div>
+                    <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>My Work Schedule</h2>
+                    <p className={`text-gray-500 ${textSizeClasses.base}`}>View your upcoming shifts</p>
+                  </div>
+                </div>
+                <button onClick={fetchMySchedule} className={`px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition font-medium flex items-center gap-2 ${textSizeClasses.base}`}>
+                  <FaSync className={`${scheduleLoading ? 'animate-spin' : ''}`} /> Refresh
+                </button>
+              </div>
+
+              {/* Schedule Stats Summary */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-blue-50 rounded-xl p-4 text-center">
+                  <p className={`text-blue-600 ${textSizeClasses.base}`}>Today's Shifts</p>
+                  <p className={`font-bold text-blue-800 ${textSizeClasses.title}`}>{scheduleStats.today?.shift_count || 0}</p>
+                  <p className={`text-sm text-blue-500`}>{scheduleStats.today?.total_hours || 0} hours</p>
+                </div>
+                <div className="bg-green-50 rounded-xl p-4 text-center">
+                  <p className={`text-green-600 ${textSizeClasses.base}`}>This Week</p>
+                  <p className={`font-bold text-green-800 ${textSizeClasses.title}`}>{scheduleStats.this_week?.shift_count || 0}</p>
+                  <p className={`text-sm text-green-500`}>{scheduleStats.this_week?.total_hours || 0} hours</p>
+                </div>
+                <div className="bg-purple-50 rounded-xl p-4 text-center">
+                  <p className={`text-purple-600 ${textSizeClasses.base}`}>Total Hours</p>
+                  <p className={`font-bold text-purple-800 ${textSizeClasses.title}`}>{scheduleStats.total_hours || 0}</p>
+                  <p className={`text-sm text-purple-500`}>Scheduled</p>
+                </div>
+              </div>
+
+              {scheduleLoading ? (
+                <div className="text-center py-12"><FaSpinner className="animate-spin text-3xl text-blue-600 mx-auto" /></div>
+              ) : schedules.length === 0 ? (
+                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                  <FaCalendarAlt className="text-6xl text-gray-300 mx-auto mb-4" />
+                  <p className={`text-gray-500 ${textSizeClasses.base}`}>No schedules found</p>
+                  <p className={`text-sm text-gray-400 mt-2`}>Your shifts will appear here when assigned</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {schedules.map(schedule => {
+                    const shift = getShiftDisplay(schedule.shift_type);
+                    return (
+                      <div key={schedule.id} className="white-blue-card flex justify-between items-center flex-wrap gap-4">
+                        <div>
+                          <p className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>
+                            {new Date(schedule.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                          </p>
+                          <p className={`text-gray-600 mt-1 ${textSizeClasses.base}`}>
+                            <FaClock className="inline mr-2" /> {shift.name} Shift • {shift.time}
+                          </p>
+                          {schedule.ward && <p className={`text-gray-500 text-sm mt-1`}>🏥 Ward: {schedule.ward}</p>}
+                        </div>
+                        <div className="text-right">
+                          <span className={`px-4 py-2 rounded-full text-sm font-medium ${schedule.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                            {schedule.status === 'active' ? '✅ Active' : '📋 Scheduled'}
+                          </span>
+                          <p className={`text-gray-400 text-sm mt-2`}>{shift.hours} hours</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
           {/* Profile Tab */}
           {activeTab === 'profile' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-10">
-                <div className="flex items-center gap-6">
-                  <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center">
-                    <FaUserCircle className="text-blue-600 text-6xl" />
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-10 py-12">
+                <div className="flex items-center gap-8">
+                  <div className="relative">
+                    <div className="w-28 h-28 bg-white rounded-full flex items-center justify-center shadow-xl">
+                      <FaUserCircle className="text-blue-600 text-7xl" />
+                    </div>
                   </div>
                   <div className="text-white">
-                    <h2 className={`font-bold ${textSizeClasses.title}`}>{profileData.first_name} {profileData.last_name}</h2>
-                    <p className={`text-blue-100 ${textSizeClasses.base}`}>{profileData.department} Staff</p>
-                    <p className={`text-blue-100 text-sm`}>{user?.hospital_name}</p>
+                    <h2 className={`font-bold mb-2 ${textSizeClasses.title}`}>
+                      {profileData.first_name} {profileData.middle_name ? profileData.middle_name + ' ' : ''}{profileData.last_name}
+                    </h2>
+                    <p className={`text-blue-100 flex items-center gap-3 ${textSizeClasses.base}`}>
+                      <FaIdCard className="text-lg" /> {profileData.department || 'Card Office'} Staff
+                    </p>
+                    <p className={`text-blue-100 mt-2 opacity-80 ${textSizeClasses.base}`}>{user?.hospital_name}</p>
                   </div>
                 </div>
               </div>
-              <div className="p-8">
-                <div className="flex justify-between items-center mb-6">
+              
+              <div className="p-10">
+                <div className="flex justify-between items-center mb-8">
                   <h3 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>Professional Information</h3>
                   {!isEditingProfile ? (
-                    <button onClick={() => setIsEditingProfile(true)} className="px-4 py-2 bg-blue-600 text-white rounded-xl flex items-center gap-2"><FaEditIcon /> Edit</button>
+                    <button onClick={() => setIsEditingProfile(true)} className={`flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-medium ${textSizeClasses.base}`}><FaEditIcon /> Edit Profile</button>
                   ) : (
-                    <div className="flex gap-2">
-                      <button onClick={() => setIsEditingProfile(false)} className="px-4 py-2 border rounded-xl">Cancel</button>
-                      <button onClick={updateProfile} className="px-4 py-2 bg-emerald-600 text-white rounded-xl flex items-center gap-2"><FaSave /> Save</button>
+                    <div className="flex gap-3">
+                      <button onClick={() => setIsEditingProfile(false)} className={`px-5 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition ${textSizeClasses.base}`}>Cancel</button>
+                      <button onClick={updateProfile} className={`flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition ${textSizeClasses.base}`}><FaSave /> Save</button>
                     </div>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-gray-500">First Name</label>
-                      {isEditingProfile ? (
-                        <input type="text" value={profileData.first_name} onChange={(e) => setProfileData({...profileData, first_name: e.target.value})} className="w-full p-2 border rounded-lg" />
-                      ) : (
-                        <p className="font-medium">{profileData.first_name || 'Not set'}</p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="text-gray-500">Last Name</label>
-                      {isEditingProfile ? (
-                        <input type="text" value={profileData.last_name} onChange={(e) => setProfileData({...profileData, last_name: e.target.value})} className="w-full p-2 border rounded-lg" />
-                      ) : (
-                        <p className="font-medium">{profileData.last_name || 'Not set'}</p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="text-gray-500">Phone</label>
-                      {isEditingProfile ? (
-                        <input type="tel" value={profileData.phone} onChange={(e) => setProfileData({...profileData, phone: e.target.value})} className="w-full p-2 border rounded-lg" />
-                      ) : (
-                        <p className="font-medium">{profileData.phone || 'Not set'}</p>
-                      )}
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <h4 className={`font-semibold text-blue-600 mb-5 flex items-center gap-2 ${textSizeClasses.base}`}><FaUserCircle /> Personal Info</h4>
+                    <div className="space-y-4">
+                      <div><label className={`text-gray-500 ${textSizeClasses.base}`}>First Name</label>{isEditingProfile ? (<input type="text" value={profileData.first_name} onChange={(e) => setProfileData({...profileData, first_name: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.first_name || 'Not set'}</p>)}</div>
+                      <div><label className={`text-gray-500 ${textSizeClasses.base}`}>Middle Name</label>{isEditingProfile ? (<input type="text" value={profileData.middle_name} onChange={(e) => setProfileData({...profileData, middle_name: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.middle_name || '—'}</p>)}</div>
+                      <div><label className={`text-gray-500 ${textSizeClasses.base}`}>Last Name</label>{isEditingProfile ? (<input type="text" value={profileData.last_name} onChange={(e) => setProfileData({...profileData, last_name: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.last_name || 'Not set'}</p>)}</div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div><label className={`text-gray-500 ${textSizeClasses.base}`}>Gender</label>{isEditingProfile ? (<select value={profileData.gender} onChange={(e) => setProfileData({...profileData, gender: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`}><option>Male</option><option>Female</option><option>Other</option></select>) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.gender || 'Not set'}</p>)}</div>
+                        <div><label className={`text-gray-500 ${textSizeClasses.base}`}>Age</label>{isEditingProfile ? (<input type="number" value={profileData.age} onChange={(e) => setProfileData({...profileData, age: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.age ? `${profileData.age} years` : 'Not set'}</p>)}</div>
+                      </div>
+                      <div><label className={`text-gray-500 ${textSizeClasses.base}`}>Phone</label>{isEditingProfile ? (<input type="tel" value={profileData.phone} onChange={(e) => setProfileData({...profileData, phone: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.phone || 'Not set'}</p>)}</div>
+                      <div><label className={`text-gray-500 ${textSizeClasses.base}`}>Email</label><p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.email || 'Not set'}</p></div>
                     </div>
                   </div>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-gray-500">Gender</label>
-                      {isEditingProfile ? (
-                        <select value={profileData.gender} onChange={(e) => setProfileData({...profileData, gender: e.target.value})} className="w-full p-2 border rounded-lg">
-                          <option value="">Select</option>
-                          <option>Male</option>
-                          <option>Female</option>
-                          <option>Other</option>
-                        </select>
-                      ) : (
-                        <p className="font-medium">{profileData.gender || 'Not set'}</p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="text-gray-500">Age</label>
-                      {isEditingProfile ? (
-                        <input type="number" value={profileData.age} onChange={(e) => setProfileData({...profileData, age: e.target.value})} className="w-full p-2 border rounded-lg" />
-                      ) : (
-                        <p className="font-medium">{profileData.age ? `${profileData.age} years` : 'Not set'}</p>
-                      )}
-                    </div>
-                    <div>
-                      <button onClick={() => setShowPasswordModal(true)} className="mt-4 px-4 py-2 border border-blue-600 text-blue-600 rounded-xl flex items-center gap-2"><FaKey /> Change Password</button>
+                  
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <h4 className={`font-semibold text-blue-600 mb-5 flex items-center gap-2 ${textSizeClasses.base}`}><FaKey /> Account Settings</h4>
+                    <button onClick={() => setShowPasswordModal(true)} className={`flex items-center gap-2 px-5 py-3 border border-blue-600 text-blue-600 rounded-xl hover:bg-blue-50 transition font-medium w-full justify-center ${textSizeClasses.base}`}><FaKey /> Change Password</button>
+                    <div className="mt-8 pt-6 border-t border-gray-200">
+                      <h5 className={`font-medium text-gray-700 mb-3 ${textSizeClasses.base}`}>Account Info</h5>
+                      <div className={`space-y-3 ${textSizeClasses.base}`}>
+                        <div className="flex justify-between"><span className="text-gray-500">Role:</span><span className="text-gray-800 font-medium">Card Office Staff</span></div>
+                        <div className="flex justify-between"><span className="text-gray-500">Department:</span><span className="text-gray-800">{profileData.department || 'Card Office'}</span></div>
+                        <div className="flex justify-between"><span className="text-gray-500">Status:</span><span className="text-green-600">● Active</span></div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1522,31 +1427,18 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       {/* Send Report Modal */}
       {showSendReportModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
             <div className="flex justify-between items-center mb-4">
-              <h2 className={`font-bold ${textSizeClasses.heading}`}>Send Report</h2>
-              <button onClick={() => setShowSendReportModal(false)} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+              <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>Send Report</h2>
+              <button onClick={() => setShowSendReportModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
             </div>
-            <form onSubmit={handleSendReport}>
-              <select value={sendReportForm.recipient_id} onChange={(e) => setSendReportForm({...sendReportForm, recipient_id: e.target.value})} className="w-full p-3 border rounded-xl mb-4" required>
-                <option value="">Select Recipient</option>
-                {hospitalAdmins.map(admin => <option key={admin.id} value={admin.id}>{admin.full_name} ({admin.hospital_name})</option>)}
-              </select>
-              <input type="text" placeholder="Title" value={sendReportForm.title} onChange={(e) => setSendReportForm({...sendReportForm, title: e.target.value})} className="w-full p-3 border rounded-xl mb-4" required />
-              <textarea placeholder="Message" value={sendReportForm.body} onChange={(e) => setSendReportForm({...sendReportForm, body: e.target.value})} rows="5" className="w-full p-3 border rounded-xl mb-4" required />
-              <select value={sendReportForm.priority} onChange={(e) => setSendReportForm({...sendReportForm, priority: e.target.value})} className="w-full p-3 border rounded-xl mb-4">
-                <option value="low">Low Priority</option>
-                <option value="medium">Medium Priority</option>
-                <option value="high">High Priority</option>
-                <option value="urgent">Urgent</option>
-              </select>
-              <div className="flex justify-end gap-3">
-                <button type="button" onClick={() => setShowSendReportModal(false)} className="px-4 py-2 border rounded-xl">Cancel</button>
-                <button type="submit" disabled={loading} className="px-4 py-2 bg-blue-600 text-white rounded-xl flex items-center gap-2">
-                  {loading ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}
-                  {loading ? 'Sending...' : 'Send'}
-                </button>
-              </div>
+            <form onSubmit={handleSendReport} className="space-y-4">
+              <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Recipient *</label><select value={sendReportForm.recipient_id} onChange={(e) => setSendReportForm({...sendReportForm, recipient_id: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} required><option value="">Select Hospital Admin...</option>{hospitalAdmins.map(admin => (<option key={admin.id} value={admin.id}>{admin.full_name} - {admin.hospital_name}</option>))}</select></div>
+              <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Priority</label><select value={sendReportForm.priority} onChange={(e) => setSendReportForm({...sendReportForm, priority: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`}><option value="low">🟢 Low</option><option value="medium">🟡 Medium</option><option value="high">🟠 High</option><option value="urgent">🔴 Urgent</option></select></div>
+              <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Title *</label><input type="text" value={sendReportForm.title} onChange={(e) => setSendReportForm({...sendReportForm, title: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} required /></div>
+              <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Message *</label><textarea value={sendReportForm.body} onChange={(e) => setSendReportForm({...sendReportForm, body: e.target.value})} rows="5" className={`w-full p-3 border border-gray-300 rounded-xl resize-none ${textSizeClasses.base}`} required /></div>
+              <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Attachments</label><input type="file" onChange={(e) => { const files = Array.from(e.target.files); setSendReportForm(prev => ({ ...prev, attachments: [...prev.attachments, ...files] })); }} multiple className={`w-full p-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`} /></div>
+              <div className="flex justify-end gap-3 pt-4"><button type="button" onClick={() => setShowSendReportModal(false)} className={`px-5 py-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>Cancel</button><button type="submit" disabled={loading} className={`px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl flex items-center gap-2 ${textSizeClasses.base}`}>{loading ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}{loading ? 'Sending...' : 'Send Report'}</button></div>
             </form>
           </div>
         </div>
@@ -1555,39 +1447,23 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       {/* Report Detail Modal */}
       {showReportDetailModal && selectedReport && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h2 className={`font-bold ${textSizeClasses.title}`}>{selectedReport.title}</h2>
-                <p className="text-gray-500 text-sm mt-1">Report #{selectedReport.report_number}</p>
-              </div>
-              <button onClick={() => { setShowReportDetailModal(false); setSelectedReport(null); }} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>{selectedReport.title}</h2>
+              <button onClick={() => setShowReportDetailModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
             </div>
-            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-              <div className="flex justify-between items-center text-sm text-gray-600">
-                <span>From: {selectedReport.sender_full_name}</span>
-                <span className={`px-2 py-1 rounded-full ${getPriorityBadge(selectedReport.priority)}`}>{selectedReport.priority}</span>
+            <div className="space-y-4">
+              <div className="flex justify-between flex-wrap gap-3">
+                <div><p className={`text-gray-500 ${textSizeClasses.base}`}>From</p><p className={`font-semibold ${textSizeClasses.base}`}>{selectedReport.sender_full_name}</p></div>
+                <div><p className={`text-gray-500 ${textSizeClasses.base}`}>Priority</p><span className={`px-3 py-1 rounded-full text-sm ${getPriorityBadge(selectedReport.priority)}`}>{getPriorityIcon(selectedReport.priority)} {selectedReport.priority}</span></div>
+                <div><p className={`text-gray-500 ${textSizeClasses.base}`}>Date</p><p className={`${textSizeClasses.base}`}>{new Date(selectedReport.sent_at).toLocaleString()}</p></div>
               </div>
-              <div className="flex justify-between text-sm text-gray-500 mt-1">
-                <span>Date: {new Date(selectedReport.sent_at).toLocaleString()}</span>
+              <div className="bg-gray-50 p-5 rounded-xl"><p className={`text-gray-500 mb-2 ${textSizeClasses.base}`}>Message</p><p className={`whitespace-pre-wrap ${textSizeClasses.base}`}>{selectedReport.body}</p></div>
+              {selectedReport.attachments?.length > 0 && (<div className="bg-gray-50 p-4 rounded-xl"><p className={`text-gray-500 mb-2 ${textSizeClasses.base}`}>Attachments</p>{selectedReport.attachments.map((att, idx) => (<div key={idx} className="flex items-center gap-2 text-blue-600"><FaPaperclip /><span>{att.name}</span></div>))}</div>)}
+              <div className="flex gap-3 pt-4 border-t border-gray-200">
+                <button onClick={() => { setShowReportDetailModal(false); setShowReplyModal(true); }} className={`flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl flex items-center justify-center gap-2 ${textSizeClasses.base}`}><FaReply /> Reply</button>
+                <button onClick={() => { setShowReportDetailModal(false); setSelectedReport(null); }} className={`flex-1 px-4 py-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>Close</button>
               </div>
-            </div>
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-              <p className={`text-gray-700 whitespace-pre-wrap ${textSizeClasses.base}`}>{selectedReport.body}</p>
-            </div>
-            {selectedReport.attachments?.length > 0 && (
-              <div className="mb-6">
-                <p className="font-semibold mb-2">Attachments:</p>
-                {selectedReport.attachments.map((att, idx) => (
-                  <div key={idx} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
-                    <FaPaperclip /> <span>{att.name}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setShowReportDetailModal(false)} className="px-4 py-2 border rounded-xl">Close</button>
-              <button onClick={() => { setShowReportDetailModal(false); setShowReplyModal(true); }} className="px-4 py-2 bg-blue-600 text-white rounded-xl flex items-center gap-2"><FaReply /> Reply</button>
             </div>
           </div>
         </div>
@@ -1596,21 +1472,17 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       {/* Reply Modal */}
       {showReplyModal && selectedReport && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6">
             <div className="flex justify-between items-center mb-4">
-              <h2 className={`font-bold ${textSizeClasses.heading}`}>Reply to: {selectedReport.title}</h2>
-              <button onClick={() => { setShowReplyModal(false); setReplyText(''); setReplyAttachment(null); }} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+              <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>Reply to Report</h2>
+              <button onClick={() => { setShowReplyModal(false); setReplyText(''); setReplyAttachment(null); }} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
             </div>
-            <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Type your reply here..." rows="6" className="w-full p-3 border rounded-xl mb-4" />
-            <div className="mb-4">
-              <input type="file" onChange={(e) => setReplyAttachment(e.target.files[0])} className="w-full p-2 border rounded-xl" />
-            </div>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => { setShowReplyModal(false); setReplyText(''); setReplyAttachment(null); }} className="px-4 py-2 border rounded-xl">Cancel</button>
-              <button onClick={handleSendReply} disabled={loading} className="px-4 py-2 bg-blue-600 text-white rounded-xl flex items-center gap-2">
-                {loading ? <FaSpinner className="animate-spin" /> : <FaReply />}
-                {loading ? 'Sending...' : 'Send Reply'}
-              </button>
+            <div className="mb-4 p-4 bg-gray-50 rounded-xl"><p className={`text-gray-500 ${textSizeClasses.base}`}>Original Report</p><p className={`font-medium ${textSizeClasses.base}`}>{selectedReport.title}</p><p className={`text-gray-400 mt-1 ${textSizeClasses.base}`}>From: {selectedReport.sender_full_name}</p></div>
+            <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} rows="5" placeholder="Type your reply here..." className={`w-full p-3 border border-gray-300 rounded-xl resize-none ${textSizeClasses.base}`} />
+            <div className="mt-3"><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Attachment (Optional)</label><input type="file" onChange={(e) => setReplyAttachment(e.target.files[0])} className={`w-full p-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`} /></div>
+            <div className="flex gap-3 pt-4 mt-2">
+              <button onClick={() => { setShowReplyModal(false); setReplyText(''); setReplyAttachment(null); }} className={`flex-1 px-4 py-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>Cancel</button>
+              <button onClick={handleSendReply} disabled={loading} className={`flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl flex items-center justify-center gap-2 ${textSizeClasses.base}`}>{loading ? <FaSpinner className="animate-spin" /> : <FaReply />}{loading ? 'Sending...' : 'Send Reply'}</button>
             </div>
           </div>
         </div>
@@ -1619,17 +1491,19 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       {/* Change Password Modal */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
             <div className="flex justify-between items-center mb-4">
-              <h2 className={`font-bold ${textSizeClasses.heading}`}>Change Password</h2>
-              <button onClick={() => setShowPasswordModal(false)} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+              <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>Change Password</h2>
+              <button onClick={() => setShowPasswordModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
             </div>
-            <input type="password" placeholder="Current Password" value={passwordData.current_password} onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})} className="w-full p-3 border rounded-xl mb-3" />
-            <input type="password" placeholder="New Password" value={passwordData.new_password} onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})} className="w-full p-3 border rounded-xl mb-3" />
-            <input type="password" placeholder="Confirm Password" value={passwordData.confirm_password} onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})} className="w-full p-3 border rounded-xl mb-4" />
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setShowPasswordModal(false)} className="px-4 py-2 border rounded-xl">Cancel</button>
-              <button onClick={changePassword} className="px-4 py-2 bg-blue-600 text-white rounded-xl">Change</button>
+            <div className="space-y-4">
+              <input type="password" placeholder="Current Password" value={passwordData.current_password} onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} />
+              <input type="password" placeholder="New Password" value={passwordData.new_password} onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} />
+              <input type="password" placeholder="Confirm New Password" value={passwordData.confirm_password} onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} />
+              <div className="flex gap-3 pt-4">
+                <button onClick={() => setShowPasswordModal(false)} className={`flex-1 px-4 py-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>Cancel</button>
+                <button onClick={changePassword} className={`flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl ${textSizeClasses.base}`}>Change Password</button>
+              </div>
             </div>
           </div>
         </div>
@@ -1654,8 +1528,8 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-4">
-              <button onClick={() => setShowPrintModal(false)} className="px-4 py-2 border rounded-xl">Close</button>
-              <button onClick={() => window.print()} className="px-4 py-2 bg-blue-600 text-white rounded-xl">Print</button>
+              <button onClick={() => setShowPrintModal(false)} className={`px-4 py-2 border rounded-xl ${textSizeClasses.base}`}>Close</button>
+              <button onClick={() => window.print()} className={`px-4 py-2 bg-blue-600 text-white rounded-xl ${textSizeClasses.base}`}>Print</button>
             </div>
           </div>
         </div>
