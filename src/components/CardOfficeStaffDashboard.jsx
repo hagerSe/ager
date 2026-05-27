@@ -16,9 +16,17 @@ import {
 } from 'react-icons/fa';
 
 const CardOfficeDashboard = ({ user, onLogout }) => {
-  // ==================== HELPER: Get Hospital ID (SIMPLE - like lab dashboard) ====================
+  // ==================== HELPER: Get Hospital ID (IMPROVED - CHECKS MULTIPLE SOURCES) ====================
   const getHospitalId = () => {
-    return user?.hospital_id || user?.hospitalId;
+    // Try multiple possible locations of hospital_id
+    const hospitalId = user?.hospital_id || 
+                       user?.hospitalId || 
+                       user?.staff?.hospital_id ||
+                       user?.staff?.hospitalId ||
+                       (user?.hospital && user?.hospital.id) ||
+                       localStorage.getItem('hospital_id');
+    
+    return hospitalId;
   };
 
   // ==================== STATE MANAGEMENT ====================
@@ -122,7 +130,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     confirm_password: ''
   });
 
-  // ==================== API CONFIGURATION (SIMPLIFIED - LIKE PHARMACY) ====================
+  // ==================== API CONFIGURATION ====================
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
   const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001';
   
@@ -181,6 +189,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     if (socket.current) socket.current.disconnect();
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('hospital_id');
     if (onLogout) onLogout();
     navigate('/login');
   };
@@ -236,14 +245,15 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // ==================== FETCH DATA (SIMPLIFIED - NO WARNINGS) ====================
+  // ==================== FETCH DATA (USING getHospitalId) ====================
   const fetchRecentPatients = async () => {
-    if (!user?.hospital_id) return;
+    const hospitalId = getHospitalId();
+    if (!hospitalId) return;
     
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${API_URL}/api/cardoffice/patients/recent`, {
-        params: { hospital_id: user?.hospital_id },
+        params: { hospital_id: hospitalId },
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.success) setRecentPatients(response.data.patients || []);
@@ -253,12 +263,13 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   };
 
   const fetchStats = async () => {
-    if (!user?.hospital_id) return;
+    const hospitalId = getHospitalId();
+    if (!hospitalId) return;
     
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${API_URL}/api/cardoffice/stats`, {
-        params: { hospital_id: user?.hospital_id },
+        params: { hospital_id: hospitalId },
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.success) {
@@ -340,12 +351,13 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   };
 
   const fetchHospitalAdmins = async () => {
-    if (!user?.hospital_id) return;
+    const hospitalId = getHospitalId();
+    if (!hospitalId) return;
     
     try {
       const token = localStorage.getItem('token');
       const res = await axios.get(`${API_URL}/api/cardoffice/hospital-admins`, {
-        params: { hospital_id: user?.hospital_id },
+        params: { hospital_id: hospitalId },
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -373,10 +385,8 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       const token = localStorage.getItem('token');
       const formData = new FormData();
       formData.append('title', sendReportForm.title);
-      formData.append('subject', sendReportForm.title);
       formData.append('body', sendReportForm.body);
       formData.append('priority', sendReportForm.priority);
-      formData.append('recipient_type', sendReportForm.recipient_type);
       formData.append('recipient_id', sendReportForm.recipient_id);
       sendReportForm.attachments.forEach((file) => formData.append('attachments', file));
       
@@ -459,7 +469,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // ==================== PROFILE FUNCTIONS (FIXED) ====================
+  // ==================== PROFILE FUNCTIONS ====================
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -547,7 +557,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       const cleanedFormData = {
         ...formData,
         phone: formData.phone.replace(/\s/g, ''),
-        hospital_id: user?.hospital_id
+        hospital_id: getHospitalId()
       };
       
       const response = await axios.post(
@@ -589,7 +599,9 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
 
   // ==================== SEARCH ====================
   const handleSearch = async () => {
-    if (!user?.hospital_id) {
+    const hospitalId = getHospitalId();
+    
+    if (!hospitalId) {
       setMessage({ type: 'error', text: 'Hospital ID not found. Please login again.' });
       setTimeout(() => setMessage({ type: '', text: '' }), 3000);
       return;
@@ -607,7 +619,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       const token = localStorage.getItem('token');
       const encodedQuery = encodeURIComponent(searchQuery.trim());
       const response = await axios.get(
-        `${API_URL}/api/cardoffice/patients/search?query=${encodedQuery}&hospital_id=${user?.hospital_id}`,
+        `${API_URL}/api/cardoffice/patients/search?query=${encodedQuery}&hospital_id=${hospitalId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -636,7 +648,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       const token = localStorage.getItem('token');
       const response = await axios.post(
         `${API_URL}/api/cardoffice/patients/send-to-triage`,
-        { patientId: patient.id, reason, hospital_id: user?.hospital_id },
+        { patientId: patient.id, reason, hospital_id: getHospitalId() },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -657,7 +669,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `${API_URL}/api/cardoffice/patients/${patient.id}?hospital_id=${user?.hospital_id}`,
+        `${API_URL}/api/cardoffice/patients/${patient.id}?hospital_id=${getHospitalId()}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -681,6 +693,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   // ==================== SOCKET CONNECTION ====================
   const initializeSocket = () => {
     const token = localStorage.getItem('token');
+    const hospitalId = getHospitalId();
     
     socket.current = io(SOCKET_URL, {
       auth: { token },
@@ -693,8 +706,8 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     socket.current.on('connect', () => {
       console.log('✅ Card Office socket connected');
       setConnectionStatus('connected');
-      if (user?.hospital_id) {
-        socket.current.emit('join_cardoffice', user?.hospital_id);
+      if (hospitalId) {
+        socket.current.emit('join_cardoffice', hospitalId);
       }
     });
 
@@ -709,7 +722,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     });
 
     socket.current.on('patient_registered', (data) => {
-      if (data.hospital_id == user?.hospital_id) {
+      if (data.hospital_id == hospitalId) {
         setRealTimeNotification({
           id: Date.now(),
           type: 'new_patient',
@@ -811,10 +824,24 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     );
   };
 
-  // ==================== INITIAL LOAD (FIXED - LIKE PHARMACY) ====================
+  // ==================== INITIAL LOAD (FIXED - NO WARNINGS) ====================
   useEffect(() => {
-    // Wait for user and hospital_id to be available - NO WARNINGS
-    if (!user?.hospital_id) return;
+    const hospitalId = getHospitalId();
+    
+    // Store hospital_id in localStorage for backup
+    if (hospitalId) {
+      localStorage.setItem('hospital_id', hospitalId);
+    } else {
+      // Try to get from localStorage as fallback
+      const storedHospitalId = localStorage.getItem('hospital_id');
+      if (storedHospitalId) {
+        console.log('Using hospital_id from localStorage:', storedHospitalId);
+      } else {
+        console.error('No hospital_id available. User object:', user);
+        setMessage({ type: 'error', text: 'Hospital ID not found. Please login again.' });
+        return;
+      }
+    }
     
     initializeSocket();
     fetchRecentPatients();
@@ -834,14 +861,45 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       if (socket.current) socket.current.disconnect();
       clearInterval(interval);
     };
-  }, [user?.hospital_id]); // ← CRITICAL FIX: Re-run when hospital_id becomes available
+  }, []); // Run once on mount, but use getHospitalId which checks user
+
+  // If no hospital_id is available, show error screen
+  const hospitalId = getHospitalId();
+  if (!hospitalId && !localStorage.getItem('hospital_id')) {
+    return (
+      <div className="min-h-screen bg-red-50 flex items-center justify-center p-8">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-lg text-center">
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5">
+            <span className="text-4xl">⚠️</span>
+          </div>
+          <h2 className="text-2xl font-bold text-red-800 mb-3">Authentication Error</h2>
+          <p className="text-gray-600 mb-4">Hospital ID not found. Please login again.</p>
+          <div className="bg-gray-100 rounded-lg p-4 mb-4 text-left">
+            <p className="font-mono text-sm">Debug Info:</p>
+            <pre className="text-xs mt-2 overflow-auto max-h-40">
+              {JSON.stringify(user, null, 2)}
+            </pre>
+          </div>
+          <button 
+            onClick={() => {
+              localStorage.clear();
+              window.location.href = '/login';
+            }}
+            className="px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition"
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // ==================== RENDER ====================
   return (
     <div className={`min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex ${textSizeClasses.base}`}>
       <RealTimeNotification />
       
-      {/* Logout Confirmation Modal - Same as before */}
+      {/* Logout Confirmation Modal */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10001] p-4">
           <motion.div
@@ -872,7 +930,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
         .white-blue-card:hover { box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15) !important; border-color: #3b82f6 !important; }
       `}</style>
 
-      {/* Sidebar - Same as before */}
+      {/* Sidebar */}
       <div className={`bg-gradient-to-b from-slate-900 to-slate-800 text-white transition-all duration-300 ${
         sidebarCollapsed ? 'w-24' : 'w-72'
       } shadow-2xl flex flex-col h-screen sticky top-0 z-50`}>
@@ -974,9 +1032,9 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
         </div>
       </div>
 
-      {/* Main Content - Keep all the tabs rendering from original component */}
+      {/* Main Content */}
       <div className="flex-1 overflow-y-auto">
-        {/* Header - Keep from original */}
+        {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 py-8 px-10 shadow-xl sticky top-0 z-40">
           <div className="max-w-[1600px] mx-auto flex justify-between items-center flex-wrap gap-5">
             <div className="flex items-center gap-5">
@@ -1050,7 +1108,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
           </div>
         </div>
 
-        {/* Main Content Area - Keep all tabs from original component */}
+        {/* Main Content Area */}
         <div className="max-w-[1600px] mx-auto p-10">
           {/* Message Display */}
           {message.text && (
