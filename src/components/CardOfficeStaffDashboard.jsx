@@ -126,10 +126,8 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   });
 
   // ==================== API CONFIGURATION ====================
- const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
-const API_URL = `${API_BASE_URL}/api`;
-  const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || API_BASE_URL.replace(/\/api\/?$/, '') || 'http://localhost:5001';
-  
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+  const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001';
   // ==================== TEXT SIZE STYLES ====================
   const getTextSizeClasses = () => {
     switch(textSize) {
