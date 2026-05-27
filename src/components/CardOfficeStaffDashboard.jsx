@@ -18,7 +18,10 @@ import {
 const CardOfficeDashboard = ({ user, onLogout }) => {
   // ==================== HELPER: Get Hospital ID (SIMPLE - like lab dashboard) ====================
   const getHospitalId = () => {
-    return user?.hospital_id || user?.hospitalId;
+     return user?.hospital_id || 
+         user?.hospitalId || 
+         localStorage.getItem('hospital_id') || 
+         (user?.hospital ? user.hospital.id : null);
   };
 
   // ==================== STATE MANAGEMENT ====================
@@ -123,8 +126,8 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   });
 
   // ==================== API CONFIGURATION ====================
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-  const API_URL = API_BASE_URL.replace(/\/api\/?$/, '') + '/api';
+ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_URL = `${API_BASE_URL}/api`;
   const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || API_BASE_URL.replace(/\/api\/?$/, '') || 'http://localhost:5001';
   
   // ==================== TEXT SIZE STYLES ====================
@@ -238,460 +241,466 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   };
 
   // ==================== FETCH DATA (with hospital_id as query param) ====================
-  const fetchRecentPatients = async () => {
-    const hospitalId = getHospitalId();
-    if (!hospitalId) {
-      console.warn('No hospital_id available for fetchRecentPatients');
-      return;
-    }
-    
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/cardoffice/patients/recent`, {
-        params: { hospital_id: hospitalId },
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (response.data.success) setRecentPatients(response.data.patients || []);
-    } catch (error) {
-      console.error('Error fetching recent patients:', error);
-    }
-  };
+// ==================== FETCH DATA (CORRECTED) ====================
 
-  const fetchStats = async () => {
-    const hospitalId = getHospitalId();
-    if (!hospitalId) {
-      console.warn('No hospital_id available for fetchStats');
-      return;
+const fetchRecentPatients = async () => {
+  const hospitalId = getHospitalId();
+  if (!hospitalId) {
+    console.warn('No hospital_id available for fetchRecentPatients');
+    return;
+  }
+  
+  try {
+    const token = localStorage.getItem('token');
+    const response = await axios.get(`${API_URL}/patients/recent`, {
+      params: { hospital_id: hospitalId },
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (response.data.success) setRecentPatients(response.data.patients || []);
+  } catch (error) {
+    console.error('Error fetching recent patients:', error);
+  }
+};
+
+const fetchStats = async () => {
+  const hospitalId = getHospitalId();
+  if (!hospitalId) {
+    console.warn('No hospital_id available for fetchStats');
+    return;
+  }
+  
+  try {
+    const token = localStorage.getItem('token');
+    const response = await axios.get(`${API_URL}/stats`, {
+      params: { hospital_id: hospitalId },
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (response.data.success) {
+      setStats(response.data.stats || { today: 0, inTriage: 0, active: 0, total: 0 });
     }
-    
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/cardoffice/stats`, {
-        params: { hospital_id: hospitalId },
-        headers: { Authorization: `Bearer ${token}` }
+  } catch (error) {
+    console.error('Error fetching stats:', error);
+  }
+};
+
+// ==================== SCHEDULE FUNCTIONS (CORRECTED) ====================
+
+const fetchMySchedule = async () => {
+  setScheduleLoading(true);
+  try {
+    const token = localStorage.getItem('token');
+    const response = await axios.get(`${API_URL}/my-schedule`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (response.data.success) {
+      setSchedules(response.data.schedules || []);
+      setScheduleStats({
+        today: response.data.stats?.today || { shift_count: 0, total_hours: 0 },
+        this_week: response.data.stats?.this_week || { shift_count: 0, total_hours: 0 },
+        total_hours: response.data.total_hours || 0
       });
-      if (response.data.success) {
-        setStats(response.data.stats || { today: 0, inTriage: 0, active: 0, total: 0 });
+    }
+  } catch (error) {
+    console.error('Error fetching schedule:', error);
+    setSchedules([]);
+  } finally {
+    setScheduleLoading(false);
+  }
+};
+
+const getShiftDisplay = (shiftType) => {
+  const shifts = {
+    morning: { name: '🌅 Morning', time: '08:00 - 14:00', hours: 6 },
+    afternoon: { name: '☀️ Afternoon', time: '14:00 - 20:00', hours: 6 },
+    night: { name: '🌙 Night', time: '20:00 - 08:00', hours: 12 }
+  };
+  return shifts[shiftType] || { name: shiftType, time: '--:-- - --:--', hours: 0 };
+};
+
+// ==================== REPORT FUNCTIONS (CORRECTED) ====================
+
+const fetchReportsInbox = async () => {
+  try {
+    setReportsLoading(true);
+    const token = localStorage.getItem('token');
+    const res = await axios.get(`${API_URL}/reports/inbox`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.data.success) {
+      setReportsInbox(res.data.reports || []);
+      setUnreadReportsCount(res.data.unreadCount || 0);
+    }
+  } catch (error) {
+    console.error('Error fetching reports inbox:', error);
+    setReportsInbox([]);
+    setUnreadReportsCount(0);
+  } finally {
+    setReportsLoading(false);
+  }
+};
+
+const fetchReportsOutbox = async () => {
+  try {
+    setReportsLoading(true);
+    const token = localStorage.getItem('token');
+    const res = await axios.get(`${API_URL}/reports/outbox`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.data.success) setReportsOutbox(res.data.reports || []);
+  } catch (error) {
+    console.error('Error fetching reports outbox:', error);
+    setReportsOutbox([]);
+  } finally {
+    setReportsLoading(false);
+  }
+};
+
+const fetchHospitalAdmins = async () => {
+  const hospitalId = getHospitalId();
+  if (!hospitalId) {
+    console.warn('No hospital_id available for fetchHospitalAdmins');
+    return;
+  }
+  
+  try {
+    const token = localStorage.getItem('token');
+    const res = await axios.get(`${API_URL}/hospital-admins`, {
+      params: { hospital_id: hospitalId },
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.data.success) {
+      setHospitalAdmins(res.data.admins || []);
+      if (res.data.admins?.length === 1) {
+        setSendReportForm(prev => ({ ...prev, recipient_id: res.data.admins[0].id }));
       }
-    } catch (error) {
-      console.error('Error fetching stats:', error);
     }
-  };
+  } catch (error) {
+    console.error('Error fetching hospital admins:', error);
+    setHospitalAdmins([]);
+  }
+};
 
-  // ==================== SCHEDULE FUNCTIONS ====================
-  const fetchMySchedule = async () => {
-    setScheduleLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/cardoffice/my-schedule`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (response.data.success) {
-        setSchedules(response.data.schedules || []);
-        setScheduleStats({
-          today: response.data.stats?.today || { shift_count: 0, total_hours: 0 },
-          this_week: response.data.stats?.this_week || { shift_count: 0, total_hours: 0 },
-          total_hours: response.data.total_hours || 0
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching schedule:', error);
-      setSchedules([]);
-    } finally {
-      setScheduleLoading(false);
-    }
-  };
-
-  const getShiftDisplay = (shiftType) => {
-    const shifts = {
-      morning: { name: '🌅 Morning', time: '08:00 - 14:00', hours: 6 },
-      afternoon: { name: '☀️ Afternoon', time: '14:00 - 20:00', hours: 6 },
-      night: { name: '🌙 Night', time: '20:00 - 08:00', hours: 12 }
-    };
-    return shifts[shiftType] || { name: shiftType, time: '--:-- - --:--', hours: 0 };
-  };
-
-  // ==================== REPORT FUNCTIONS ====================
-  const fetchReportsInbox = async () => {
-    try {
-      setReportsLoading(true);
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/cardoffice/reports/inbox`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.data.success) {
-        setReportsInbox(res.data.reports || []);
-        setUnreadReportsCount(res.data.unreadCount || 0);
-      }
-    } catch (error) {
-      console.error('Error fetching reports inbox:', error);
-      setReportsInbox([]);
-      setUnreadReportsCount(0);
-    } finally {
-      setReportsLoading(false);
-    }
-  };
-
-  const fetchReportsOutbox = async () => {
-    try {
-      setReportsLoading(true);
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/cardoffice/reports/outbox`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.data.success) setReportsOutbox(res.data.reports || []);
-    } catch (error) {
-      console.error('Error fetching reports outbox:', error);
-      setReportsOutbox([]);
-    } finally {
-      setReportsLoading(false);
-    }
-  };
-
-  const fetchHospitalAdmins = async () => {
-    const hospitalId = getHospitalId();
-    if (!hospitalId) {
-      console.warn('No hospital_id available for fetchHospitalAdmins');
-      return;
-    }
-    
-    try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/cardoffice/hospital-admins`, {
-        params: { hospital_id: hospitalId },
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.data.success) {
-        setHospitalAdmins(res.data.admins || []);
-        if (res.data.admins?.length === 1) {
-          setSendReportForm(prev => ({ ...prev, recipient_id: res.data.admins[0].id }));
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching hospital admins:', error);
-      setHospitalAdmins([]);
-    }
-  };
-
-  const handleSendReport = async (e) => {
-    e.preventDefault();
-    if (!sendReportForm.recipient_id) {
-      setMessage({ type: 'error', text: 'Please select a recipient' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      const formData = new FormData();
-      formData.append('title', sendReportForm.title);
-      formData.append('subject', sendReportForm.title);
-      formData.append('body', sendReportForm.body);
-      formData.append('priority', sendReportForm.priority);
-      formData.append('recipient_type', sendReportForm.recipient_type);
-      formData.append('recipient_id', sendReportForm.recipient_id);
-      sendReportForm.attachments.forEach((file) => formData.append('attachments', file));
-      
-      const res = await axios.post(`${API_URL}/cardoffice/reports/send`, formData, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
-      });
-
-      if (res.data.success) {
-        setMessage({ type: 'success', text: 'Report sent successfully!' });
-        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-        setShowSendReportModal(false);
-        setSendReportForm({
-          recipient_type: 'hospital',
-          recipient_id: '',
-          title: '',
-          body: '',
-          priority: 'medium',
-          attachments: []
-        });
-        fetchReportsOutbox();
-      }
-    } catch (error) {
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Error sending report' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const viewReportDetails = (report) => {
-    setSelectedReport(report);
-    setShowReportDetailModal(true);
-    if (!report.is_opened) markReportAsRead(report.id);
-  };
-
-  const markReportAsRead = async (reportId) => {
-    try {
-      const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/cardoffice/reports/${reportId}/read`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      fetchReportsInbox();
-    } catch (error) {
-      console.error('Error marking report as read:', error);
-    }
-  };
-
-  const handleSendReply = async () => {
-    if (!replyText.trim() && !replyAttachment) {
-      setMessage({ type: 'error', text: 'Please enter a reply message' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      const formData = new FormData();
-      formData.append('body', replyText);
-      if (replyAttachment) formData.append('attachment', replyAttachment);
-      
-      const res = await axios.post(`${API_URL}/cardoffice/reports/${selectedReport.id}/reply`, formData, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
-      });
-
-      if (res.data.success) {
-        setMessage({ type: 'success', text: 'Reply sent successfully!' });
-        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-        setShowReplyModal(false);
-        setReplyText('');
-        setReplyAttachment(null);
-        fetchReportsInbox();
-        fetchReportsOutbox();
-      }
-    } catch (error) {
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Error sending reply' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ==================== PROFILE FUNCTIONS ====================
-  const fetchProfile = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/cardoffice/profile`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.data.success) {
-        const staff = res.data.staff;
-        setProfileData({
-          first_name: staff.first_name || '',
-          middle_name: staff.middle_name || '',
-          last_name: staff.last_name || '',
-          gender: staff.gender || '',
-          age: staff.age || '',
-          phone: staff.phone || '',
-          email: staff.email || '',
-          department: staff.department || 'Card Office'
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-    }
-  };
-
-  const updateProfile = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/cardoffice/profile`, profileData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.data.success) {
-        setIsEditingProfile(false);
-        setMessage({ type: 'success', text: 'Profile updated successfully!' });
-        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      }
-    } catch (error) {
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Error updating profile' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    }
-  };
-
-  const changePassword = async () => {
-    if (passwordData.new_password !== passwordData.confirm_password) {
-      setMessage({ type: 'error', text: 'New passwords do not match' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      return;
-    }
-    if (passwordData.new_password.length < 6) {
-      setMessage({ type: 'error', text: 'New password must be at least 6 characters' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      return;
-    }
-    try {
-      const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/cardoffice/change-password`, {
-        current_password: passwordData.current_password,
-        new_password: passwordData.new_password
-      }, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.data.success) {
-        setShowPasswordModal(false);
-        setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
-        setMessage({ type: 'success', text: 'Password changed successfully!' });
-        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      }
-    } catch (error) {
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Error changing password' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    }
-  };
-
-  // ==================== REGISTRATION ====================
-  const handleRegister = async (e) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      setMessage({ type: 'error', text: 'Please fix the errors in the form before submitting' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 5000);
-      return;
-    }
-    
+const handleSendReport = async (e) => {
+  e.preventDefault();
+  if (!sendReportForm.recipient_id) {
+    setMessage({ type: 'error', text: 'Please select a recipient' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    return;
+  }
+  
+  try {
     setLoading(true);
-
-    try {
-      const token = localStorage.getItem('token');
-      const cleanedFormData = {
-        ...formData,
-        phone: formData.phone.replace(/\s/g, ''),
-        hospital_id: getHospitalId()
-      };
-      
-      const response = await axios.post(
-        `${API_URL}/cardoffice/patients/register`,
-        cleanedFormData,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (response.data.success) {
-        setMessage({ type: 'success', text: `Patient ${formData.first_name} ${formData.last_name} registered! Card: ${response.data.patient.card_number}` });
-        setFormData({
-          first_name: '',
-          middle_name: '',
-          last_name: '',
-          age: '',
-          gender: 'Male',
-          phone: ''
-        });
-        setFormErrors({
-          first_name: '',
-          middle_name: '',
-          last_name: '',
-          age: '',
-          phone: ''
-        });
-        setSelectedPatient(response.data.patient);
-        setShowPrintModal(true);
-        fetchRecentPatients();
-        fetchStats();
-      }
-    } catch (error) {
-      console.error('Registration error:', error);
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Error registering patient' });
-    } finally {
-      setLoading(false);
-      setTimeout(() => setMessage({ type: '', text: '' }), 5000);
-    }
-  };
-
-  // ==================== SEARCH ====================
-  const handleSearch = async () => {
-    const hospitalId = getHospitalId();
-    if (!hospitalId) {
-      setMessage({ type: 'error', text: 'Hospital ID not found. Please login again.' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      return;
-    }
+    const token = localStorage.getItem('token');
+    const formData = new FormData();
+    formData.append('title', sendReportForm.title);
+    formData.append('subject', sendReportForm.title);
+    formData.append('body', sendReportForm.body);
+    formData.append('priority', sendReportForm.priority);
+    formData.append('recipient_type', sendReportForm.recipient_type);
+    formData.append('recipient_id', sendReportForm.recipient_id);
+    sendReportForm.attachments.forEach((file) => formData.append('attachments', file));
     
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      setMessage({ type: 'error', text: 'Please enter a search term' });
+    const res = await axios.post(`${API_URL}/reports/send`, formData, {
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+    });
+
+    if (res.data.success) {
+      setMessage({ type: 'success', text: 'Report sent successfully!' });
       setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      return;
+      setShowSendReportModal(false);
+      setSendReportForm({
+        recipient_type: 'hospital',
+        recipient_id: '',
+        title: '',
+        body: '',
+        priority: 'medium',
+        attachments: []
+      });
+      fetchReportsOutbox();
     }
+  } catch (error) {
+    setMessage({ type: 'error', text: error.response?.data?.message || 'Error sending report' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+  } finally {
+    setLoading(false);
+  }
+};
 
-    setSearching(true);
-    try {
-      const token = localStorage.getItem('token');
-      const encodedQuery = encodeURIComponent(searchQuery.trim());
-      const response = await axios.get(
-        `${API_URL}/cardoffice/patients/search?query=${encodedQuery}&hospital_id=${hospitalId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+const viewReportDetails = (report) => {
+  setSelectedReport(report);
+  setShowReportDetailModal(true);
+  if (!report.is_opened) markReportAsRead(report.id);
+};
 
-      if (response.data.success) {
-        setSearchResults(response.data.patients || []);
-        if (!response.data.patients || response.data.patients.length === 0) {
-          setMessage({ type: 'info', text: 'No patients found matching your search' });
-          setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-        }
-      }
-    } catch (error) {
-      console.error('Search error:', error);
-      setSearchResults([]);
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Error searching patients' });
+const markReportAsRead = async (reportId) => {
+  try {
+    const token = localStorage.getItem('token');
+    await axios.put(`${API_URL}/reports/${reportId}/read`, {}, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    fetchReportsInbox();
+  } catch (error) {
+    console.error('Error marking report as read:', error);
+  }
+};
+
+const handleSendReply = async () => {
+  if (!replyText.trim() && !replyAttachment) {
+    setMessage({ type: 'error', text: 'Please enter a reply message' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    return;
+  }
+  
+  try {
+    setLoading(true);
+    const token = localStorage.getItem('token');
+    const formData = new FormData();
+    formData.append('body', replyText);
+    if (replyAttachment) formData.append('attachment', replyAttachment);
+    
+    const res = await axios.post(`${API_URL}/reports/${selectedReport.id}/reply`, formData, {
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+    });
+
+    if (res.data.success) {
+      setMessage({ type: 'success', text: 'Reply sent successfully!' });
       setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } finally {
-      setSearching(false);
+      setShowReplyModal(false);
+      setReplyText('');
+      setReplyAttachment(null);
+      fetchReportsInbox();
+      fetchReportsOutbox();
     }
-  };
+  } catch (error) {
+    setMessage({ type: 'error', text: error.response?.data?.message || 'Error sending reply' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+  } finally {
+    setLoading(false);
+  }
+};
 
-  const handleSendToTriage = async (patient) => {
-    const reason = prompt('Enter reason for return visit:');
-    if (!reason) return;
+// ==================== PROFILE FUNCTIONS (CORRECTED) ====================
 
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.post(
-        `${API_URL}/cardoffice/patients/send-to-triage`,
-        { patientId: patient.id, reason, hospital_id: getHospitalId() },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+const fetchProfile = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    const res = await axios.get(`${API_URL}/profile`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.data.success) {
+      const staff = res.data.staff;
+      setProfileData({
+        first_name: staff.first_name || '',
+        middle_name: staff.middle_name || '',
+        last_name: staff.last_name || '',
+        gender: staff.gender || '',
+        age: staff.age || '',
+        phone: staff.phone || '',
+        email: staff.email || '',
+        department: staff.department || 'Card Office'
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+  }
+};
 
-      if (response.data.success) {
-        setMessage({ type: 'success', text: `Patient ${patient.first_name} ${patient.last_name} sent to triage` });
-        handleSearch();
-        fetchStats();
-      }
-    } catch (error) {
-      console.error('Error sending to triage:', error);
-      setMessage({ type: 'error', text: 'Error sending patient to triage' });
-    } finally {
+const updateProfile = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    const res = await axios.put(`${API_URL}/profile`, profileData, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.data.success) {
+      setIsEditingProfile(false);
+      setMessage({ type: 'success', text: 'Profile updated successfully!' });
       setTimeout(() => setMessage({ type: '', text: '' }), 3000);
     }
-  };
+  } catch (error) {
+    setMessage({ type: 'error', text: error.response?.data?.message || 'Error updating profile' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+  }
+};
 
-  const handleViewHistory = async (patient) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(
-        `${API_URL}/cardoffice/patients/${patient.id}?hospital_id=${getHospitalId()}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (response.data.success) {
-        const visitsCount = response.data.visits?.length || 0;
-        alert(`${patient.first_name} ${patient.last_name}\nCard: ${patient.card_number}\nTotal Visits: ${visitsCount}`);
-      }
-    } catch (error) {
-      console.error('Error fetching patient history:', error);
-      setMessage({ type: 'error', text: 'Error fetching patient history' });
+const changePassword = async () => {
+  if (passwordData.new_password !== passwordData.confirm_password) {
+    setMessage({ type: 'error', text: 'New passwords do not match' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    return;
+  }
+  if (passwordData.new_password.length < 6) {
+    setMessage({ type: 'error', text: 'New password must be at least 6 characters' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    return;
+  }
+  try {
+    const token = localStorage.getItem('token');
+    const res = await axios.put(`${API_URL}/change-password`, {
+      current_password: passwordData.current_password,
+      new_password: passwordData.new_password
+    }, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.data.success) {
+      setShowPasswordModal(false);
+      setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
+      setMessage({ type: 'success', text: 'Password changed successfully!' });
       setTimeout(() => setMessage({ type: '', text: '' }), 3000);
     }
-  };
+  } catch (error) {
+    setMessage({ type: 'error', text: error.response?.data?.message || 'Error changing password' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+  }
+};
 
-  const clearSearch = () => {
-    setSearchQuery('');
+// ==================== REGISTRATION (CORRECTED) ====================
+
+const handleRegister = async (e) => {
+  e.preventDefault();
+  
+  if (!validateForm()) {
+    setMessage({ type: 'error', text: 'Please fix the errors in the form before submitting' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 5000);
+    return;
+  }
+  
+  setLoading(true);
+
+  try {
+    const token = localStorage.getItem('token');
+    const cleanedFormData = {
+      ...formData,
+      phone: formData.phone.replace(/\s/g, ''),
+      hospital_id: getHospitalId()
+    };
+    
+    const response = await axios.post(
+      `${API_URL}/patients/register`,
+      cleanedFormData,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    if (response.data.success) {
+      setMessage({ type: 'success', text: `Patient ${formData.first_name} ${formData.last_name} registered! Card: ${response.data.patient.card_number}` });
+      setFormData({
+        first_name: '',
+        middle_name: '',
+        last_name: '',
+        age: '',
+        gender: 'Male',
+        phone: ''
+      });
+      setFormErrors({
+        first_name: '',
+        middle_name: '',
+        last_name: '',
+        age: '',
+        phone: ''
+      });
+      setSelectedPatient(response.data.patient);
+      setShowPrintModal(true);
+      fetchRecentPatients();
+      fetchStats();
+    }
+  } catch (error) {
+    console.error('Registration error:', error);
+    setMessage({ type: 'error', text: error.response?.data?.message || 'Error registering patient' });
+  } finally {
+    setLoading(false);
+    setTimeout(() => setMessage({ type: '', text: '' }), 5000);
+  }
+};
+
+// ==================== SEARCH (CORRECTED) ====================
+
+const handleSearch = async () => {
+  const hospitalId = getHospitalId();
+  if (!hospitalId) {
+    setMessage({ type: 'error', text: 'Hospital ID not found. Please login again.' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    return;
+  }
+  
+  if (!searchQuery.trim()) {
     setSearchResults([]);
-    setMessage({ type: '', text: '' });
-  };
+    setMessage({ type: 'error', text: 'Please enter a search term' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    return;
+  }
 
+  setSearching(true);
+  try {
+    const token = localStorage.getItem('token');
+    const encodedQuery = encodeURIComponent(searchQuery.trim());
+    const response = await axios.get(
+      `${API_URL}/patients/search?query=${encodedQuery}&hospital_id=${hospitalId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    if (response.data.success) {
+      setSearchResults(response.data.patients || []);
+      if (!response.data.patients || response.data.patients.length === 0) {
+        setMessage({ type: 'info', text: 'No patients found matching your search' });
+        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      }
+    }
+  } catch (error) {
+    console.error('Search error:', error);
+    setSearchResults([]);
+    setMessage({ type: 'error', text: error.response?.data?.message || 'Error searching patients' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+  } finally {
+    setSearching(false);
+  }
+};
+
+const handleSendToTriage = async (patient) => {
+  const reason = prompt('Enter reason for return visit:');
+  if (!reason) return;
+
+  try {
+    const token = localStorage.getItem('token');
+    const response = await axios.post(
+      `${API_URL}/patients/send-to-triage`,
+      { patientId: patient.id, reason, hospital_id: getHospitalId() },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    if (response.data.success) {
+      setMessage({ type: 'success', text: `Patient ${patient.first_name} ${patient.last_name} sent to triage` });
+      handleSearch();
+      fetchStats();
+    }
+  } catch (error) {
+    console.error('Error sending to triage:', error);
+    setMessage({ type: 'error', text: 'Error sending patient to triage' });
+  } finally {
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+  }
+};
+
+const handleViewHistory = async (patient) => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await axios.get(
+      `${API_URL}/patients/${patient.id}?hospital_id=${getHospitalId()}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    if (response.data.success) {
+      const visitsCount = response.data.visits?.length || 0;
+      alert(`${patient.first_name} ${patient.last_name}\nCard: ${patient.card_number}\nTotal Visits: ${visitsCount}`);
+    }
+  } catch (error) {
+    console.error('Error fetching patient history:', error);
+    setMessage({ type: 'error', text: 'Error fetching patient history' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+  }
+};
+
+const clearSearch = () => {
+  setSearchQuery('');
+  setSearchResults([]);
+  setMessage({ type: '', text: '' });
+};
   // ==================== SOCKET CONNECTION ====================
   const initializeSocket = () => {
     const token = localStorage.getItem('token');
