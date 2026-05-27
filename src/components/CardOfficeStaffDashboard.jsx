@@ -276,7 +276,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     setScheduleLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/cardoffice/schedule/my`, {
+      const response = await axios.get(`${API_URL}/cardoffice/my-schedule`, {
         params: { hospital_id: hospitalId },
         headers: { Authorization: `Bearer ${token}` }
       });
