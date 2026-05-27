@@ -111,7 +111,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
 
   const navigate = useNavigate();
   
-  // ✅ FIXED: Add /api to the base URL so you don't need to add it in each call
+  // ✅ CORRECT: API_URL includes /api
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
   const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001';
 
@@ -307,8 +307,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const fetchRecentPatients = async () => {
     try {
       const token = localStorage.getItem('token');
-      // ✅ FIXED: Removed /api since it's now in API_URL
-      const response = await axios.get(`${API_URL}/cardoffice/patients/recent`, {
+      const response = await axios.get(`${API_URL}/api/cardoffice/patients/recent`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.success) {
@@ -322,8 +321,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const fetchStats = async () => {
     try {
       const token = localStorage.getItem('token');
-      // ✅ FIXED: Removed /api since it's now in API_URL
-      const response = await axios.get(`${API_URL}/cardoffice/stats`, {
+      const response = await axios.get(`${API_URL}/api/cardoffice/stats`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.success) {
@@ -339,8 +337,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      // ✅ FIXED: Removed /api since it's now in API_URL
-      const res = await axios.get(`${API_URL}/cardoffice/reports/inbox`, {
+      const res = await axios.get(`${API_URL}/api/cardoffice/reports/inbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -358,8 +355,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      // ✅ FIXED: Removed /api since it's now in API_URL
-      const res = await axios.get(`${API_URL}/cardoffice/reports/outbox`, {
+      const res = await axios.get(`${API_URL}/api/cardoffice/reports/outbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -375,7 +371,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const fetchHospitalAdmins = async () => {
     try {
       const token = localStorage.getItem('token');
-      // ✅ FIXED: Removed /api since it's now in API_URL
       const res = await axios.get(`${API_URL}/cardoffice/hospital-admins`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -410,8 +405,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       formData.append('recipient_id', sendReportForm.recipient_id);
       sendReportForm.attachments.forEach((file) => formData.append('attachments', file));
       
-      // ✅ FIXED: Removed /api since it's now in API_URL
-      const res = await axios.post(`${API_URL}/cardoffice/reports/send`, formData, {
+      const res = await axios.post(`${API_URL}/api/cardoffice/reports/send`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
 
@@ -447,8 +441,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const markReportAsRead = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      // ✅ FIXED: Removed /api since it's now in API_URL
-      await axios.put(`${API_URL}/cardoffice/reports/${reportId}/read`, {}, {
+      await axios.put(`${API_URL}/api/cardoffice/reports/${reportId}/read`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchReportsInbox();
@@ -471,8 +464,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       formData.append('body', replyText);
       if (replyAttachment) formData.append('attachment', replyAttachment);
       
-      // ✅ FIXED: Removed /api since it's now in API_URL
-      const res = await axios.post(`${API_URL}/cardoffice/reports/${selectedReport.id}/reply`, formData, {
+      const res = await axios.post(`${API_URL}/api/cardoffice/reports/${selectedReport.id}/reply`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
 
@@ -497,8 +489,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      // ✅ FIXED: Removed /api since it's now in API_URL
-      const res = await axios.get(`${API_URL}/cardoffice/profile`, {
+      const res = await axios.get(`${API_URL}/api/cardoffice/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -522,7 +513,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const updateProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      // ✅ FIXED: Removed /api since it's now in API_URL
       const res = await axios.put(`${API_URL}/cardoffice/profile`, profileData, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -545,8 +535,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     }
     try {
       const token = localStorage.getItem('token');
-      // ✅ FIXED: Removed /api since it's now in API_URL
-      const res = await axios.put(`${API_URL}/cardoffice/change-password`, {
+      const res = await axios.put(`${API_URL}api//cardoffice/change-password`, {
         current_password: passwordData.current_password,
         new_password: passwordData.new_password
       }, { headers: { Authorization: `Bearer ${token}` } });
@@ -582,7 +571,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
         phone: formData.phone.replace(/\s/g, '')
       };
       
-      // ✅ FIXED: Removed /api since it's now in API_URL
       const response = await axios.post(
         `${API_URL}/cardoffice/patients/register`,
         cleanedFormData,
@@ -633,9 +621,8 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       const encodedQuery = encodeURIComponent(searchQuery.trim());
-      // ✅ FIXED: Removed /api since it's now in API_URL
       const response = await axios.get(
-        `${API_URL}/cardoffice/patients/search?query=${encodedQuery}`,
+        `${API_URL}/api/cardoffice/patients/search?query=${encodedQuery}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -662,7 +649,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
 
     try {
       const token = localStorage.getItem('token');
-      // ✅ FIXED: Removed /api since it's now in API_URL
       const response = await axios.post(
         `${API_URL}/cardoffice/patients/send-to-triage`,
         { patientId: patient.id, reason },
@@ -685,7 +671,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const handleViewHistory = async (patient) => {
     try {
       const token = localStorage.getItem('token');
-      // ✅ FIXED: Removed /api since it's now in API_URL
       const response = await axios.get(
         `${API_URL}/cardoffice/patients/${patient.id}`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -862,7 +847,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
           </div>
 
           <nav className="space-y-1">
-            {/* Register Patient */}
             <button onClick={() => { setActiveTab('register'); setShowScheduleView(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
               activeTab === 'register' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
@@ -870,7 +854,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
               {!sidebarCollapsed && <span>Register Patient</span>}
             </button>
 
-            {/* Search Patients */}
             <button onClick={() => { setActiveTab('search'); setShowScheduleView(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
               activeTab === 'search' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
@@ -878,7 +861,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
               {!sidebarCollapsed && <span>Search Patients</span>}
             </button>
 
-            {/* Recent Registrations */}
             <button onClick={() => { setActiveTab('recent'); setShowScheduleView(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
               activeTab === 'recent' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
@@ -888,7 +870,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
 
             <div className="h-px bg-slate-700/50 my-3 mx-2"></div>
 
-            {/* Inbox */}
             <button onClick={() => { setActiveTab('inbox'); setShowScheduleView(false); fetchReportsInbox(); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm relative ${sidebarCollapsed ? 'justify-center' : ''} ${
               activeTab === 'inbox' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
@@ -901,7 +882,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
               )}
             </button>
 
-            {/* Sent Reports */}
             <button onClick={() => { setActiveTab('outbox'); setShowScheduleView(false); fetchReportsOutbox(); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
               activeTab === 'outbox' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
@@ -909,7 +889,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
               {!sidebarCollapsed && <span>Sent Reports</span>}
             </button>
 
-            {/* Statistics */}
             <button onClick={() => { setActiveTab('reports'); setShowScheduleView(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
               activeTab === 'reports' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
@@ -917,7 +896,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
               {!sidebarCollapsed && <span>Statistics</span>}
             </button>
 
-            {/* ==================== MY SCHEDULE ==================== */}
             <button 
               onClick={() => { setActiveTab('schedule'); setShowScheduleView(true); }} 
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
@@ -930,7 +908,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
 
             <div className="h-px bg-slate-700/50 my-3 mx-2"></div>
 
-            {/* Profile */}
             <button onClick={() => { setActiveTab('profile'); setShowScheduleView(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${sidebarCollapsed ? 'justify-center' : ''} ${
               activeTab === 'profile' && !showScheduleView ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg' : 'hover:bg-slate-700'
             }`}>
@@ -1018,7 +995,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
 
         {/* Main Content */}
         <div className="max-w-[1600px] mx-auto p-8">
-          {/* Message Display */}
           {message.text && (
             <div className={`mb-6 p-4 rounded-xl border-l-4 ${message.type === 'error' ? 'bg-red-50 border-red-500 text-red-700' : 'bg-green-50 border-green-500 text-green-700'} flex justify-between items-center`}>
               <span>{message.text}</span>
@@ -1026,7 +1002,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
             </div>
           )}
 
-          {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
             <div className="bg-gradient-to-br from-blue-500 to-indigo-500 rounded-2xl p-5 text-white shadow-lg">
               <p className="text-sm opacity-90 mb-1">Today's Registrations</p>
@@ -1320,7 +1295,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                             <td className="px-4 py-3 text-sm text-gray-500">
                               {new Date(patient.registered_at).toLocaleString()}
                             </td>
-                          \)
+                          </tr>
                         );
                       })}
                     </tbody>
@@ -1440,7 +1415,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                 </button>
               </div>
               
-              {/* Schedule Viewer Component */}
               <ScheduleViewer user={user} compact={false} />
             </div>
           )}
@@ -1490,7 +1464,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Personal Info Card */}
                   <div className="bg-gray-50 rounded-xl p-5">
                     <h4 className="font-semibold text-blue-600 mb-4 flex items-center gap-2">
                       <FaUserCircle /> Personal Info
@@ -1570,7 +1543,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                     </div>
                   </div>
                   
-                  {/* Account Settings Card */}
                   <div className="bg-gray-50 rounded-xl p-5">
                     <h4 className="font-semibold text-blue-600 mb-4 flex items-center gap-2">
                       <FaKey /> Account Settings
@@ -1605,7 +1577,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
         </div>
       </div>
 
-      {/* Print Card Modal */}
+      {/* Modals - Print Card, Send Report, Report Detail, Reply, Change Password */}
       {showPrintModal && selectedPatient && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
@@ -1614,17 +1586,14 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                 <h2 className="text-xl font-bold text-gray-800">Patient Card</h2>
                 <button onClick={() => { setShowPrintModal(false); setSelectedPatient(null); }} className="p-2 hover:bg-gray-100 rounded-full">×</button>
               </div>
-
               <div className="border-2 border-blue-600 rounded-xl p-5 bg-gradient-to-br from-blue-50 to-white">
                 <div className="text-center mb-4">
                   <h3 className="text-lg font-bold text-blue-800 mb-1">{user?.hospital_name}</h3>
                   <p className="text-xs text-gray-500">Patient Identification Card</p>
                 </div>
-
                 <div className="text-center mb-4">
                   <span className="text-2xl font-mono font-bold text-blue-600">{selectedPatient.card_number}</span>
                 </div>
-
                 <div className="text-center">
                   <p className="text-lg font-semibold text-gray-800 mb-1">
                     {selectedPatient.first_name} {selectedPatient.middle_name || ''} {selectedPatient.last_name}
@@ -1633,7 +1602,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                   {selectedPatient.phone && <p className="text-sm text-gray-600">📞 {selectedPatient.phone}</p>}
                 </div>
               </div>
-
               <div className="flex justify-end gap-3 mt-6">
                 <button onClick={() => { setShowPrintModal(false); setSelectedPatient(null); }} className="px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition">Close</button>
                 <button onClick={() => window.print()} className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition">Print Card</button>
@@ -1643,7 +1611,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
         </div>
       )}
 
-      {/* Send Report Modal */}
       {showSendReportModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
@@ -1697,7 +1664,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
         </div>
       )}
 
-      {/* Report Detail Modal */}
       {showReportDetailModal && selectedReport && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
@@ -1726,7 +1692,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
         </div>
       )}
 
-      {/* Reply Modal */}
       {showReplyModal && selectedReport && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
@@ -1757,7 +1722,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
         </div>
       )}
 
-      {/* Change Password Modal */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
