@@ -1,4 +1,4 @@
-// frontend/src/components/CardOfficeDashboard.jsx (COMPLETE WORKING VERSION)
+// frontend/src/components/CardOfficeDashboard.jsx
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -16,7 +16,7 @@ import {
 } from 'react-icons/fa';
 
 const CardOfficeDashboard = ({ user, onLogout }) => {
-  // ==================== HELPER: Get Hospital ID (SIMPLIFIED - like Laboratory Dashboard) ====================
+  // ==================== HELPER: Get Hospital ID (SIMPLE - like lab dashboard) ====================
   const getHospitalId = () => {
     return user?.hospital_id || user?.hospitalId;
   };
@@ -97,7 +97,11 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   // ==================== SCHEDULE STATES ====================
   const [schedules, setSchedules] = useState([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
-  const [scheduleStats, setScheduleStats] = useState({ today: { shift_count: 0, total_hours: 0 }, this_week: { shift_count: 0, total_hours: 0 }, total_hours: 0 });
+  const [scheduleStats, setScheduleStats] = useState({ 
+    today: { shift_count: 0, total_hours: 0 }, 
+    this_week: { shift_count: 0, total_hours: 0 }, 
+    total_hours: 0 
+  });
   
   // ==================== PROFILE STATES ====================
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -233,7 +237,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // ==================== FETCH DATA ====================
+  // ==================== FETCH DATA (with hospital_id as query param) ====================
   const fetchRecentPatients = async () => {
     const hospitalId = getHospitalId();
     if (!hospitalId) {
@@ -276,17 +280,10 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
 
   // ==================== SCHEDULE FUNCTIONS ====================
   const fetchMySchedule = async () => {
-    const hospitalId = getHospitalId();
-    if (!hospitalId) {
-      console.warn('No hospital_id available for fetchMySchedule');
-      return;
-    }
-    
     setScheduleLoading(true);
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${API_URL}/cardoffice/my-schedule`, {
-        params: { hospital_id: hospitalId },
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.success) {
@@ -394,7 +391,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       formData.append('priority', sendReportForm.priority);
       formData.append('recipient_type', sendReportForm.recipient_type);
       formData.append('recipient_id', sendReportForm.recipient_id);
-      formData.append('hospital_id', getHospitalId());
       sendReportForm.attachments.forEach((file) => formData.append('attachments', file));
       
       const res = await axios.post(`${API_URL}/cardoffice/reports/send`, formData, {
@@ -432,10 +428,9 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const markReportAsRead = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/cardoffice/reports/${reportId}/read`, 
-        { hospital_id: getHospitalId() },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await axios.put(`${API_URL}/cardoffice/reports/${reportId}/read`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       fetchReportsInbox();
     } catch (error) {
       console.error('Error marking report as read:', error);
@@ -454,7 +449,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       const token = localStorage.getItem('token');
       const formData = new FormData();
       formData.append('body', replyText);
-      formData.append('hospital_id', getHospitalId());
       if (replyAttachment) formData.append('attachment', replyAttachment);
       
       const res = await axios.post(`${API_URL}/cardoffice/reports/${selectedReport.id}/reply`, formData, {
@@ -480,16 +474,9 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
 
   // ==================== PROFILE FUNCTIONS ====================
   const fetchProfile = async () => {
-    const hospitalId = getHospitalId();
-    if (!hospitalId) {
-      console.warn('No hospital_id available for fetchProfile');
-      return;
-    }
-    
     try {
       const token = localStorage.getItem('token');
       const res = await axios.get(`${API_URL}/cardoffice/profile`, {
-        params: { hospital_id: hospitalId },
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -511,13 +498,11 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   };
 
   const updateProfile = async () => {
-    const hospitalId = getHospitalId();
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/cardoffice/profile`, 
-        { ...profileData, hospital_id: hospitalId },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await axios.put(`${API_URL}/cardoffice/profile`, profileData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (res.data.success) {
         setIsEditingProfile(false);
         setMessage({ type: 'success', text: 'Profile updated successfully!' });
@@ -544,8 +529,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       const token = localStorage.getItem('token');
       const res = await axios.put(`${API_URL}/cardoffice/change-password`, {
         current_password: passwordData.current_password,
-        new_password: passwordData.new_password,
-        hospital_id: getHospitalId()
+        new_password: passwordData.new_password
       }, { headers: { Authorization: `Bearer ${token}` } });
       if (res.data.success) {
         setShowPasswordModal(false);
@@ -741,7 +725,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
 
     socket.current.on('patient_registered', (data) => {
       const hospitalId = getHospitalId();
-      if (data.hospital_id === hospitalId) {
+      if (data.hospital_id == hospitalId) {
         setRealTimeNotification({
           id: Date.now(),
           type: 'new_patient',
@@ -845,8 +829,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
 
   // ==================== INITIAL LOAD ====================
   useEffect(() => {
-    const hospitalId = getHospitalId();
-    if (!hospitalId) {
+    if (!getHospitalId()) {
       console.warn('No hospital_id available on initial load');
       return;
     }
@@ -869,7 +852,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       if (socket.current) socket.current.disconnect();
       clearInterval(interval);
     };
-  }, [user?.hospital_id, user?.hospitalId]);
+  }, []);
 
   // ==================== RENDER ====================
   return (
@@ -907,7 +890,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
         .white-blue-card:hover { box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15) !important; border-color: #3b82f6 !important; }
       `}</style>
 
-      {/* Sidebar */}
+      {/* Sidebar - Same as before */}
       <div className={`bg-gradient-to-b from-slate-900 to-slate-800 text-white transition-all duration-300 ${
         sidebarCollapsed ? 'w-24' : 'w-72'
       } shadow-2xl flex flex-col h-screen sticky top-0 z-50`}>
@@ -1009,9 +992,9 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Main Content - Keep all the tabs rendering from your original component */}
       <div className="flex-1 overflow-y-auto">
-        {/* Header */}
+        {/* Header - Keep from original */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 py-8 px-10 shadow-xl sticky top-0 z-40">
           <div className="max-w-[1600px] mx-auto flex justify-between items-center flex-wrap gap-5">
             <div className="flex items-center gap-5">
@@ -1085,7 +1068,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
           </div>
         </div>
 
-        {/* Main Content Area */}
+        {/* Main Content Area - Keep all tabs from your original component */}
         <div className="max-w-[1600px] mx-auto p-10">
           {/* Message Display */}
           {message.text && (
@@ -1321,7 +1304,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                 </button>
               </div>
 
-              {/* Schedule Stats Summary */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="bg-blue-50 rounded-xl p-4 text-center">
                   <p className={`text-blue-600 ${textSizeClasses.base}`}>Today's Shifts</p>
