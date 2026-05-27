@@ -4,11 +4,14 @@ import axios from 'axios';
 import { io } from 'socket.io-client';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  FaIdCard, FaUserPlus, FaSearch, FaHistory, FaInbox, FaPaperPlane, 
-  FaChartBar, FaCalendarAlt, FaUserCircle, FaSignOutAlt, FaChevronLeft, 
-  FaChevronRight, FaSpinner, FaCheck, FaEdit, FaSave, FaKey, FaReply,
-  FaEnvelope, FaEnvelopeOpen, FaHeartbeat, FaSync, FaTextHeight, FaUndo,
-  FaPhone, FaVenusMars, FaCalendarWeek, FaClock, FaExclamationTriangle
+  FaIdCard, FaUserPlus, FaSearch, FaHistory, FaChartBar,
+  FaClock, FaCalendarAlt, FaSync, FaPlus, FaEdit, FaTrash,
+  FaUserCircle, FaSignOutAlt, FaChevronLeft, FaChevronRight,
+  FaInbox, FaPaperPlane, FaEnvelope, FaEnvelopeOpen, FaReply,
+  FaKey, FaSave, FaSpinner, FaCheck, FaTimes, FaEye,
+  FaPhone, FaVenusMars, FaCalendarDay, FaHospital,
+  FaRegClock, FaExclamationTriangle, FaBell, FaTextHeight,
+  FaUndo, FaUserMd, FaHeartbeat, FaCreditCard
 } from 'react-icons/fa';
 import ScheduleViewer from '../components/ScheduleViewer';
 
@@ -19,6 +22,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [connectionStatus, setConnectionStatus] = useState('connecting');
+  const [realTimeNotification, setRealTimeNotification] = useState(null);
   const [showScheduleView, setShowScheduleView] = useState(false);
   
   // ==================== TEXT SIZE STATE ====================
@@ -76,7 +80,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const [showSendReportModal, setShowSendReportModal] = useState(false);
   const [hospitalAdmins, setHospitalAdmins] = useState([]);
   const [sendReportForm, setSendReportForm] = useState({
-    recipient_type: 'hospital_admin',
+    recipient_type: 'hospital',
     recipient_id: '',
     title: '',
     body: '',
@@ -104,15 +108,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     new_password: '',
     confirm_password: ''
   });
-  
-  // ==================== SOCKET STATES ====================
-  const socketRef = useRef(null);
-  const [realTimeNotification, setRealTimeNotification] = useState(null);
-
-  const navigate = useNavigate();
-  
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
-  const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001';
 
   // ==================== TEXT SIZE STYLES ====================
   const getTextSizeClasses = () => {
@@ -132,13 +127,14 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   
   const textSizeClasses = getTextSizeClasses();
   
+  // Apply text size to body
   useEffect(() => {
     document.documentElement.style.fontSize = 
       textSize === 'small' ? '13px' : 
       textSize === 'normal' ? '15px' : 
       textSize === 'large' ? '17px' : '19px';
   }, [textSize]);
-
+  
   // ==================== BACK NAVIGATION HANDLER ====================
   const handleTabChange = (tab, isSchedule = false) => {
     if (tab !== activeTab || isSchedule !== showScheduleView) {
@@ -157,7 +153,12 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // ==================== FORMAT FULL NAME ====================
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+  const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001';
+  const socket = useRef(null);
+  const navigate = useNavigate();
+
+  // ==================== HELPER FUNCTIONS ====================
   const formatFullName = (staffMember) => {
     if (!staffMember) return 'Unknown';
     const firstName = staffMember.first_name || '';
@@ -166,57 +167,50 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     return `${firstName}${middleName} ${lastName}`.trim();
   };
 
+  // ==================== LOGOUT WITH CONFIRMATION ====================
+  const handleLogoutClick = () => {
+    setShowLogoutConfirm(true);
+  };
+  
+  const handleConfirmLogout = () => {
+    if (socket.current) socket.current.disconnect();
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    if (onLogout) onLogout();
+    navigate('/login');
+  };
+  
+  const handleCancelLogout = () => {
+    setShowLogoutConfirm(false);
+  };
+
   // ==================== VALIDATION FUNCTIONS ====================
   const validateName = (name, fieldName) => {
-    if (!name.trim()) {
-      return `${fieldName} is required`;
-    }
+    if (!name.trim()) return `${fieldName} is required`;
     const nameRegex = /^[A-Za-z\s\-']+$/;
-    if (!nameRegex.test(name)) {
-      return `${fieldName} can only contain letters, spaces, hyphens, and apostrophes`;
-    }
-    if (name.length < 2) {
-      return `${fieldName} must be at least 2 characters`;
-    }
-    if (name.length > 50) {
-      return `${fieldName} must be less than 50 characters`;
-    }
+    if (!nameRegex.test(name)) return `${fieldName} can only contain letters, spaces, hyphens, and apostrophes`;
+    if (name.length < 2) return `${fieldName} must be at least 2 characters`;
+    if (name.length > 50) return `${fieldName} must be less than 50 characters`;
     return '';
   };
 
   const validateAge = (age) => {
-    if (!age) {
-      return 'Age is required';
-    }
+    if (!age) return 'Age is required';
     const ageNum = Number(age);
-    if (isNaN(ageNum)) {
-      return 'Age must be a number';
-    }
-    if (!Number.isInteger(ageNum)) {
-      return 'Age must be a whole number';
-    }
-    if (ageNum < 0) {
-      return 'Age cannot be negative';
-    }
-    if (ageNum > 120) {
-      return 'Age must be less than 120';
-    }
+    if (isNaN(ageNum)) return 'Age must be a number';
+    if (!Number.isInteger(ageNum)) return 'Age must be a whole number';
+    if (ageNum < 0) return 'Age cannot be negative';
+    if (ageNum > 120) return 'Age must be less than 120';
     return '';
   };
 
   const validatePhone = (phone) => {
     if (!phone) return '';
     const phoneRegex = /^[0-9\s\-+()]+$/;
-    if (!phoneRegex.test(phone)) {
-      return 'Phone can only contain numbers, spaces, and + - ( )';
-    }
+    if (!phoneRegex.test(phone)) return 'Phone can only contain numbers, spaces, and + - ( )';
     const digitsOnly = phone.replace(/\D/g, '');
-    if (digitsOnly.length < 10) {
-      return 'Phone must have at least 10 digits';
-    }
-    if (digitsOnly.length > 15) {
-      return 'Phone must have less than 15 digits';
-    }
+    if (digitsOnly.length < 10) return 'Phone must have at least 10 digits';
+    if (digitsOnly.length > 15) return 'Phone must have less than 15 digits';
     return '';
   };
 
@@ -232,114 +226,15 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     return !Object.values(errors).some(error => error !== '');
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-    if (formErrors[name]) {
-      setFormErrors({ ...formErrors, [name]: '' });
-    }
-  };
-
-  // ==================== SOCKET CONNECTION ====================
-  const initializeSocket = () => {
-    const token = localStorage.getItem('token');
-    
-    socketRef.current = io(SOCKET_URL, {
-      auth: { token },
-      transports: ['polling', 'websocket'],
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 2000
-    });
-
-    socketRef.current.on('connect', () => {
-      console.log('✅ Card office socket connected');
-      setConnectionStatus('connected');
-      if (user?.hospital_id) {
-        socketRef.current.emit('join_cardoffice', user.hospital_id);
-      }
-    });
-
-    socketRef.current.on('connect_error', (error) => {
-      console.error('❌ Socket connection error:', error);
-      setConnectionStatus('disconnected');
-    });
-    
-    socketRef.current.on('disconnect', () => {
-      console.log('🔌 Socket disconnected');
-      setConnectionStatus('disconnected');
-    });
-
-    socketRef.current.on('patient_registered', (data) => {
-      if (data.hospital_id === user?.hospital_id) {
-        fetchRecentPatients();
-        fetchStats();
-        setRealTimeNotification({
-          id: Date.now(),
-          type: 'new_patient',
-          title: 'New Patient Registered',
-          message: `${data.patient_name} - Card: ${data.card_number}`,
-          priority: 'medium',
-          timestamp: new Date()
-        });
-        setTimeout(() => setRealTimeNotification(null), 6000);
-      }
-    });
-
-    socketRef.current.on('new_report_from_hospital', (data) => {
-      setRealTimeNotification({
-        id: Date.now(),
-        type: 'report',
-        title: 'New Report',
-        message: `Hospital Admin sent: "${data.title}"`,
-        priority: data.priority,
-        timestamp: new Date()
-      });
-      fetchReportsInbox();
-      setTimeout(() => setRealTimeNotification(null), 6000);
-    });
-
-    socketRef.current.on('report_reply_from_hospital', (data) => {
-      setRealTimeNotification({
-        id: Date.now(),
-        type: 'reply',
-        title: 'New Reply',
-        message: `Hospital Admin replied to: "${data.title}"`,
-        priority: data.priority,
-        timestamp: new Date()
-      });
-      fetchReportsInbox();
-      setTimeout(() => setRealTimeNotification(null), 6000);
-    });
-
-    socketRef.current.on('weekly_schedule_ready', (data) => {
-      if (showScheduleView) {
-        setRealTimeNotification({
-          id: Date.now(),
-          type: 'weekly_schedule',
-          title: 'Weekly Schedule Ready',
-          message: `Your schedule for ${data.week_range} is ready.`,
-          priority: 'high',
-          timestamp: new Date()
-        });
-        const event = new CustomEvent('refreshSchedule');
-        window.dispatchEvent(event);
-        setTimeout(() => setRealTimeNotification(null), 10000);
-      }
-    });
-  };
-
-  // ==================== FETCH DATA (WITH HOSPITAL ID) ====================
+  // ==================== FETCH DATA ====================
   const fetchRecentPatients = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/api/cardoffice/patients/recent`, {
+      const response = await axios.get(`${API_URL}/cardoffice/patients/recent`, {
         params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (response.data.success) {
-        setRecentPatients(response.data.patients);
-      }
+      if (response.data.success) setRecentPatients(response.data.patients);
     } catch (error) {
       console.error('Error fetching recent patients:', error);
     }
@@ -348,24 +243,22 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const fetchStats = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/api/cardoffice/stats`, {
+      const response = await axios.get(`${API_URL}/cardoffice/stats`, {
         params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (response.data.success) {
-        setStats(response.data.stats);
-      }
+      if (response.data.success) setStats(response.data.stats);
     } catch (error) {
       console.error('Error fetching stats:', error);
     }
   };
 
-  // ==================== REPORT FUNCTIONS (WITH HOSPITAL ID) ====================
+  // ==================== REPORT FUNCTIONS ====================
   const fetchReportsInbox = async () => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/cardoffice/reports/inbox`, {
+      const res = await axios.get(`${API_URL}/cardoffice/reports/inbox`, {
         params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -384,13 +277,11 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/cardoffice/reports/outbox`, {
+      const res = await axios.get(`${API_URL}/cardoffice/reports/outbox`, {
         params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (res.data.success) {
-        setReportsOutbox(res.data.reports);
-      }
+      if (res.data.success) setReportsOutbox(res.data.reports);
     } catch (error) {
       console.error('Error fetching reports outbox:', error);
     } finally {
@@ -401,7 +292,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const fetchHospitalAdmins = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/cardoffice/hospital-admins`, {
+      const res = await axios.get(`${API_URL}/cardoffice/hospital-admins`, {
         params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -437,7 +328,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       formData.append('hospital_id', user?.hospital_id);
       sendReportForm.attachments.forEach((file) => formData.append('attachments', file));
       
-      const res = await axios.post(`${API_URL}/api/cardoffice/reports/send`, formData, {
+      const res = await axios.post(`${API_URL}/cardoffice/reports/send`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
 
@@ -446,7 +337,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
         setTimeout(() => setMessage({ type: '', text: '' }), 3000);
         setShowSendReportModal(false);
         setSendReportForm({
-          recipient_type: 'hospital_admin',
+          recipient_type: 'hospital',
           recipient_id: '',
           title: '',
           body: '',
@@ -472,7 +363,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const markReportAsRead = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/cardoffice/reports/${reportId}/read`, 
+      await axios.put(`${API_URL}/cardoffice/reports/${reportId}/read`, 
         { hospital_id: user?.hospital_id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -497,7 +388,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       formData.append('hospital_id', user?.hospital_id);
       if (replyAttachment) formData.append('attachment', replyAttachment);
       
-      const res = await axios.post(`${API_URL}/api/cardoffice/reports/${selectedReport.id}/reply`, formData, {
+      const res = await axios.post(`${API_URL}/cardoffice/reports/${selectedReport.id}/reply`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
 
@@ -518,11 +409,11 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // ==================== PROFILE FUNCTIONS (WITH HOSPITAL ID) ====================
+  // ==================== PROFILE FUNCTIONS ====================
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/cardoffice/profile`, {
+      const res = await axios.get(`${API_URL}/cardoffice/profile`, {
         params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -547,7 +438,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
   const updateProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/cardoffice/profile`, 
+      const res = await axios.put(`${API_URL}/cardoffice/profile`, 
         { ...profileData, hospital_id: user?.hospital_id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -570,7 +461,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     }
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/cardoffice/change-password`, {
+      const res = await axios.put(`${API_URL}/cardoffice/change-password`, {
         current_password: passwordData.current_password,
         new_password: passwordData.new_password,
         hospital_id: user?.hospital_id
@@ -587,7 +478,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // ==================== REGISTRATION FUNCTIONS (WITH HOSPITAL ID) ====================
+  // ==================== REGISTRATION FUNCTIONS ====================
   const handleRegister = async (e) => {
     e.preventDefault();
     
@@ -609,7 +500,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       };
       
       const response = await axios.post(
-        `${API_URL}/api/cardoffice/patients/register`,
+        `${API_URL}/cardoffice/patients/register`,
         cleanedFormData,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -645,7 +536,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // ==================== SEARCH FUNCTIONS (WITH HOSPITAL ID) ====================
+  // ==================== SEARCH FUNCTIONS ====================
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
@@ -659,7 +550,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       const token = localStorage.getItem('token');
       const encodedQuery = encodeURIComponent(searchQuery.trim());
       const response = await axios.get(
-        `${API_URL}/api/cardoffice/patients/search?query=${encodedQuery}&hospital_id=${user?.hospital_id}`,
+        `${API_URL}/cardoffice/patients/search?query=${encodedQuery}&hospital_id=${user?.hospital_id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -687,7 +578,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        `${API_URL}/api/cardoffice/patients/send-to-triage`,
+        `${API_URL}/cardoffice/patients/send-to-triage`,
         { patientId: patient.id, reason, hospital_id: user?.hospital_id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -705,29 +596,99 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     }
   };
 
-  const handleViewHistory = async (patient) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(
-        `${API_URL}/api/cardoffice/patients/${patient.id}?hospital_id=${user?.hospital_id}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (response.data.success) {
-        const visitsCount = response.data.visits?.length || 0;
-        alert(`${patient.first_name} ${patient.last_name}\nCard: ${patient.card_number}\nTotal Visits: ${visitsCount}`);
-      }
-    } catch (error) {
-      console.error('Error fetching patient history:', error);
-      setMessage({ type: 'error', text: 'Error fetching patient history' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    }
-  };
-
   const clearSearch = () => {
     setSearchQuery('');
     setSearchResults([]);
     setMessage({ type: '', text: '' });
+  };
+
+  // ==================== SOCKET CONNECTION ====================
+  const initializeSocket = () => {
+    const token = localStorage.getItem('token');
+    
+    socket.current = io(SOCKET_URL, {
+      auth: { token },
+      transports: ['polling', 'websocket'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 2000
+    });
+
+    socket.current.on('connect', () => {
+      console.log('✅ Card Office socket connected');
+      setConnectionStatus('connected');
+      if (user?.hospital_id) {
+        socket.current.emit('join_cardoffice', user.hospital_id);
+      }
+    });
+
+    socket.current.on('connect_error', (error) => {
+      console.error('❌ Socket connection error:', error);
+      setConnectionStatus('disconnected');
+    });
+    
+    socket.current.on('disconnect', () => {
+      console.log('🔌 Socket disconnected');
+      setConnectionStatus('disconnected');
+    });
+
+    socket.current.on('patient_registered', (data) => {
+      if (data.hospital_id === user?.hospital_id) {
+        setRealTimeNotification({
+          id: Date.now(),
+          type: 'new_patient',
+          title: 'New Patient Registered',
+          message: `${data.patient_name} - Card: ${data.card_number}`,
+          priority: 'medium',
+          timestamp: new Date()
+        });
+        fetchRecentPatients();
+        fetchStats();
+        setTimeout(() => setRealTimeNotification(null), 6000);
+      }
+    });
+
+    socket.current.on('new_report_from_hospital', (data) => {
+      setRealTimeNotification({
+        id: Date.now(),
+        type: 'report',
+        title: 'New Report',
+        message: `Hospital Admin sent: "${data.title}"`,
+        priority: data.priority,
+        timestamp: new Date()
+      });
+      fetchReportsInbox();
+      setTimeout(() => setRealTimeNotification(null), 6000);
+    });
+
+    socket.current.on('report_reply_from_hospital', (data) => {
+      setRealTimeNotification({
+        id: Date.now(),
+        type: 'reply',
+        title: 'New Reply',
+        message: `Hospital Admin replied to: "${data.title}"`,
+        priority: data.priority,
+        timestamp: new Date()
+      });
+      fetchReportsInbox();
+      setTimeout(() => setRealTimeNotification(null), 6000);
+    });
+
+    socket.current.on('weekly_schedule_ready', (data) => {
+      if (showScheduleView) {
+        setRealTimeNotification({
+          id: Date.now(),
+          type: 'weekly_schedule',
+          title: 'Weekly Schedule Ready',
+          message: `Your schedule for ${data.week_range} is ready.`,
+          priority: 'high',
+          timestamp: new Date()
+        });
+        const event = new CustomEvent('refreshSchedule');
+        window.dispatchEvent(event);
+        setTimeout(() => setRealTimeNotification(null), 10000);
+      }
+    });
   };
 
   // ==================== UI HELPER FUNCTIONS ====================
@@ -820,23 +781,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     );
   };
 
-  // ==================== LOGOUT WITH CONFIRMATION ====================
-  const handleLogoutClick = () => {
-    setShowLogoutConfirm(true);
-  };
-  
-  const handleConfirmLogout = () => {
-    if (socketRef.current) socketRef.current.disconnect();
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    if (onLogout) onLogout();
-    navigate('/login');
-  };
-  
-  const handleCancelLogout = () => {
-    setShowLogoutConfirm(false);
-  };
-
   // ==================== INITIAL LOAD ====================
   useEffect(() => {
     if (!user?.hospital_id) return;
@@ -855,7 +799,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
     }, 30000);
 
     return () => {
-      if (socketRef.current) socketRef.current.disconnect();
+      if (socket.current) socket.current.disconnect();
       clearInterval(interval);
     };
   }, [user?.hospital_id]);
@@ -1059,14 +1003,14 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                   </div>
                   <div>
                     <h1 className={`font-bold text-white m-0 drop-shadow-md tracking-tight ${textSizeClasses.title}`}>
-                      {activeTab === 'register' && 'Register New Patient'}
-                      {activeTab === 'search' && 'Search Patients'}
-                      {activeTab === 'recent' && 'Recent Registrations'}
-                      {activeTab === 'inbox' && 'Reports - Inbox'}
-                      {activeTab === 'outbox' && 'Reports - Sent'}
-                      {activeTab === 'reports' && 'Card Office Statistics'}
+                      {activeTab === 'register' && !showScheduleView && 'Register New Patient'}
+                      {activeTab === 'search' && !showScheduleView && 'Search Patients'}
+                      {activeTab === 'recent' && !showScheduleView && 'Recent Registrations'}
+                      {activeTab === 'inbox' && !showScheduleView && 'Reports - Inbox'}
+                      {activeTab === 'outbox' && !showScheduleView && 'Reports - Sent'}
+                      {activeTab === 'reports' && !showScheduleView && 'Card Office Statistics'}
                       {showScheduleView && 'My Work Schedule'}
-                      {activeTab === 'profile' && 'My Profile'}
+                      {activeTab === 'profile' && !showScheduleView && 'My Profile'}
                     </h1>
                     <p className={`text-white/90 mt-2 flex items-center gap-3 flex-wrap ${textSizeClasses.base}`}>
                       <span>{formatFullName(user)}</span>
@@ -1117,7 +1061,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
               <button onClick={() => { setShowSendReportModal(true); fetchHospitalAdmins(); }} className="bg-white/20 backdrop-blur px-5 py-3 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg font-medium">
                 <FaPaperPlane className="text-base" /> Send Report
               </button>
-              <button onClick={() => { fetchRecentPatients(); fetchStats(); }} className="bg-white/20 backdrop-blur px-5 py-3 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg font-medium">
+              <button onClick={() => { fetchStats(); fetchRecentPatients(); }} className="bg-white/20 backdrop-blur px-5 py-3 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg font-medium">
                 <FaSync className={loading ? 'animate-spin' : ''} /> Refresh
               </button>
               <div className="flex gap-5 bg-white/10 backdrop-blur py-3 px-6 rounded-full">
@@ -1155,309 +1099,308 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
             </div>
           )}
 
-          {/* Stats Cards for reports tab */}
-          {activeTab === 'reports' && !showScheduleView && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <div className="white-blue-card">
-                <p className={`text-blue-600 mb-2 font-semibold ${textSizeClasses.base}`}>Today's Registrations</p>
-                <p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.today}</p>
-              </div>
-              <div className="white-blue-card">
-                <p className={`text-blue-600 mb-2 font-semibold ${textSizeClasses.base}`}>In Triage</p>
-                <p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.inTriage}</p>
-              </div>
-              <div className="white-blue-card">
-                <p className={`text-blue-600 mb-2 font-semibold ${textSizeClasses.base}`}>Active Patients</p>
-                <p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.active}</p>
-              </div>
-              <div className="white-blue-card">
-                <p className={`text-blue-600 mb-2 font-semibold ${textSizeClasses.base}`}>Total Patients</p>
-                <p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.total}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Register Tab - White/Blue Cards */}
+          {/* Register Tab */}
           {activeTab === 'register' && !showScheduleView && (
-            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-              <h2 className={`font-bold text-gray-800 mb-6 flex items-center gap-2 ${textSizeClasses.heading}`}>
-                <FaUserPlus className="text-blue-500" /> Register New Patient
-              </h2>
-              
-              <form onSubmit={handleRegister} className="max-w-2xl">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div>
-                    <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>
-                      First Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="first_name"
-                      value={formData.first_name}
-                      onChange={handleInputChange}
-                      className={`w-full p-3 border ${formErrors.first_name ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
-                      placeholder="Enter first name"
-                    />
-                    {formErrors.first_name && <p className="text-red-500 text-sm mt-1">{formErrors.first_name}</p>}
+            <div className="bg-white rounded-2xl shadow-md border border-gray-100">
+              <div className="p-6 border-b border-gray-200">
+                <h2 className={`font-bold text-gray-800 flex items-center gap-2 ${textSizeClasses.heading}`}>
+                  <FaUserPlus className="text-blue-500" /> Register New Patient
+                </h2>
+              </div>
+              <div className="p-6">
+                <form onSubmit={handleRegister} className="max-w-2xl">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                      <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>
+                        First Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="first_name"
+                        value={formData.first_name}
+                        onChange={(e) => {
+                          setFormData({ ...formData, first_name: e.target.value });
+                          if (formErrors.first_name) setFormErrors({ ...formErrors, first_name: '' });
+                        }}
+                        className={`w-full p-3 border ${formErrors.first_name ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
+                        placeholder="Enter first name"
+                      />
+                      {formErrors.first_name && <p className={`text-red-500 mt-1 ${textSizeClasses.base}`}>{formErrors.first_name}</p>}
+                    </div>
+                    
+                    <div>
+                      <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>
+                        Middle Name
+                      </label>
+                      <input
+                        type="text"
+                        name="middle_name"
+                        value={formData.middle_name}
+                        onChange={(e) => {
+                          setFormData({ ...formData, middle_name: e.target.value });
+                          if (formErrors.middle_name) setFormErrors({ ...formErrors, middle_name: '' });
+                        }}
+                        className={`w-full p-3 border ${formErrors.middle_name ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
+                        placeholder="Enter middle name"
+                      />
+                      {formErrors.middle_name && <p className={`text-red-500 mt-1 ${textSizeClasses.base}`}>{formErrors.middle_name}</p>}
+                    </div>
+                    
+                    <div>
+                      <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>
+                        Last Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="last_name"
+                        value={formData.last_name}
+                        onChange={(e) => {
+                          setFormData({ ...formData, last_name: e.target.value });
+                          if (formErrors.last_name) setFormErrors({ ...formErrors, last_name: '' });
+                        }}
+                        className={`w-full p-3 border ${formErrors.last_name ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
+                        placeholder="Enter last name"
+                      />
+                      {formErrors.last_name && <p className={`text-red-500 mt-1 ${textSizeClasses.base}`}>{formErrors.last_name}</p>}
+                    </div>
+                    
+                    <div>
+                      <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>
+                        Age <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        name="age"
+                        value={formData.age}
+                        onChange={(e) => {
+                          setFormData({ ...formData, age: e.target.value });
+                          if (formErrors.age) setFormErrors({ ...formErrors, age: '' });
+                        }}
+                        min="0"
+                        max="120"
+                        className={`w-full p-3 border ${formErrors.age ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
+                        placeholder="Enter age"
+                      />
+                      {formErrors.age && <p className={`text-red-500 mt-1 ${textSizeClasses.base}`}>{formErrors.age}</p>}
+                    </div>
+                    
+                    <div>
+                      <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>
+                        Gender <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        name="gender"
+                        value={formData.gender}
+                        onChange={handleInputChange}
+                        className={`w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
+                      >
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>
+                        Phone Number
+                      </label>
+                      <input
+                        type="tel"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={(e) => {
+                          setFormData({ ...formData, phone: e.target.value });
+                          if (formErrors.phone) setFormErrors({ ...formErrors, phone: '' });
+                        }}
+                        className={`w-full p-3 border ${formErrors.phone ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
+                        placeholder="Enter phone number"
+                      />
+                      {formErrors.phone && <p className={`text-red-500 mt-1 ${textSizeClasses.base}`}>{formErrors.phone}</p>}
+                    </div>
                   </div>
-                  
-                  <div>
-                    <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>
-                      Middle Name
-                    </label>
-                    <input
-                      type="text"
-                      name="middle_name"
-                      value={formData.middle_name}
-                      onChange={handleInputChange}
-                      className={`w-full p-3 border ${formErrors.middle_name ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
-                      placeholder="Enter middle name"
-                    />
-                    {formErrors.middle_name && <p className="text-red-500 text-sm mt-1">{formErrors.middle_name}</p>}
-                  </div>
-                  
-                  <div>
-                    <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>
-                      Last Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="last_name"
-                      value={formData.last_name}
-                      onChange={handleInputChange}
-                      className={`w-full p-3 border ${formErrors.last_name ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
-                      placeholder="Enter last name"
-                    />
-                    {formErrors.last_name && <p className="text-red-500 text-sm mt-1">{formErrors.last_name}</p>}
-                  </div>
-                  
-                  <div>
-                    <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>
-                      Age <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      name="age"
-                      value={formData.age}
-                      onChange={handleInputChange}
-                      min="0"
-                      max="120"
-                      className={`w-full p-3 border ${formErrors.age ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
-                      placeholder="Enter age"
-                    />
-                    {formErrors.age && <p className="text-red-500 text-sm mt-1">{formErrors.age}</p>}
-                  </div>
-                  
-                  <div>
-                    <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>
-                      Gender <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="gender"
-                      value={formData.gender}
-                      onChange={handleInputChange}
-                      className={`w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
+
+                  <div className="mt-8 flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className={`px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 disabled:opacity-50 flex items-center gap-2 ${textSizeClasses.base}`}
                     >
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                      <option value="Other">Other</option>
-                    </select>
+                      {loading ? <FaSpinner className="animate-spin" /> : <FaUserPlus />}
+                      {loading ? 'Registering...' : 'Register Patient'}
+                    </button>
                   </div>
-                  
-                  <div>
-                    <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>
-                      Phone Number
-                    </label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      className={`w-full p-3 border ${formErrors.phone ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
-                      placeholder="Enter phone number"
-                    />
-                    {formErrors.phone && <p className="text-red-500 text-sm mt-1">{formErrors.phone}</p>}
-                  </div>
-                </div>
+                </form>
 
-                <div className="mt-8 flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className={`px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 disabled:opacity-50 flex items-center gap-2 ${textSizeClasses.base}`}
-                  >
-                    {loading ? <FaSpinner className="animate-spin" /> : <FaUserPlus />}
-                    {loading ? 'Registering...' : 'Register Patient'}
-                  </button>
+                <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                  <p className={`text-blue-800 ${textSizeClasses.base}`}>
+                    <strong>📌 Note:</strong> After registration, patient will automatically be sent to Triage
+                  </p>
+                  <p className={`text-blue-600 mt-2 ${textSizeClasses.base}`}>
+                    <strong>Validation Rules:</strong> Names: letters only | Age: 0-120 years | Phone: 10-15 digits
+                  </p>
                 </div>
-              </form>
-
-              <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                <p className={`text-blue-800 ${textSizeClasses.base}`}>
-                  <strong>📌 Note:</strong> After registration, patient will automatically be sent to Triage
-                </p>
-                <p className={`text-sm text-blue-600 mt-2`}>
-                  <strong>Validation Rules:</strong> Names: letters only | Age: 0-120 years | Phone: 10-15 digits
-                </p>
               </div>
             </div>
           )}
 
           {/* Search Tab - White/Blue Cards */}
           {activeTab === 'search' && !showScheduleView && (
-            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-              <h2 className={`font-bold text-gray-800 mb-6 flex items-center gap-2 ${textSizeClasses.heading}`}>
-                <FaSearch className="text-blue-500" /> Search Patients
-              </h2>
-              
-              <div className="flex gap-3 mb-6">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                  placeholder="Search by card number, name, or phone..."
-                  className={`flex-1 p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
-                />
-                <button
-                  onClick={handleSearch}
-                  disabled={searching}
-                  className={`px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 disabled:opacity-50 flex items-center gap-2 ${textSizeClasses.base}`}
-                >
-                  {searching ? <FaSpinner className="animate-spin" /> : <FaSearch />}
-                  {searching ? 'Searching...' : 'Search'}
-                </button>
-                {searchQuery && (
-                  <button
-                    onClick={clearSearch}
-                    className={`px-6 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-all duration-200 ${textSizeClasses.base}`}
-                  >
-                    Clear
-                  </button>
-                )}
+            <div className="bg-white rounded-2xl shadow-md border border-gray-100">
+              <div className="p-6 border-b border-gray-200">
+                <h2 className={`font-bold text-gray-800 flex items-center gap-2 ${textSizeClasses.heading}`}>
+                  <FaSearch className="text-blue-500" /> Search Patients
+                </h2>
               </div>
+              <div className="p-6">
+                <div className="flex gap-3 mb-6">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                    placeholder="Search by card number, name, or phone..."
+                    className={`flex-1 p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${textSizeClasses.base}`}
+                  />
+                  <button
+                    onClick={handleSearch}
+                    disabled={searching}
+                    className={`px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 disabled:opacity-50 flex items-center gap-2 ${textSizeClasses.base}`}
+                  >
+                    {searching ? <FaSpinner className="animate-spin" /> : <FaSearch />}
+                    {searching ? 'Searching...' : 'Search'}
+                  </button>
+                  {searchQuery && (
+                    <button
+                      onClick={clearSearch}
+                      className={`px-6 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-all duration-200 ${textSizeClasses.base}`}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
 
-              {searchResults.length > 0 && (
-                <div>
-                  <h3 className={`font-semibold text-gray-700 mb-4 ${textSizeClasses.base}`}>
-                    Search Results ({searchResults.length})
-                  </h3>
-                  <div className="space-y-4 max-h-[600px] overflow-y-auto">
-                    {searchResults.map(patient => {
-                      const statusStyle = getStatusStyle(patient.status);
-                      return (
-                        <div key={patient.id} className="white-blue-card">
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-3 flex-wrap">
-                                <span className="font-mono text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                                  {patient.card_number}
-                                </span>
-                                <span className={`px-2 py-1 rounded-full text-xs ${statusStyle.bg} ${statusStyle.color}`}>
-                                  {statusStyle.text}
-                                </span>
-                              </div>
-                              <h3 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>
-                                {patient.first_name} {patient.middle_name || ''} {patient.last_name}
-                              </h3>
-                              <p className={`text-gray-500 mt-1 ${textSizeClasses.base}`}>
-                                {patient.age} years • {patient.gender}
-                              </p>
-                              {patient.phone && (
-                                <p className={`text-gray-500 mt-1 ${textSizeClasses.base}`}>
-                                  📞 {patient.phone}
+                {searchResults.length > 0 && (
+                  <div>
+                    <h3 className={`font-semibold text-gray-700 mb-4 ${textSizeClasses.base}`}>
+                      Search Results ({searchResults.length})
+                    </h3>
+                    <div className="space-y-4 max-h-[600px] overflow-y-auto">
+                      {searchResults.map(patient => {
+                        const statusStyle = getStatusStyle(patient.status);
+                        return (
+                          <div key={patient.id} className="white-blue-card">
+                            <div className="flex justify-between items-start flex-wrap gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2 flex-wrap">
+                                  <span className={`font-mono text-sm text-blue-600 bg-blue-50 px-3 py-1 rounded ${textSizeClasses.base}`}>
+                                    <FaCreditCard className="inline mr-1" size={12} /> {patient.card_number}
+                                  </span>
+                                  <span className={`px-3 py-1 rounded-full text-sm ${statusStyle.bg} ${statusStyle.color}`}>
+                                    {statusStyle.text}
+                                  </span>
+                                </div>
+                                <h3 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>
+                                  {patient.first_name} {patient.middle_name || ''} {patient.last_name}
+                                </h3>
+                                <p className={`text-gray-500 mt-1 flex items-center gap-3 ${textSizeClasses.base}`}>
+                                  <span><FaCalendarDay className="inline mr-1" size={12} /> {patient.age} years</span>
+                                  <span><FaVenusMars className="inline mr-1" size={12} /> {patient.gender}</span>
+                                  {patient.phone && <span><FaPhone className="inline mr-1" size={12} /> {patient.phone}</span>}
                                 </p>
-                              )}
-                              <p className={`text-gray-400 mt-2 ${textSizeClasses.base}`}>
-                                Registered: {new Date(patient.registered_at).toLocaleDateString()}
-                              </p>
-                            </div>
-                            <div className="flex flex-col gap-2 ml-4">
-                              <button
-                                onClick={() => handleViewHistory(patient)}
-                                className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2 ${textSizeClasses.base}`}
-                              >
-                                <FaHistory /> History
-                              </button>
-                              {patient.status !== 'in_triage' && patient.status !== 'with_doctor' && (
+                                <p className={`text-gray-400 mt-2 ${textSizeClasses.base}`}>
+                                  Registered: {new Date(patient.registered_at).toLocaleDateString()}
+                                </p>
+                              </div>
+                              <div className="flex gap-2">
                                 <button
-                                  onClick={() => handleSendToTriage(patient)}
-                                  className={`px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition flex items-center gap-2 ${textSizeClasses.base}`}
+                                  onClick={() => handleViewHistory(patient)}
+                                  className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2 ${textSizeClasses.base}`}
                                 >
-                                  <FaHeartbeat /> Send to Triage
+                                  <FaHistory /> History
                                 </button>
-                              )}
+                                {patient.status !== 'in_triage' && patient.status !== 'with_doctor' && (
+                                  <button
+                                    onClick={() => handleSendToTriage(patient)}
+                                    className={`px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition flex items-center gap-2 ${textSizeClasses.base}`}
+                                  >
+                                    <FaHeartbeat /> Send to Triage
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {searchQuery && searchResults.length === 0 && !message.text && (
-                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                  <FaSearch className="text-6xl text-gray-300 mx-auto mb-4" />
-                  <p className={`text-gray-500 ${textSizeClasses.base}`}>No patients found</p>
-                  <p className={`text-sm text-gray-400 mt-2`}>Try searching with a different term</p>
-                </div>
-              )}
+                {searchQuery && searchResults.length === 0 && !message.text && (
+                  <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                    <FaSearch className="text-6xl text-gray-300 mx-auto mb-4" />
+                    <p className={`text-gray-500 ${textSizeClasses.base}`}>No patients found</p>
+                    <p className={`text-gray-400 mt-2 ${textSizeClasses.base}`}>Try searching with a different term</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
           {/* Recent Tab - White/Blue Cards */}
           {activeTab === 'recent' && !showScheduleView && (
-            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-              <h2 className={`font-bold text-gray-800 mb-6 flex items-center gap-2 ${textSizeClasses.heading}`}>
-                <FaHistory className="text-blue-500" /> Recent Registrations
-              </h2>
-              
-              {recentPatients.length === 0 ? (
-                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                  <FaUserPlus className="text-6xl text-gray-300 mx-auto mb-4" />
-                  <p className={`text-gray-500 ${textSizeClasses.base}`}>No patients registered yet</p>
-                  <p className={`text-sm text-gray-400 mt-2`}>Register your first patient to get started</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className={`px-4 py-3 text-left font-medium text-gray-500 uppercase ${textSizeClasses.base}`}>Card Number</th>
-                        <th className={`px-4 py-3 text-left font-medium text-gray-500 uppercase ${textSizeClasses.base}`}>Patient Name</th>
-                        <th className={`px-4 py-3 text-left font-medium text-gray-500 uppercase ${textSizeClasses.base}`}>Age/Gender</th>
-                        <th className={`px-4 py-3 text-left font-medium text-gray-500 uppercase ${textSizeClasses.base}`}>Phone</th>
-                        <th className={`px-4 py-3 text-left font-medium text-gray-500 uppercase ${textSizeClasses.base}`}>Status</th>
-                        <th className={`px-4 py-3 text-left font-medium text-gray-500 uppercase ${textSizeClasses.base}`}>Registered</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {recentPatients.map(patient => {
-                        const statusStyle = getStatusStyle(patient.status);
-                        return (
-                          <tr key={patient.id} className="hover:bg-gray-50 transition">
-                            <td className={`px-4 py-3 font-mono text-blue-600 ${textSizeClasses.base}`}>{patient.card_number}</td>
-                            <td className={`px-4 py-3 font-medium text-gray-900 ${textSizeClasses.base}`}>
-                              {patient.first_name} {patient.middle_name || ''} {patient.last_name}
-                            </td>
-                            <td className={`px-4 py-3 text-gray-500 ${textSizeClasses.base}`}>{patient.age} / {patient.gender}</td>
-                            <td className={`px-4 py-3 text-gray-500 ${textSizeClasses.base}`}>{patient.phone || '-'}</td>
-                            <td className="px-4 py-3">
-                              <span className={`px-2 py-1 rounded-full text-xs ${statusStyle.bg} ${statusStyle.color}`}>
-                                {statusStyle.text}
-                              </span>
-                            </td>
-                            <td className={`px-4 py-3 text-gray-500 ${textSizeClasses.base}`}>
-                              {new Date(patient.registered_at).toLocaleString()}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+            <div className="bg-white rounded-2xl shadow-md border border-gray-100">
+              <div className="p-6 border-b border-gray-200">
+                <h2 className={`font-bold text-gray-800 flex items-center gap-2 ${textSizeClasses.heading}`}>
+                  <FaHistory className="text-blue-500" /> Recent Registrations
+                </h2>
+              </div>
+              <div className="p-6">
+                {recentPatients.length === 0 ? (
+                  <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                    <FaUserPlus className="text-6xl text-gray-300 mx-auto mb-4" />
+                    <p className={`text-gray-500 ${textSizeClasses.base}`}>No patients registered yet</p>
+                    <p className={`text-gray-400 mt-2 ${textSizeClasses.base}`}>Register your first patient to get started</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className={`px-4 py-3 text-left font-medium text-gray-500 uppercase ${textSizeClasses.base}`}>Card Number</th>
+                          <th className={`px-4 py-3 text-left font-medium text-gray-500 uppercase ${textSizeClasses.base}`}>Patient Name</th>
+                          <th className={`px-4 py-3 text-left font-medium text-gray-500 uppercase ${textSizeClasses.base}`}>Age/Gender</th>
+                          <th className={`px-4 py-3 text-left font-medium text-gray-500 uppercase ${textSizeClasses.base}`}>Phone</th>
+                          <th className={`px-4 py-3 text-left font-medium text-gray-500 uppercase ${textSizeClasses.base}`}>Status</th>
+                          <th className={`px-4 py-3 text-left font-medium text-gray-500 uppercase ${textSizeClasses.base}`}>Registered</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {recentPatients.map(patient => {
+                          const statusStyle = getStatusStyle(patient.status);
+                          return (
+                            <tr key={patient.id} className="hover:bg-gray-50 transition">
+                              <td className={`px-4 py-3 font-mono text-blue-600 ${textSizeClasses.base}`}>{patient.card_number}</td>
+                              <td className={`px-4 py-3 font-medium text-gray-900 ${textSizeClasses.base}`}>
+                                {patient.first_name} {patient.middle_name || ''} {patient.last_name}
+                              </td>
+                              <td className={`px-4 py-3 text-gray-500 ${textSizeClasses.base}`}>{patient.age} / {patient.gender}</td>
+                              <td className={`px-4 py-3 text-gray-500 ${textSizeClasses.base}`}>{patient.phone || '-'}</td>
+                              <td className="px-4 py-3">
+                                <span className={`px-2 py-1 rounded-full text-sm ${statusStyle.bg} ${statusStyle.color}`}>
+                                  {statusStyle.text}
+                                </span>
+                              </td>
+                              <td className={`px-4 py-3 text-gray-500 ${textSizeClasses.base}`}>
+                                {new Date(patient.registered_at).toLocaleString()}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -1484,7 +1427,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                           {!report.is_opened ? <FaEnvelope className="text-blue-500 text-xl" /> : <FaEnvelopeOpen className="text-gray-400 text-xl" />}
                           <h3 className={`font-semibold text-gray-800 ${textSizeClasses.base}`}>{report.title}</h3>
                         </div>
-                        <span className={`text-sm px-3 py-1.5 rounded-full ${getPriorityBadge(report.priority)} ${textSizeClasses.base}`}>{getPriorityIcon(report.priority)} {report.priority}</span>
+                        <span className={`text-sm px-3 py-1.5 rounded-full ${getPriorityBadge(report.priority)}`}>{getPriorityIcon(report.priority)} {report.priority}</span>
                       </div>
                       <p className={`text-gray-600 mb-3 line-clamp-2 ${textSizeClasses.base}`}>{report.body}</p>
                       <div className={`flex justify-between items-center text-gray-500 ${textSizeClasses.base}`}>
@@ -1515,13 +1458,14 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                     <div key={report.id} className="white-blue-card cursor-pointer" onClick={() => viewReportDetails(report)}>
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex items-center gap-3"><FaPaperPlane className="text-gray-400 text-xl" /><h3 className={`font-semibold text-gray-800 ${textSizeClasses.base}`}>{report.title}</h3></div>
-                        <span className={`text-sm px-3 py-1.5 rounded-full ${getPriorityBadge(report.priority)} ${textSizeClasses.base}`}>{getPriorityIcon(report.priority)} {report.priority}</span>
+                        <span className={`text-sm px-3 py-1.5 rounded-full ${getPriorityBadge(report.priority)}`}>{getPriorityIcon(report.priority)} {report.priority}</span>
                       </div>
                       <p className={`text-gray-600 mb-3 line-clamp-2 ${textSizeClasses.base}`}>{report.body}</p>
                       <div className={`flex justify-between items-center text-gray-500 ${textSizeClasses.base}`}>
                         <span>To: {report.recipient_full_name}</span>
                         <span>Sent: {new Date(report.sent_at).toLocaleString()}</span>
                       </div>
+                      <div className="mt-3"><span className={`${report.is_opened ? 'text-green-600' : 'text-gray-400'} ${textSizeClasses.base}`}>{report.is_opened ? '✓ Opened by recipient' : '✗ Not opened yet'}</span></div>
                     </div>
                   ))}
                 </div>
@@ -1535,13 +1479,13 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
               <h2 className={`font-bold text-gray-800 mb-6 ${textSizeClasses.heading}`}>📊 Card Office Statistics</h2>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
                 <div className="white-blue-card"><p className={`text-blue-600 mb-2 font-semibold ${textSizeClasses.base}`}>Today's Registrations</p><p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.today}</p></div>
-                <div className="white-blue-card"><p className={`text-blue-600 mb-2 font-semibold ${textSizeClasses.base}`}>In Triage</p><p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.inTriage}</p></div>
+                <div className="white-blue-card"><p className={`text-blue-600 mb-2 font-semibold ${textSizeClasses.base}`}>In Triage Queue</p><p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.inTriage}</p></div>
                 <div className="white-blue-card"><p className={`text-blue-600 mb-2 font-semibold ${textSizeClasses.base}`}>Active Patients</p><p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.active}</p></div>
                 <div className="white-blue-card"><p className={`text-blue-600 mb-2 font-semibold ${textSizeClasses.base}`}>Total Patients</p><p className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{stats.total}</p></div>
               </div>
               <div className="bg-gray-50 rounded-xl p-6 text-center">
                 <p className={`text-gray-600 ${textSizeClasses.base}`}>Today's Registration Summary: {stats.today} new patients registered</p>
-                <p className={`text-sm text-gray-400 mt-2`}>Total patients waiting in triage: {stats.inTriage}</p>
+                <p className={`text-gray-400 mt-2 ${textSizeClasses.base}`}>Total patients waiting in triage: {stats.inTriage}</p>
               </div>
             </div>
           )}
@@ -1601,7 +1545,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
                   {!isEditingProfile ? (
                     <button onClick={() => setIsEditingProfile(true)} 
                       className={`flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-medium ${textSizeClasses.base}`}>
-                      <FaEdit /> Edit Profile
+                      <FaEditIcon /> Edit Profile
                     </button>
                   ) : (
                     <div className="flex gap-3">
@@ -1642,6 +1586,21 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
         </div>
       </div>
 
+      {/* Print Card Modal */}
+      {showPrintModal && selectedPatient && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-4"><h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>Patient Card</h2><button onClick={() => setShowPrintModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button></div>
+            <div className="border-2 border-blue-600 rounded-xl p-5 bg-gradient-to-br from-blue-50 to-white">
+              <div className="text-center mb-4"><h3 className={`font-bold text-blue-800 ${textSizeClasses.base}`}>{user?.hospital_name}</h3><p className={`text-gray-500 ${textSizeClasses.base}`}>Patient Identification Card</p></div>
+              <div className="text-center mb-4"><span className={`font-mono font-bold text-blue-600 ${textSizeClasses.title}`}>{selectedPatient.card_number}</span></div>
+              <div className="text-center"><p className={`font-semibold text-gray-800 ${textSizeClasses.heading}`}>{selectedPatient.first_name} {selectedPatient.middle_name || ''} {selectedPatient.last_name}</p><p className={`text-gray-600 ${textSizeClasses.base}`}>{selectedPatient.gender} • {selectedPatient.age} years</p>{selectedPatient.phone && <p className={`text-gray-600 ${textSizeClasses.base}`}>📞 {selectedPatient.phone}</p>}</div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6"><button onClick={() => setShowPrintModal(false)} className={`px-4 py-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>Close</button><button onClick={() => window.print()} className={`px-4 py-2 bg-blue-600 text-white rounded-xl ${textSizeClasses.base}`}>Print Card</button></div>
+          </div>
+        </div>
+      )}
+
       {/* Send Report Modal */}
       {showSendReportModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -1664,7 +1623,7 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6">
             <div className="flex justify-between items-center mb-4"><h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>{selectedReport.title}</h2><button onClick={() => setShowReportDetailModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button></div>
-            <div className="space-y-4"><div className="flex justify-between"><div><p className={`text-gray-500 ${textSizeClasses.base}`}>From</p><p className={`font-semibold ${textSizeClasses.base}`}>{selectedReport.sender_full_name}</p></div><div><p className={`text-gray-500 ${textSizeClasses.base}`}>Priority</p><span className={`px-3 py-1 rounded-full text-sm ${getPriorityBadge(selectedReport.priority)} ${textSizeClasses.base}`}>{getPriorityIcon(selectedReport.priority)} {selectedReport.priority}</span></div></div>
+            <div className="space-y-4"><div className="flex justify-between"><div><p className={`text-gray-500 ${textSizeClasses.base}`}>From</p><p className={`font-semibold ${textSizeClasses.base}`}>{selectedReport.sender_full_name}</p></div><div><p className={`text-gray-500 ${textSizeClasses.base}`}>Priority</p><span className={`px-3 py-1 rounded-full text-sm ${getPriorityBadge(selectedReport.priority)}`}>{getPriorityIcon(selectedReport.priority)} {selectedReport.priority}</span></div></div>
             <div><p className={`text-gray-500 ${textSizeClasses.base}`}>Date Received</p><p className={`${textSizeClasses.base}`}>{new Date(selectedReport.sent_at).toLocaleString()}</p></div>
             <div className="bg-gray-50 p-5 rounded-xl"><p className={`text-gray-500 mb-2 ${textSizeClasses.base}`}>Message</p><p className={`whitespace-pre-wrap ${textSizeClasses.base}`}>{selectedReport.body}</p></div>
             <div className="flex gap-3 pt-4 border-t border-gray-200"><button onClick={() => { setShowReportDetailModal(false); setShowReplyModal(true); }} className={`flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl flex items-center justify-center gap-2 ${textSizeClasses.base}`}><FaReply /> Reply</button><button onClick={() => { setShowReportDetailModal(false); setSelectedReport(null); }} className={`flex-1 px-4 py-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>Close</button></div></div>
@@ -1692,38 +1651,6 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
             <div className="flex justify-between items-center mb-4"><h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>Change Password</h2><button onClick={() => setShowPasswordModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button></div>
             <div className="space-y-4"><input type="password" placeholder="Current Password" value={passwordData.current_password} onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} /><input type="password" placeholder="New Password" value={passwordData.new_password} onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} /><input type="password" placeholder="Confirm New Password" value={passwordData.confirm_password} onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} />
             <div className="flex gap-3 pt-4"><button onClick={() => setShowPasswordModal(false)} className={`flex-1 px-4 py-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>Cancel</button><button onClick={changePassword} className={`flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl ${textSizeClasses.base}`}>Change Password</button></div></div>
-          </div>
-        </div>
-      )}
-
-      {/* Print Card Modal */}
-      {showPrintModal && selectedPatient && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>Patient Card</h2>
-              <button onClick={() => { setShowPrintModal(false); setSelectedPatient(null); }} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
-            </div>
-            <div className="border-2 border-blue-600 rounded-xl p-5 bg-gradient-to-br from-blue-50 to-white">
-              <div className="text-center mb-4">
-                <h3 className={`font-bold text-blue-800 mb-1 ${textSizeClasses.heading}`}>{user?.hospital_name}</h3>
-                <p className={`text-gray-500 ${textSizeClasses.base}`}>Patient Identification Card</p>
-              </div>
-              <div className="text-center mb-4">
-                <span className={`font-mono font-bold text-blue-600 ${textSizeClasses.title}`}>{selectedPatient.card_number}</span>
-              </div>
-              <div className="text-center">
-                <p className={`font-semibold text-gray-800 mb-1 ${textSizeClasses.heading}`}>
-                  {selectedPatient.first_name} {selectedPatient.middle_name || ''} {selectedPatient.last_name}
-                </p>
-                <p className={`text-gray-600 mb-1 ${textSizeClasses.base}`}>{selectedPatient.gender} • {selectedPatient.age} years</p>
-                {selectedPatient.phone && <p className={`text-gray-600 ${textSizeClasses.base}`}>📞 {selectedPatient.phone}</p>}
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => { setShowPrintModal(false); setSelectedPatient(null); }} className={`px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition ${textSizeClasses.base}`}>Close</button>
-              <button onClick={() => window.print()} className={`px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition ${textSizeClasses.base}`}>Print Card</button>
-            </div>
           </div>
         </div>
       )}
