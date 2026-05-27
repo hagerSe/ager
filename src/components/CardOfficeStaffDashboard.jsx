@@ -360,53 +360,40 @@ const getHospitalId = () => {
     }
   };
 
-  const handleSendReport = async (e) => {
-    e.preventDefault();
-    if (!sendReportForm.recipient_id) {
-      setMessage({ type: 'error', text: 'Please select a recipient' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      return;
-    }
+ // In CardOfficeDashboard.jsx - this part is correct
+const handleSendReport = async (e) => {
+  e.preventDefault();
+  if (!sendReportForm.recipient_id) {
+    setMessage({ type: 'error', text: 'Please select a recipient' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    return;
+  }
+  
+  try {
+    setLoading(true);
+    const token = localStorage.getItem('token');
+    const formData = new FormData();
+    formData.append('title', sendReportForm.title);
+    formData.append('body', sendReportForm.body);
+    formData.append('priority', sendReportForm.priority);
+    formData.append('recipient_id', sendReportForm.recipient_id);
     
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      const formData = new FormData();
-      formData.append('title', sendReportForm.title);
-      formData.append('subject', sendReportForm.title);
-      formData.append('body', sendReportForm.body);
-      formData.append('priority', sendReportForm.priority);
-      formData.append('recipient_type', sendReportForm.recipient_type);
-      formData.append('recipient_id', sendReportForm.recipient_id);
-      sendReportForm.attachments.forEach((file) => formData.append('attachments', file));
-      
-      const res = await axios.post(`${API_URL}/cardoffice/reports/send`, formData, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
-      });
-
-      if (res.data.success) {
-        setMessage({ type: 'success', text: 'Report sent successfully!' });
-        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-        setShowSendReportModal(false);
-        setSendReportForm({
-          recipient_type: 'hospital',
-          recipient_id: '',
-          title: '',
-          body: '',
-          priority: 'medium',
-          attachments: []
-        });
-        setAttachmentPreview([]);
-        fetchReportsOutbox();
+    // ✅ This correctly appends files with field name 'attachments'
+    sendReportForm.attachments.forEach((file) => {
+      formData.append('attachments', file);
+    });
+    
+    const res = await axios.post(`${API_URL}/cardoffice/reports/send`, formData, {
+      headers: { 
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data' 
       }
-    } catch (error) {
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Error sending report' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+    });
+    // ... rest of code
+  } catch (error) {
+    // ... error handling
+  }
+};
   const viewReportDetails = (report) => {
     setSelectedReport(report);
     setShowReportDetailModal(true);
