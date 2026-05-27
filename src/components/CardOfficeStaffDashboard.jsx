@@ -277,7 +277,7 @@ const getHospitalId = () => {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/api/cardoffice/patients/recent`, {
+      const response = await axios.get(`${API_URL}/cardoffice/patients/recent`, {
         params: { hospital_id: hospitalId },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -293,7 +293,7 @@ const getHospitalId = () => {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/api/cardoffice/stats`, {
+      const response = await axios.get(`${API_URL}/cardoffice/stats`, {
         params: { hospital_id: hospitalId },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -310,7 +310,7 @@ const getHospitalId = () => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/cardoffice/reports/inbox`, {
+      const res = await axios.get(`${API_URL}/cardoffice/reports/inbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -328,7 +328,7 @@ const getHospitalId = () => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/cardoffice/reports/outbox`, {
+      const res = await axios.get(`${API_URL}/cardoffice/reports/outbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) setReportsOutbox(res.data.reports || []);
@@ -380,7 +380,7 @@ const getHospitalId = () => {
       formData.append('recipient_id', sendReportForm.recipient_id);
       sendReportForm.attachments.forEach((file) => formData.append('attachments', file));
       
-      const res = await axios.post(`${API_URL}/api/cardoffice/reports/send`, formData, {
+      const res = await axios.post(`${API_URL}/cardoffice/reports/send`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
 
@@ -416,7 +416,7 @@ const getHospitalId = () => {
   const markReportAsRead = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/cardoffice/reports/${reportId}/read`, {}, {
+      await axios.put(`${API_URL}/cardoffice/reports/${reportId}/read`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchReportsInbox();
@@ -439,7 +439,7 @@ const getHospitalId = () => {
       formData.append('body', replyText);
       if (replyAttachment) formData.append('attachment', replyAttachment);
       
-      const res = await axios.post(`${API_URL}/api/cardoffice/reports/${selectedReport.id}/reply`, formData, {
+      const res = await axios.post(`${API_URL}/cardoffice/reports/${selectedReport.id}/reply`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
 
@@ -464,7 +464,7 @@ const getHospitalId = () => {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/cardoffice/profile`, {
+      const res = await axios.get(`	${API_URL}/cardoffice/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -510,7 +510,7 @@ const getHospitalId = () => {
     }
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`	${API_URL}/api/cardoffice/change-password`, {
+      const res = await axios.put(`${API_URL}/cardoffice/change-password`, {
         current_password: passwordData.current_password,
         new_password: passwordData.new_password
       }, { headers: { Authorization: `Bearer ${token}` } });
@@ -547,7 +547,7 @@ const getHospitalId = () => {
       };
       
       const response = await axios.post(
-        `${API_URL}/api/cardoffice/patients/register`,
+        `${API_URL}/cardoffice/patients/register`,
         cleanedFormData,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -604,7 +604,7 @@ const getHospitalId = () => {
       const token = localStorage.getItem('token');
       const encodedQuery = encodeURIComponent(searchQuery.trim());
       const response = await axios.get(
-        `${API_URL}/api/cardoffice/patients/search?query=${encodedQuery}&hospital_id=${hospitalId}`,
+        `${API_URL}/cardoffice/patients/search`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -632,7 +632,7 @@ const getHospitalId = () => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        `${API_URL}/api/cardoffice/patients/send-to-triage`,
+        `${API_URL}/cardoffice/patients/send-to-triage`,
         { patientId: patient.id, reason, hospital_id: getHospitalId() },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -653,10 +653,10 @@ const getHospitalId = () => {
   const handleViewHistory = async (patient) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(
-        `${API_URL}/api/cardoffice/patients/${patient.id}?hospital_id=${getHospitalId()}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+     const response = await axios.get(
+  `${API_URL}/cardoffice/patients/${patient.id}?hospital_id=${getHospitalId()}`,
+  { headers: { Authorization: `Bearer ${token}` } }
+);
 
       if (response.data.success) {
         const visitsCount = response.data.visits?.length || 0;
