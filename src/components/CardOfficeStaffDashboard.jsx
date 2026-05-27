@@ -155,7 +155,22 @@ const CardOfficeDashboard = ({ user, onLogout }) => {
       if (isSchedule) fetchMySchedule();
     }
   };
+     
+
+  const getHospitalId = () => {
+  console.log('User object received:', user);
+  console.log('User hospital_id:', user?.hospital_id);
+  console.log('User hospitalId:', user?.hospitalId);
   
+  const id = user?.hospital_id || 
+         user?.hospitalId || 
+         localStorage.getItem('hospital_id') || 
+         (user?.hospital ? user.hospital.id : null);
+  
+  console.log('Returning hospital ID:', id);
+  return id;
+};   
+
   const handleGoBack = () => {
     if (tabHistory.length > 0) {
       const previousTab = tabHistory[tabHistory.length - 1];
