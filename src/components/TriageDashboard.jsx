@@ -14,7 +14,6 @@ import {
   FaThermometerHalf, FaTachometerAlt, FaWeight, FaRuler,
   FaWheelchair, FaBaby, FaStethoscope, FaUserMd
 } from 'react-icons/fa';
-import ScheduleViewer from '../components/ScheduleViewer';
 
 const TriageDashboard = ({ user, onLogout }) => {
   // ==================== HELPER: Get Hospital ID ====================
@@ -51,6 +50,15 @@ const TriageDashboard = ({ user, onLogout }) => {
     opd: 0,
     eme: 0,
     anc: 0
+  });
+  
+  // ==================== SCHEDULE STATES ====================
+  const [schedules, setSchedules] = useState([]);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [scheduleStats, setScheduleStats] = useState({ 
+    today: { shift_count: 0, total_hours: 0 }, 
+    this_week: { shift_count: 0, total_hours: 0 }, 
+    total_hours: 0 
   });
   
   // ==================== VITAL SIGNS STATE ====================
@@ -167,6 +175,16 @@ const TriageDashboard = ({ user, onLogout }) => {
     return `${firstName}${middleName} ${lastName}`.trim();
   };
 
+  // ==================== GET SHIFT DISPLAY ====================
+  const getShiftDisplay = (shiftType) => {
+    const shifts = {
+      morning: { name: '🌅 Morning', time: '08:00 - 14:00', hours: 6 },
+      afternoon: { name: '☀️ Afternoon', time: '14:00 - 20:00', hours: 6 },
+      night: { name: '🌙 Night', time: '20:00 - 08:00', hours: 12 }
+    };
+    return shifts[shiftType] || { name: shiftType, time: '--:-- - --:--', hours: 0 };
+  };
+
   // ==================== LOGOUT ====================
   const handleLogoutClick = () => setShowLogoutConfirm(true);
   const handleConfirmLogout = () => {
@@ -255,7 +273,31 @@ const TriageDashboard = ({ user, onLogout }) => {
     return critical;
   };
 
-  // ==================== FETCH DATA (FIXED - NO DOUBLE /api/) ====================
+  // ==================== FETCH SCHEDULE ====================
+  const fetchMySchedule = async () => {
+    setScheduleLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/api/triage/my-schedule`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data.success) {
+        setSchedules(response.data.schedules || []);
+        setScheduleStats({
+          today: response.data.stats?.today || { shift_count: 0, total_hours: 0 },
+          this_week: response.data.stats?.this_week || { shift_count: 0, total_hours: 0 },
+          total_hours: response.data.total_hours || 0
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching schedule:', error);
+      setSchedules([]);
+    } finally {
+      setScheduleLoading(false);
+    }
+  };
+
+  // ==================== FETCH DATA ====================
   const fetchTriageQueue = async () => {
     const hospitalId = getHospitalId();
     if (!hospitalId) return;
@@ -796,11 +838,14 @@ const TriageDashboard = ({ user, onLogout }) => {
     );
   };
 
-  // ==================== INITIAL LOAD (FIXED - LIKE CARD OFFICE) ====================
+  // ==================== INITIAL LOAD ====================
   useEffect(() => {
     const hospitalId = getHospitalId();
-    if (!hospitalId) return;
-    
+    if (!hospitalId) {
+      console.warn('No hospital_id available on initial load');
+      return;
+    }
+
     initializeSocket();
     fetchTriageQueue();
     fetchTriagedPatients();
@@ -809,6 +854,7 @@ const TriageDashboard = ({ user, onLogout }) => {
     fetchReportsOutbox();
     fetchHospitalAdmins();
     fetchProfile();
+    fetchMySchedule();
 
     const interval = setInterval(() => {
       fetchTriageQueue();
@@ -1213,7 +1259,7 @@ const TriageDashboard = ({ user, onLogout }) => {
             </div>
           )}
 
-          {/* Schedule View Tab */}
+          {/* Schedule View Tab - Complete with Stats */}
           {showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
               <div className="flex justify-between items-center mb-6">
@@ -1226,8 +1272,65 @@ const TriageDashboard = ({ user, onLogout }) => {
                     <p className={`text-gray-500 ${textSizeClasses.base}`}>View your upcoming shifts</p>
                   </div>
                 </div>
+                <button onClick={fetchMySchedule} className={`px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition font-medium flex items-center gap-2 ${textSizeClasses.base}`}>
+                  <FaSync className={`${scheduleLoading ? 'animate-spin' : ''}`} /> Refresh
+                </button>
               </div>
-              <ScheduleViewer user={user} compact={false} />
+
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-teal-50 rounded-xl p-4 text-center">
+                  <p className={`text-teal-600 ${textSizeClasses.base}`}>Today's Shifts</p>
+                  <p className={`font-bold text-teal-800 ${textSizeClasses.title}`}>{scheduleStats.today?.shift_count || 0}</p>
+                  <p className={`text-sm text-teal-500`}>{scheduleStats.today?.total_hours || 0} hours</p>
+                </div>
+                <div className="bg-emerald-50 rounded-xl p-4 text-center">
+                  <p className={`text-emerald-600 ${textSizeClasses.base}`}>This Week</p>
+                  <p className={`font-bold text-emerald-800 ${textSizeClasses.title}`}>{scheduleStats.this_week?.shift_count || 0}</p>
+                  <p className={`text-sm text-emerald-500`}>{scheduleStats.this_week?.total_hours || 0} hours</p>
+                </div>
+                <div className="bg-teal-50 rounded-xl p-4 text-center">
+                  <p className={`text-teal-600 ${textSizeClasses.base}`}>Total Hours</p>
+                  <p className={`font-bold text-teal-800 ${textSizeClasses.title}`}>{scheduleStats.total_hours || 0}</p>
+                  <p className={`text-sm text-teal-500`}>Scheduled</p>
+                </div>
+              </div>
+
+              {/* Schedule List */}
+              {scheduleLoading ? (
+                <div className="text-center py-12"><FaSpinner className="animate-spin text-3xl text-teal-600 mx-auto" /></div>
+              ) : schedules.length === 0 ? (
+                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                  <FaCalendarAlt className="text-6xl text-gray-300 mx-auto mb-4" />
+                  <p className={`text-gray-500 ${textSizeClasses.base}`}>No schedules found</p>
+                  <p className={`text-sm text-gray-400 mt-2`}>Your shifts will appear here when assigned</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {schedules.map(schedule => {
+                    const shift = getShiftDisplay(schedule.shift_type);
+                    return (
+                      <div key={schedule.id} className="white-teal-card flex justify-between items-center flex-wrap gap-4">
+                        <div>
+                          <p className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>
+                            {new Date(schedule.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                          </p>
+                          <p className={`text-gray-600 mt-1 ${textSizeClasses.base}`}>
+                            <FaClock className="inline mr-2" /> {shift.name} Shift • {shift.time}
+                          </p>
+                          {schedule.ward && <p className={`text-gray-500 text-sm mt-1`}>🏥 Ward: {schedule.ward}</p>}
+                        </div>
+                        <div className="text-right">
+                          <span className={`px-4 py-2 rounded-full text-sm font-medium ${schedule.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                            {schedule.status === 'active' ? '✅ Active' : '📋 Scheduled'}
+                          </span>
+                          <p className={`text-gray-400 text-sm mt-2`}>{shift.hours} hours</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
