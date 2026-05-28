@@ -678,7 +678,7 @@ const BedManagementDashboard = ({
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}//beds/register`, {
+      const res = await axios.post(`${API_URL}/beds/register`, {
         number: newBed.number,
         ward: selectedWard,
         type: newBed.type,
