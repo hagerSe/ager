@@ -377,34 +377,7 @@ const fetchStaff = async () => {
   }
 };
 
-const fetchSchedules = async () => {
-  try {
-    const hospitalId = user?.hospital_id || user?.hospitalId;
-    if (!hospitalId) {
-      console.error('❌ Cannot fetch schedules: No hospital_id available');
-      return;
-    }
-    
-    const token = localStorage.getItem('token');
-    const startDate = new Date();
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() + 60);
-    
-    const res = await axios.get(`${API_URL}/hr/schedules`, {
-      params: { 
-        hospital_id: hospitalId,
-        start_date: startDate.toISOString().split('T')[0],
-        end_date: endDate.toISOString().split('T')[0]
-      },
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (res.data.success) {
-      setSchedules(res.data.schedules || []);
-    }
-  } catch (error) {
-    console.error('Error fetching schedules:', error);
-  }
-};
+
 
 const fetchLeaveRequests = async () => {
   try {
@@ -510,20 +483,7 @@ const fetchStats = async () => {
     }
   };
 
-  const fetchStats = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/hr/stats`, {
-        params: { hospital_id: user?.hospital_id },
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.data.success) {
-        setStats(res.data.stats);
-      }
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-    }
-  };
+ 
 
   // ==================== REPORT FUNCTIONS ====================
   const fetchReportsInbox = async () => {
@@ -1236,6 +1196,9 @@ const addStaff = async () => {
       </div>
     );
   };
+  const getHospitalId = () => {
+  return user?.hospital_id || user?.hospitalId || null;
+};
 
   // ==================== INITIAL LOAD ====================
 useEffect(() => {
