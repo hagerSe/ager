@@ -468,20 +468,7 @@ const fetchStats = async () => {
     }
   };
 
-  const fetchLeaveRequests = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/hr/leave-requests`, {
-        params: { hospital_id: user?.hospital_id },
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.data.success) {
-        setLeaveRequests(res.data.requests || []);
-      }
-    } catch (error) {
-      console.error('Error fetching leave requests:', error);
-    }
-  };
+
 
  
 
