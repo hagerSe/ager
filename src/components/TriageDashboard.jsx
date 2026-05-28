@@ -278,6 +278,7 @@ const TriageDashboard = ({ user, onLogout }) => {
     setScheduleLoading(true);
     try {
       const token = localStorage.getItem('token');
+      // ✅ REMOVED /api/ prefix
       const response = await axios.get(`${API_URL}/triage/my-schedule`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -297,7 +298,7 @@ const TriageDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // ==================== FETCH DATA ====================
+  // ==================== FETCH DATA (REMOVED /api/ PREFIX) ====================
   const fetchTriageQueue = async () => {
     const hospitalId = getHospitalId();
     if (!hospitalId) {
@@ -307,6 +308,7 @@ const TriageDashboard = ({ user, onLogout }) => {
     
     try {
       const token = localStorage.getItem('token');
+      // ✅ REMOVED /api/ prefix
       const response = await axios.get(`${API_URL}/triage/queue`, {
         params: { hospital_id: hospitalId },
         headers: { Authorization: `Bearer ${token}` }
@@ -326,6 +328,7 @@ const TriageDashboard = ({ user, onLogout }) => {
     
     try {
       const token = localStorage.getItem('token');
+      // ✅ REMOVED /api/ prefix
       const response = await axios.get(`${API_URL}/triage/triaged`, {
         params: { hospital_id: hospitalId },
         headers: { Authorization: `Bearer ${token}` }
@@ -344,6 +347,7 @@ const TriageDashboard = ({ user, onLogout }) => {
     
     try {
       const token = localStorage.getItem('token');
+      // ✅ REMOVED /api/ prefix
       const response = await axios.get(`${API_URL}/triage/stats`, {
         params: { hospital_id: hospitalId },
         headers: { Authorization: `Bearer ${token}` }
@@ -356,11 +360,12 @@ const TriageDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // ==================== REPORT FUNCTIONS ====================
+  // ==================== REPORT FUNCTIONS (REMOVED /api/ PREFIX) ====================
   const fetchReportsInbox = async () => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
+      // ✅ REMOVED /api/ prefix
       const res = await axios.get(`${API_URL}/triage/reports/inbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -381,7 +386,8 @@ const TriageDashboard = ({ user, onLogout }) => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}triage/reports/outbox`, {
+      // ✅ REMOVED /api/ prefix
+      const res = await axios.get(`${API_URL}/triage/reports/outbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) setReportsOutbox(res.data.reports || []);
@@ -399,7 +405,8 @@ const TriageDashboard = ({ user, onLogout }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}triage/hospital-admins`, {
+      // ✅ REMOVED /api/ prefix
+      const res = await axios.get(`${API_URL}/triage/hospital-admins`, {
         params: { hospital_id: hospitalId },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -433,6 +440,7 @@ const TriageDashboard = ({ user, onLogout }) => {
       formData.append('recipient_id', sendReportForm.recipient_id);
       sendReportForm.attachments.forEach((file) => formData.append('attachments', file));
       
+      // ✅ REMOVED /api/ prefix
       const res = await axios.post(`${API_URL}/triage/reports/send`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
@@ -469,6 +477,7 @@ const TriageDashboard = ({ user, onLogout }) => {
   const markReportAsRead = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
+      // ✅ REMOVED /api/ prefix
       await axios.put(`${API_URL}/triage/reports/${reportId}/read`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -492,6 +501,7 @@ const TriageDashboard = ({ user, onLogout }) => {
       formData.append('body', replyText);
       if (replyAttachment) formData.append('attachment', replyAttachment);
       
+      // ✅ REMOVED /api/ prefix
       const res = await axios.post(`${API_URL}/triage/reports/${selectedReport.id}/reply`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
@@ -513,10 +523,11 @@ const TriageDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // ==================== PROFILE FUNCTIONS ====================
+  // ==================== PROFILE FUNCTIONS (REMOVED /api/ PREFIX) ====================
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
+      // ✅ REMOVED /api/ prefix
       const res = await axios.get(`${API_URL}/triage/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -541,6 +552,7 @@ const TriageDashboard = ({ user, onLogout }) => {
   const updateProfile = async () => {
     try {
       const token = localStorage.getItem('token');
+      // ✅ REMOVED /api/ prefix
       const res = await axios.put(`${API_URL}/triage/profile`, profileData, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -568,7 +580,8 @@ const TriageDashboard = ({ user, onLogout }) => {
     }
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/triage/change-password`, {
+      // ✅ REMOVED /api/ prefix
+      const res = await axios.put(`${API_URL}/triage/change-password`, {
         current_password: passwordData.current_password,
         new_password: passwordData.new_password
       }, { headers: { Authorization: `Bearer ${token}` } });
@@ -653,7 +666,8 @@ const TriageDashboard = ({ user, onLogout }) => {
         notes: vitalsData.notes
       };
 
-      const response = await axios.post(`${API_URL}/api/triage/send-to-ward`, {
+      // ✅ REMOVED /api/ prefix
+      const response = await axios.post(`${API_URL}/triage/send-to-ward`, {
         patientId: selectedPatient.id,
         vitals: vitalsPayload,
         ward: selectedWard,
@@ -869,7 +883,7 @@ const TriageDashboard = ({ user, onLogout }) => {
       if (socket.current) socket.current.disconnect();
       clearInterval(interval);
     };
-  }, [user?.hospital_id]);
+  }, []);
 
   // ==================== RENDER ====================
   return (
@@ -1114,6 +1128,7 @@ const TriageDashboard = ({ user, onLogout }) => {
                   <FaUsers className="text-6xl text-gray-300 mx-auto mb-4" />
                   <p className={`text-gray-500 ${textSizeClasses.base}`}>No patients waiting for triage</p>
                   <p className={`text-gray-400 mt-2 ${textSizeClasses.base}`}>Patients from Card Office will appear here automatically</p>
+                  <p className={`text-teal-500 mt-4 text-sm`}>Hospital ID: {getHospitalId()}</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -1280,7 +1295,6 @@ const TriageDashboard = ({ user, onLogout }) => {
                 </button>
               </div>
 
-              {/* Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="bg-teal-50 rounded-xl p-4 text-center">
                   <p className={`text-teal-600 ${textSizeClasses.base}`}>Today's Shifts</p>
@@ -1299,7 +1313,6 @@ const TriageDashboard = ({ user, onLogout }) => {
                 </div>
               </div>
 
-              {/* Schedule List */}
               {scheduleLoading ? (
                 <div className="text-center py-12"><FaSpinner className="animate-spin text-3xl text-teal-600 mx-auto" /></div>
               ) : schedules.length === 0 ? (

@@ -327,7 +327,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
       const params = { hospital_id: user?.hospital_id };
       if (filterWard !== 'all') params.ward = filterWard;
       
-      const res = await axios.get(`${API_URL}/api/pharmacy/pending`, {
+      const res = await axios.get(`${API_URL}/pharmacy/pending`, {
         params,
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -347,7 +347,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
   const fetchInventory = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/pharmacy/inventory`, {
+      const res = await axios.get(`${API_URL}/pharmacy/inventory`, {
         params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -364,7 +364,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
   const fetchLowStock = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/pharmacy/low-stock`, {
+      const res = await axios.get(`${API_URL}/pharmacy/low-stock`, {
         params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -381,7 +381,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
   const fetchStats = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/pharmacy/stats/today`, {
+      const res = await axios.get(`${API_URL}/pharmacy/stats/today`, {
         params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -403,7 +403,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/pharmacy/prepare/${id}`, {
+      const res = await axios.put(`${API_URL}/pharmacy/prepare/${id}`, {
         pharmacist_name: user?.full_name
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -426,7 +426,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/pharmacy/dispense/${id}`, {
+      const res = await axios.put(`${API_URL}/pharmacy/dispense/${id}`, {
         pharmacist_name: user?.full_name
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -451,7 +451,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/pharmacy/cancel/${id}`, {
+      const res = await axios.put(`${API_URL}/pharmacy/cancel/${id}`, {
         reason,
         cancelled_by: user?.full_name
       }, {
@@ -475,7 +475,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
   const updateInventory = async (id, current_stock) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/pharmacy/inventory/${id}`, {
+      const res = await axios.put(`${API_URL}/pharmacy/inventory/${id}`, {
         current_stock
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -503,7 +503,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/api/pharmacy/inventory`, {
+      const res = await axios.post(`${API_URL}/pharmacy/inventory`, {
         ...newInventoryItem,
         hospital_id: user?.hospital_id
       }, {
@@ -540,7 +540,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/pharmacy/reports/inbox`, {
+      const res = await axios.get(`${API_URL}/pharmacy/reports/inbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -558,7 +558,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/pharmacy/reports/outbox`, {
+      const res = await axios.get(`${API_URL}/pharmacy/reports/outbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -574,7 +574,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
   const fetchHospitalAdmins = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/pharmacy/hospital-admins`, {
+      const res = await axios.get(`${API_URL}/pharmacy/hospital-admins`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -606,7 +606,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
       formData.append('recipient_id', sendReportForm.recipient_id);
       sendReportForm.attachments.forEach((file) => formData.append('attachments', file));
       
-      const res = await axios.post(`${API_URL}/api/pharmacy/reports/send`, formData, {
+      const res = await axios.post(`${API_URL}/pharmacy/reports/send`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
 
@@ -642,7 +642,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
   const markReportAsRead = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/pharmacy/reports/${reportId}/read`, {}, {
+      await axios.put(`${API_URL}/pharmacy/reports/${reportId}/read`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchReportsInbox();
@@ -665,7 +665,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
       formData.append('body', replyText);
       if (replyAttachment) formData.append('attachment', replyAttachment);
       
-      const res = await axios.post(`${API_URL}/api/pharmacy/reports/${selectedReport.id}/reply`, formData, {
+      const res = await axios.post(`${API_URL}/pharmacy/reports/${selectedReport.id}/reply`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
 
@@ -705,7 +705,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/pharmacy/profile`, {
+      const res = await axios.get(`${API_URL}/pharmacy/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -729,7 +729,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
   const updateProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/pharmacy/profile`, profileData, {
+      const res = await axios.put(`${API_URL}/pharmacy/profile`, profileData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -751,7 +751,7 @@ const PharmacyDashboard = ({ user, onLogout }) => {
     }
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/pharmacy/change-password`, {
+      const res = await axios.put(`${API_URL}/pharmacy/change-password`, {
         current_password: passwordData.current_password,
         new_password: passwordData.new_password
       }, { headers: { Authorization: `Bearer ${token}` } });
