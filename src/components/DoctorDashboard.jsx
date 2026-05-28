@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import bcrypt from 'bcrypt';
+import Patient from '../models/Patient.js';
+
 import { io } from 'socket.io-client';
 import SignaturePad from 'react-signature-canvas';
 import BedManagement from './BedManagementDashboard';
@@ -18,7 +21,7 @@ import {
   FaKey, FaCamera, FaTrash, FaPaperclip, FaCalendar, FaBell as FaBellIcon,
   FaRegClock, FaChartLine, FaFileExport, FaCalendarWeek, FaHeartbeat,
   FaPills, FaFlask, FaXRay, FaBaby, FaBed, FaUserTie, FaCreditCard,
-  FaPlus, FaUpload, FaArrowLeft, FaHome
+  FaPlus, FaUpload, FaArrowLeft, FaHome, FaSync  // ← ADD THIS
 } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
@@ -4297,7 +4300,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
                   )}
 
                   {/* Radiology Results Section */}
-                  {radiologyResults && radiologyResults.length > 0 ? (
+  {radiologyResults && radiologyResults.length > 0 ? (
   <div className="mt-6">
     <h4 className="text-base font-semibold mb-4 flex items-center gap-2">
       <span>📷</span> Radiology Results
@@ -4316,7 +4319,6 @@ const DoctorDashboard = ({ user, onLogout }) => {
           images_count: result.images?.length || 0
         });
         
-        // ✅ FIX: Use a proper unique key - never use null
         const uniqueKey = result.id || result.unique_key || `rad_${result.request_id || index}`;
         
         return (
@@ -4361,7 +4363,6 @@ const DoctorDashboard = ({ user, onLogout }) => {
               </div>
             )}
             
-            {/* IMAGE GALLERY */}
             {result.images && result.images.length > 0 ? (
               <div className="mt-3">
                 <p className="text-xs font-medium text-gray-600 mb-2">
@@ -4422,15 +4423,16 @@ const DoctorDashboard = ({ user, onLogout }) => {
       })}
     </div>
   </div>
-) : null} : (
-                    <div className="mt-6 p-8 bg-gray-50 rounded-lg text-center border-2 border-dashed border-gray-200">
-                      <span className="text-4xl block mb-3">📷</span>
-                      <p className="text-gray-500">No radiology results available yet</p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        Results will appear here when radiology department completes the exam
-                      </p>
-                    </div>
-                  )
+) : (
+  <div className="mt-6 p-8 bg-gray-50 rounded-lg text-center border-2 border-dashed border-gray-200">
+    <span className="text-4xl block mb-3">📷</span>
+    <p className="text-gray-500">No radiology results available yet</p>
+    <p className="text-xs text-gray-400 mt-1">
+      Results will appear here when radiology department completes the exam
+    </p>
+  </div>
+)}
+                  
                 </div>
               )}
 
