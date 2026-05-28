@@ -509,66 +509,22 @@ const fetchHospitalAdmins = async () => {
     }
     
     console.log('📡 Fetching hospital admins for hospital_id:', hospitalId);
-    console.log('👤 Current user ID:', currentUserId);
     
     let admins = [];
     
-    // ✅ FIX: Fetch from HospitalAdmin table using the HR endpoint
+    // ✅ ONLY use the HR specific endpoint (same pattern as LaboratoryDashboard)
     try {
       const res = await axios.get(`${API_URL}/hr/hospital-admins`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success && res.data.admins && res.data.admins.length > 0) {
-        // Filter out current user (if current user is also in hospital admin list)
-        admins = res.data.admins.filter(admin => admin.id !== currentUserId);
-        console.log('✅ Found hospital admins from HospitalAdmin table:', admins);
+        admins = res.data.admins;
+        console.log('✅ Found hospital admins via /hr/hospital-admins:', admins);
+      } else {
+        console.log('⚠️ No admins found in response:', res.data);
       }
     } catch (err) {
       console.error('Error fetching from /hr/hospital-admins:', err);
-    }
-    
-    // ✅ If no admins found, try to fetch HospitalAdmin directly
-    if (admins.length === 0) {
-      try {
-        const res = await axios.get(`${API_URL}/hospital-admins`, {
-          params: { hospital_id: hospitalId },
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.data.success && res.data.admins && res.data.admins.length > 0) {
-          admins = res.data.admins.filter(admin => admin.id !== currentUserId);
-          console.log('✅ Found hospital admins via direct endpoint:', admins);
-        }
-      } catch (err) {
-        console.error('Error fetching from /hospital-admins:', err);
-      }
-    }
-    
-    // ✅ If still no admins, try to find any staff with role that can receive reports
-    if (admins.length === 0) {
-      try {
-        const res = await axios.get(`${API_URL}/hr/staff`, {
-          params: { 
-            hospital_id: hospitalId
-          },
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.data.success && res.data.staff && res.data.staff.length > 0) {
-          // For testing, include all staff (except current user) as potential recipients
-          admins = res.data.staff
-            .filter(s => s.id !== currentUserId)
-            .map(s => ({
-              id: s.id,
-              full_name: formatFullName(s),
-              email: s.email,
-              hospital_name: s.hospital_name,
-              hospital_id: s.hospital_id,
-              type: 'staff'
-            }));
-          console.log('⚠️ No hospital admins found, using staff as fallback:', admins);
-        }
-      } catch (err) {
-        console.error('Error fetching from staff fallback:', err);
-      }
     }
     
     setHospitalAdmins(admins);
