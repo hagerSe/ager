@@ -23,14 +23,14 @@ import CardOfficeStaffDashboard from './components/CardOfficeStaffDashboard';
 import BedManagementDashboard from './components/BedManagementDashboard';
 import HRDashboard from './components/HRDashboard';
 
-// ✅ FIXED: API URL without double /api
+// API URL configuration
 const API_URL = import.meta.env.VITE_API_URL || 'https://health-backend-2-gqv6.onrender.com/api';
 
 const App = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // ✅ FIXED: Verify token with backend (NO double /api)
+  // Verify token with backend
   const verifyToken = async () => {
     const token = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
@@ -41,8 +41,8 @@ const App = () => {
     }
 
     try {
-      // ✅ CORRECT: Use /auth/me (NOT /api/auth/me)
-      const response = await axios.get(`${API_URL}/auth/me`, {
+      // ✅ FIXED: Changed from /auth/me to /auth/profile
+      const response = await axios.get(`${API_URL}/auth/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -95,10 +95,24 @@ const App = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     localStorage.removeItem('hospital_id');
-    // Clear axios default header
     delete axios.defaults.headers.common['Authorization'];
     window.location.href = '/login';
   };
+
+  // Add axios interceptor to fix any double API calls
+  useEffect(() => {
+    const interceptor = axios.interceptors.request.use(config => {
+      if (config.url && config.url.includes('/api/api/')) {
+        console.warn('⚠️ Fixing double API URL:', config.url);
+        config.url = config.url.replace('/api/api/', '/api/');
+      }
+      return config;
+    }, error => Promise.reject(error));
+
+    return () => {
+      axios.interceptors.request.eject(interceptor);
+    };
+  }, []);
 
   if (loading) {
     return (
