@@ -497,68 +497,150 @@ const HRSchedulingDashboard = ({ user, onLogout }) => {
     }
   };
 
-  const fetchHospitalAdmins = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/hr/hospital-admins`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.data.success) {
-        setHospitalAdmins(res.data.admins);
-        if (res.data.admins.length === 1) {
-          setSendReportForm(prev => ({ ...prev, recipient_id: res.data.admins[0].id }));
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching hospital admins:', error);
-    }
-  };
-
-  const handleSendReport = async (e) => {
-    e.preventDefault();
-    if (!sendReportForm.recipient_id) {
-      setMessage({ type: 'error', text: 'Please select a recipient' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+const fetchHospitalAdmins = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    const hospitalId = getHospitalId();
+    
+    if (!hospitalId) {
+      console.error('❌ Cannot fetch hospital admins: No hospital_id available');
+      setMessage({ type: 'error', text: 'Hospital ID not found. Please login again.' });
       return;
     }
     
+    console.log('📡 Fetching hospital admins for hospital_id:', hospitalId);
+    
+    // Try both endpoints
+    let admins = [];
+    
+    // Method 1: Use the HR specific endpoint
     try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      const formData = new FormData();
-      formData.append('title', sendReportForm.title);
-      formData.append('subject', sendReportForm.title);
-      formData.append('body', sendReportForm.body);
-      formData.append('priority', sendReportForm.priority);
-      formData.append('recipient_type', sendReportForm.recipient_type);
-      formData.append('recipient_id', sendReportForm.recipient_id);
-      sendReportForm.attachments.forEach((file) => formData.append('attachments', file));
-      
-      const res = await axios.post(`${API_URL}/hr/reports/send`, formData, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+      const res = await axios.get(`${API_URL}/hr/hospital-admins`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
-
-      if (res.data.success) {
-        setMessage({ type: 'success', text: 'Report sent successfully!' });
-        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-        setShowSendReportModal(false);
-        setSendReportForm({
-          recipient_type: 'hospital_admin',
-          recipient_id: '',
-          title: '',
-          body: '',
-          priority: 'medium',
-          attachments: []
-        });
-        fetchReportsOutbox();
+      if (res.data.success && res.data.admins && res.data.admins.length > 0) {
+        admins = res.data.admins;
+        console.log('✅ Found admins via /hr/hospital-admins:', admins);
       }
-    } catch (error) {
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Error sending report' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } finally {
-      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching from /hr/hospital-admins:', err);
     }
-  };
+    
+    // Method 2: If no admins found, try direct hospital admin lookup
+    if (admins.length === 0) {
+      try {
+        const res = await axios.get(`${API_URL}/hospital-admin/by-hospital/${hospitalId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.data.success && res.data.admin) {
+          admins = [res.data.admin];
+          console.log('✅ Found admin via direct lookup:', admins);
+        }
+      } catch (err) {
+        console.error('Error fetching from direct endpoint:', err);
+      }
+    }
+    
+    // Method 3: Try to get from hospital staff with role
+    if (admins.length === 0) {
+      try {
+        const res = await axios.get(`${API_URL}/hr/staff`, {
+          params: { 
+            hospital_id: hospitalId,
+            department: 'Human_Resource',
+            role: 'Administrator'
+          },
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.data.success && res.data.staff && res.data.staff.length > 0) {
+          admins = res.data.staff.map(s => ({
+            id: s.id,
+            full_name: formatFullName(s),
+            email: s.email,
+            hospital_name: s.hospital_name,
+            hospital_id: s.hospital_id
+          }));
+          console.log('✅ Found admin via staff lookup:', admins);
+        }
+      } catch (err) {
+        console.error('Error fetching from staff lookup:', err);
+      }
+    }
+    
+    setHospitalAdmins(admins);
+    
+    if (admins.length === 1) {
+      setSendReportForm(prev => ({ ...prev, recipient_id: admins[0].id }));
+      console.log('✅ Auto-selected admin:', admins[0].full_name, 'ID:', admins[0].id);
+    } else if (admins.length > 1) {
+      console.log(`⚠️ Found ${admins.length} admins, user must select one`);
+    } else {
+      console.warn('⚠️ No hospital admins found');
+      setMessage({ type: 'warning', text: 'No hospital admin found. Please contact support.' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 5000);
+    }
+  } catch (error) {
+    console.error('Error fetching hospital admins:', error);
+    setMessage({ type: 'error', text: 'Error loading hospital admins' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+  }
+};
+
+const handleSendReport = async (e) => {
+  e.preventDefault();
+  
+  // Debug log
+  console.log('📤 Sending report with form data:', {
+    recipient_id: sendReportForm.recipient_id,
+    recipient_type: sendReportForm.recipient_type,
+    title: sendReportForm.title,
+    priority: sendReportForm.priority
+  });
+  
+  if (!sendReportForm.recipient_id) {
+    setMessage({ type: 'error', text: 'Please select a recipient' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    return;
+  }
+  
+  try {
+    setLoading(true);
+    const token = localStorage.getItem('token');
+    const formData = new FormData();
+    formData.append('title', sendReportForm.title);
+    formData.append('subject', sendReportForm.title);
+    formData.append('body', sendReportForm.body);
+    formData.append('priority', sendReportForm.priority);
+    formData.append('recipient_type', sendReportForm.recipient_type);
+    formData.append('recipient_id', sendReportForm.recipient_id);
+    sendReportForm.attachments.forEach((file) => formData.append('attachments', file));
+    
+    const res = await axios.post(`${API_URL}/hr/reports/send`, formData, {
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+    });
+
+    if (res.data.success) {
+      setMessage({ type: 'success', text: 'Report sent successfully!' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      setShowSendReportModal(false);
+      setSendReportForm({
+        recipient_type: 'hospital_admin',
+        recipient_id: '',
+        title: '',
+        body: '',
+        priority: 'medium',
+        attachments: []
+      });
+      fetchReportsOutbox();
+    }
+  } catch (error) {
+    console.error('Error sending report:', error);
+    setMessage({ type: 'error', text: error.response?.data?.message || 'Error sending report' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const viewReportDetails = (report) => {
     setSelectedReport(report);
