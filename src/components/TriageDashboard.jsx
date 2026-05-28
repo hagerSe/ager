@@ -17,9 +17,42 @@ import {
 
 const TriageDashboard = ({ user, onLogout }) => {
   // ==================== HELPER: Get Hospital ID ====================
-  const getHospitalId = () => {
-    return user?.hospital_id || user?.hospitalId;
+// LINE ~23 - Update getHospitalId
+const getHospitalId = () => {
+  if (!user) return null;
+  return user?.hospital_id || user?.hospitalId;
+};
+
+// LINE ~700 - Update useEffect
+useEffect(() => {
+  const hospitalId = getHospitalId();
+  
+  if (!hospitalId) {
+    console.warn('No hospital_id available - waiting for user data');
+    return;
+  }
+
+  initializeSocket();
+  fetchTriageQueue();
+  fetchTriagedPatients();
+  fetchStats();
+  fetchReportsInbox();
+  fetchReportsOutbox();
+  fetchHospitalAdmins();
+  fetchProfile();
+  fetchMySchedule();
+
+  const interval = setInterval(() => {
+    fetchTriageQueue();
+    fetchStats();
+    fetchReportsInbox();
+  }, 30000);
+
+  return () => {
+    if (socket.current) socket.current.disconnect();
+    clearInterval(interval);
   };
+}, [user?.hospital_id]); // ← ADD THIS DEPENDENCY
 
   // ==================== STATE MANAGEMENT ====================
   const [activeTab, setActiveTab] = useState('queue');
