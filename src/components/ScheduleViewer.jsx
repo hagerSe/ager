@@ -11,10 +11,19 @@ const ScheduleViewer = ({ user, compact = false }) => {
   const [staffInfo, setStaffInfo] = useState(null);
   const [error, setError] = useState(null);
 
-  // Clean API URL
-  let API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
-  API_URL = API_URL.replace(/\/$/, '');
-  console.log('🔧 ScheduleViewer API_URL:', API_URL);
+  // ✅ FIX: Get base URL without /api to avoid double /api
+  const getBaseUrl = () => {
+    let url = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+    url = url.replace(/\/$/, '');
+    // Remove trailing /api if present
+    if (url.endsWith('/api')) {
+      url = url.slice(0, -4);
+    }
+    return url;
+  };
+
+  const API_BASE_URL = getBaseUrl();
+  console.log('🔧 ScheduleViewer API_BASE_URL:', API_BASE_URL);
 
   // Fetch schedule from universal staff endpoint
   const fetchSchedule = async () => {
@@ -29,9 +38,8 @@ const ScheduleViewer = ({ user, compact = false }) => {
         return;
       }
 
-      // ✅ USE THE UNIVERSAL STAFF ENDPOINT
-      const endpoint = '/api/staff/my-schedule';
-      const fullUrl = `${API_URL}${endpoint}`;
+      // ✅ Build URL without double /api
+      const fullUrl = `${API_BASE_URL}/api/staff/my-schedule`;
       
       console.log('📡 Fetching schedule from:', fullUrl);
       
@@ -55,7 +63,7 @@ const ScheduleViewer = ({ user, compact = false }) => {
       console.error('Error details:', err.response?.data);
       
       if (err.response?.status === 404) {
-        setError('Schedule endpoint not found. Please check if /api/staff/my-schedule exists.');
+        setError('Schedule endpoint not found. Please contact HR.');
       } else if (err.response?.status === 500) {
         setError(`Server error: ${err.response?.data?.message || 'Internal server error'}`);
       } else if (err.response?.status === 401) {
