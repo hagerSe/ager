@@ -423,45 +423,52 @@ const RadiologyDashboard = ({ user, onLogout }) => {
 // In RadioDashboard.jsx - handleSubmitReport function
 
 const handleSubmitReport = async () => {
+  if (!selectedRequest) return;
+  
   try {
+    setLoading(true);
+    const token = localStorage.getItem('token');
+    
     const formData = new FormData();
+    formData.append('findings', reportData.findings || '');
+    formData.append('impression', reportData.impression || '');
+    formData.append('critical', reportData.critical ? 'true' : 'false');
     
-    // Add text fields
-    formData.append('findings', findings || '');
-    formData.append('impression', impression || '');
-    formData.append('recommendations', recommendations || '');
-    formData.append('critical', critical ? 'true' : 'false');
-    formData.append('clinical_history', clinicalHistory || '');
-    
-    // Add images - Field name must match 'images' (used in upload.array('images'))
-    if (imageFiles && imageFiles.length > 0) {
-      imageFiles.forEach((file) => {
-        formData.append('images', file);
+    // Add uploaded images
+    if (uploadedImages.length > 0) {
+      // Note: This assumes you have the actual File objects stored
+      // You may need to modify your image upload logic to keep File objects
+      uploadedImages.forEach((img, index) => {
+        if (img.file) {
+          formData.append('images', img.file);
+        }
       });
     }
     
-    const token = localStorage.getItem('token');
-    
     const response = await axios.put(
-      `${API_URL}/radiology/report/${requestId}`,
+      `${API_URL}/radiology/report/${selectedRequest.id}`,
       formData,
       {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
         },
-        timeout: 120000  // Increase timeout for large images
+        timeout: 120000
       }
     );
     
     if (response.data.success) {
-      console.log('✅ Report submitted successfully');
-      // Handle success
+      setMessage({ type: 'success', text: 'Report submitted successfully!' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      setShowReportModal(false);
+      fetchAllData();
     }
   } catch (error) {
     console.error('Error submitting report:', error);
-    console.error('Response:', error.response?.data);
-    // Show error to user
+    setMessage({ type: 'error', text: error.response?.data?.message || 'Error submitting report' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+  } finally {
+    setLoading(false);
   }
 };
 
