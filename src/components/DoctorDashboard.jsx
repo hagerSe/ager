@@ -233,7 +233,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/doctor/reports/inbox`, {
+      const res = await axios.get(`${API_URL}/doctor/reports/inbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -252,7 +252,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/doctor/reports/outbox`, {
+      const res = await axios.get(`${API_URL}/doctor/reports/outbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -269,7 +269,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
   const fetchHospitalAdmins = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/doctor/hospital-admins`, {
+      const res = await axios.get(`${API_URL}/doctor/hospital-admins`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -357,7 +357,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
   const fetchStaffMembers = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/doctor/hospital-staff`, {
+      const res = await axios.get(`${API_URL}/doctor/hospital-staff`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -444,7 +444,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
         formData.append('attachments', file);
       });
       
-      const res = await axios.post(`${API_URL}/api/doctor/reports/send`, formData, {
+      const res = await axios.post(`${API_URL}/doctor/reports/send`, formData, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
@@ -481,7 +481,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
   const markReportAsRead = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/doctor/reports/${reportId}/read`, {}, {
+      await axios.put(`${API_URL}/doctor/reports/${reportId}/read`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchReportsInbox();
@@ -517,7 +517,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
         formData.append('attachment', replyAttachment);
       }
       
-      const res = await axios.post(`${API_URL}/api/doctor/reports/${selectedReport.id}/reply`, formData, {
+      const res = await axios.post(`${API_URL}/doctor/reports/${selectedReport.id}/reply`, formData, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
@@ -552,7 +552,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/api/doctor/reports/${reminderData.report_id}/reminder`, {
+      const res = await axios.post(`${API_URL}/doctor/reports/${reminderData.report_id}/reminder`, {
         reminder_date: reminderData.reminder_date,
         reminder_time: reminderData.reminder_time,
         frequency: reminderData.frequency,
@@ -583,7 +583,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/doctor/profile`, {
+      const res = await axios.get(`${API_URL}/doctor/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -614,7 +614,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
   const updateProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/doctor/profile`, {
+      const res = await axios.put(`${API_URL}/doctor/profile`, {
         first_name: profileData.first_name,
         middle_name: profileData.middle_name,
         last_name: profileData.last_name,
@@ -651,7 +651,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
     }
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/doctor/change-password`, {
+      const res = await axios.put(`${API_URL}/doctor/change-password`, {
         current_password: passwordData.current_password,
         new_password: passwordData.new_password
       }, { headers: { Authorization: `Bearer ${token}` } });
@@ -712,7 +712,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
       switch(reportType) {
         case 'daily_patients':
           const patientsRes = await axios.get(
-            `${API_URL}/api/doctor/queue`,
+            `${API_URL}/doctor/queue`,
             { 
               params: {
                 ward: user?.ward,
@@ -728,7 +728,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
           
         case 'prescription_summary':
           const prescriptionsRes = await axios.get(
-            `${API_URL}/api/doctor/prescriptions`,
+            `${API_URL}/doctor/prescriptions`,
             { 
               params: {
                 doctor_id: user?.id,
@@ -743,7 +743,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
           
         case 'lab_requests':
           const labRes = await axios.get(
-            `${API_URL}/api/doctor/lab-requests`,
+            `${API_URL}/doctor/lab-requests`,
             { 
               params: {
                 doctor_id: user?.id,
@@ -758,7 +758,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
           
         case 'radiology_requests':
           const radiologyRes = await axios.get(
-            `${API_URL}/api/doctor/radiology-requests`,
+            `${API_URL}/doctor/radiology-requests`,
             { 
               params: {
                 doctor_id: user?.id,
@@ -773,7 +773,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
           
         case 'discharge_summary':
           const dischargeRes = await axios.get(
-            `${API_URL}/api/doctor/discharges`,
+            `${API_URL}/doctor/discharges`,
             { 
               params: {
                 doctor_id: user?.id,
@@ -1180,7 +1180,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       const res = await axios.get(
-        `${API_URL}/api/doctor/discharged-patients`,
+        `${API_URL}/doctor/discharged-patients`,
         { 
           params: {
             hospital_id: user?.hospital_id,
@@ -1444,7 +1444,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
       console.log(`Fetching queue for ${user.ward} ward...`);
       
       const res = await axios.get(
-        `${API_URL}/api/doctor/queue`,
+        `${API_URL}/doctor/queue`,
         { 
           params: {
             ward: user.ward,
@@ -1483,7 +1483,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       const res = await axios.get(
-        `${API_URL}/api/doctor/radiology-results/${patientId}`,
+        `${API_URL}/doctor/radiology-results/${patientId}`,
         { 
           params: { doctor_id: user?.id, hospital_id: user?.hospital_id },
           headers: { Authorization: `Bearer ${token}` },
@@ -1507,7 +1507,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       const res = await axios.get(
-        `${API_URL}/api/doctor/lab-results/${patientId}`,
+        `${API_URL}/doctor/lab-results/${patientId}`,
         { 
           params: { doctor_id: user?.id, hospital_id: user?.hospital_id },
           headers: { Authorization: `Bearer ${token}` },
@@ -1531,7 +1531,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       const res = await axios.get(
-        `${API_URL}/api/doctor/available-beds`,
+        `${API_URL}/doctor/available-beds`,
         { 
           params: { ward: user?.ward, hospital_id: user?.hospital_id },
           headers: { Authorization: `Bearer ${token}` },
@@ -1559,7 +1559,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
       if (!token || !user?.hospital_id || !user?.ward) return;
 
       const res = await axios.get(
-        `${API_URL}/api/doctor/stats`,
+        `${API_URL}/doctor/stats`,
         { 
           params: { ward: user.ward, hospital_id: user.hospital_id, doctor_id: user.id },
           headers: { Authorization: `Bearer ${token}` },
@@ -1591,7 +1591,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
       const token = localStorage.getItem('token');
       
       const res = await axios.post(
-        `${API_URL}/api/doctor/assign-patient`,
+        `${API_URL}/doctor/assign-patient`,
         {
           patient_id: patient.id,
           doctor_id: user?.id,
@@ -1643,7 +1643,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       const res = await axios.post(
-        `${API_URL}/api/doctor/save-diagnosis`,
+        `${API_URL}/doctor/save-diagnosis`,
         { patient_id: selectedPatient.id, diagnosis, doctor_id: user?.id, hospital_id: user?.hospital_id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -1712,7 +1712,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
       }));
       
       const res = await axios.post(
-        `${API_URL}/api/doctor/save-prescriptions`,
+        `${API_URL}/doctor/save-prescriptions`,
         {
           patient_id: selectedPatient.id,
           patient_name: `${selectedPatient.first_name} ${selectedPatient.last_name}`,
@@ -1777,7 +1777,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       const res = await axios.post(
-        `${API_URL}/api/doctor/request-lab`,
+        `${API_URL}/doctor/request-lab`,
         {
           patient_id: selectedPatient.id,
           patient_name: `${selectedPatient.first_name} ${selectedPatient.last_name}`,
@@ -1835,7 +1835,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       const res = await axios.post(
-        `${API_URL}/api/doctor/request-radiology`,
+        `${API_URL}/doctor/request-radiology`,
         {
           patient_id: selectedPatient.id,
           patient_name: `${selectedPatient.first_name} ${selectedPatient.last_name}`,
@@ -1906,7 +1906,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
       setLoading(true);
       const token = localStorage.getItem('token');
       const res = await axios.post(
-        `${API_URL}/api/doctor/discharge-patient`,
+        `${API_URL}/doctor/discharge-patient`,
         {
           patient_id: selectedPatient.id,
           doctor_id: user?.id,
@@ -1974,7 +1974,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
       setLoading(true);
       const token = localStorage.getItem('token');
       const res = await axios.post(
-        `${API_URL}/api/doctor/admit-patient`,
+        `${API_URL}/doctor/admit-patient`,
         {
           patient_id: selectedPatient.id,
           doctor_id: user?.id,
@@ -2046,7 +2046,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
       setLoading(true);
       const token = localStorage.getItem('token');
       const res = await axios.post(
-        `${API_URL}/api/doctor/refer-patient`,
+        `${API_URL}/doctor/refer-patient`,
         {
           patient_id: selectedPatient.id,
           doctor_id: user?.id,
