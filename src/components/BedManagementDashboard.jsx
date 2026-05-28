@@ -106,12 +106,18 @@ const BedManagementDashboard = ({
   const [realTimeNotification, setRealTimeNotification] = useState(null);
 
   const navigate = useNavigate();
+
+
+//   backend connection placce  and  in  the  cloud 
+
+
+  
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
   const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001';
   const isSelectionMode = selectionMode;
 
   const wards = ['OPD', 'EME', 'ANC'];
-  const bedTypes = ['general', 'private', 'semi-private', 'icu', 'isolation'];
+  const bedTypes = ['OPD', 'EME', 'ANC'];
 
   // ==================== HELPER FUNCTIONS ====================
   const getStatusColor = (status) => {
