@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaSpinner, FaBed, FaCheck, FaTools, FaUser, FaCalendarAlt, FaSync } from 'react-icons/fa';
+import { FaSpinner, FaBed, FaCheck, FaTools, FaUser, FaCalendarAlt, FaSync, FaHospital, FaBaby, FaAmbulance } from 'react-icons/fa';
 
 const BedSelection = ({ ward, hospitalId, onBedSelect, selectedBed, title = "Select Bed" }) => {
   const [beds, setBeds] = useState([]);
@@ -23,7 +23,8 @@ const BedSelection = ({ ward, hospitalId, onBedSelect, selectedBed, title = "Sel
       
       console.log(`🔍 Fetching available beds for ${ward} ward`);
       
-      const res = await axios.get(`${API_URL}/doctor/available-beds`, {
+      // ✅ CORRECTED: Use the same endpoint as BedManagementDashboard
+      const res = await axios.get(`${API_URL}/beds/all`, {
         params: {
           ward: ward,
           hospital_id: hospitalId
@@ -32,9 +33,11 @@ const BedSelection = ({ ward, hospitalId, onBedSelect, selectedBed, title = "Sel
       });
       
       if (res.data.success) {
-        console.log(`✅ Found ${res.data.beds.length} available beds in ${ward} ward`);
-        setBeds(res.data.beds);
-        if (res.data.beds.length === 0) {
+        // ✅ Filter only available beds
+        const availableBeds = res.data.beds.filter(bed => bed.status === 'available');
+        console.log(`✅ Found ${availableBeds.length} available beds in ${ward} ward`);
+        setBeds(availableBeds);
+        if (availableBeds.length === 0) {
           setError('No beds available in this ward');
         }
       } else {
@@ -58,21 +61,40 @@ const BedSelection = ({ ward, hospitalId, onBedSelect, selectedBed, title = "Sel
     }
   };
 
+  // ✅ UPDATED: Bed type icons based on your wards (OPD, EME, ANC)
+  const getBedTypeIcon = (type) => {
+    const icons = {
+      OPD: <FaHospital className="text-blue-500" />,
+      EME: <FaAmbulance className="text-red-500" />,
+      ANC: <FaBaby className="text-pink-500" />
+    };
+    return icons[type] || <FaBed className="text-gray-400" />;
+  };
+
+  // ✅ UPDATED: Bed type text based on your wards
   const getBedTypeText = (type) => {
     const types = {
-      general: 'General',
-      private: 'Private',
-      'semi-private': 'Semi-Private',
-      icu: 'ICU',
-      isolation: 'Isolation'
+      OPD: 'OPD Ward',
+      EME: 'EME Ward',
+      ANC: 'ANC Ward'
     };
     return types[type] || type;
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      available: 'border-green-200 hover:border-green-500 hover:bg-green-50',
+      occupied: 'border-gray-200 opacity-50 cursor-not-allowed',
+      maintenance: 'border-gray-200 opacity-50 cursor-not-allowed',
+      reserved: 'border-blue-200 opacity-50 cursor-not-allowed'
+    };
+    return colors[status] || colors.available;
   };
 
   if (loading) {
     return (
       <div className="text-center py-4">
-        <FaSpinner className="animate-spin text-amber-500 mx-auto mb-2" />
+        <FaSpinner className="animate-spin text-emerald-500 mx-auto mb-2" />
         <p className="text-xs text-gray-500">Loading beds...</p>
       </div>
     );
@@ -84,7 +106,7 @@ const BedSelection = ({ ward, hospitalId, onBedSelect, selectedBed, title = "Sel
         <p className="text-xs text-red-500 mb-2">{error}</p>
         <button
           onClick={fetchAvailableBeds}
-          className="text-xs text-blue-500 hover:text-blue-700"
+          className="text-xs text-emerald-500 hover:text-emerald-700"
         >
           Retry
         </button>
@@ -104,10 +126,12 @@ const BedSelection = ({ ward, hospitalId, onBedSelect, selectedBed, title = "Sel
 
   return (
     <div>
-      <div className="mb-2">
-        <p className="text-xs font-medium text-gray-600">{title}</p>
+      <div className="mb-3">
+        <p className="text-sm font-medium text-gray-700">{title}</p>
+        <p className="text-xs text-gray-500">Click on an available bed to select</p>
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      
+      <div className="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto">
         {beds.map(bed => {
           const isAvailable = bed.status === 'available';
           const isSelected = selectedBed === bed.id;
@@ -116,40 +140,52 @@ const BedSelection = ({ ward, hospitalId, onBedSelect, selectedBed, title = "Sel
             <div
               key={bed.id}
               onClick={() => isAvailable && onBedSelect(bed.id)}
-              className={`border rounded-lg p-2 cursor-pointer transition-all ${
+              className={`border-2 rounded-xl p-3 cursor-pointer transition-all duration-200 ${
                 isSelected
-                  ? 'border-amber-500 bg-amber-50'
+                  ? 'border-emerald-500 bg-emerald-50 shadow-md ring-2 ring-emerald-200'
                   : isAvailable
-                  ? 'border-green-200 hover:border-green-500 hover:bg-green-50'
+                  ? getStatusColor(bed.status)
                   : 'border-gray-200 opacity-50 cursor-not-allowed'
               }`}
             >
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-sm">Bed {bed.number}</span>
-                <span className="text-sm">{getBedIcon(bed.status)}</span>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  {getBedTypeIcon(bed.type)}
+                  <span className="font-bold text-base text-gray-800">Bed {bed.number}</span>
+                </div>
+                <span className="text-lg">{getBedIcon(bed.status)}</span>
               </div>
-              <div className="text-xs text-gray-500 mt-1">
+              
+              <div className="text-xs font-medium text-gray-500 mb-2">
                 {getBedTypeText(bed.type)}
               </div>
+              
               {bed.status === 'available' && (
-                <div className="text-xs text-green-600 mt-1">
-                  ✓ Available
+                <div className="text-xs font-medium text-green-600 flex items-center gap-1 mt-1">
+                  <FaCheck className="text-xs" /> Available
+                </div>
+              )}
+              
+              {bed.notes && bed.status === 'available' && (
+                <div className="text-xs text-gray-400 mt-2 truncate">
+                  {bed.notes}
                 </div>
               )}
             </div>
           );
         })}
       </div>
-      <div className="mt-3 text-center">
+      
+      <div className="mt-4 flex justify-between items-center">
+        <div className="text-xs text-gray-500">
+          {beds.filter(b => b.status === 'available').length} bed(s) available
+        </div>
         <button
           onClick={fetchAvailableBeds}
-          className="text-xs text-gray-500 hover:text-gray-700 inline-flex items-center gap-1"
+          className="text-xs text-gray-500 hover:text-gray-700 inline-flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-gray-100 transition"
         >
           <FaSync className="text-xs" /> Refresh
         </button>
-      </div>
-      <div className="mt-2 text-xs text-gray-400 text-center">
-        {beds.filter(b => b.status === 'available').length} bed(s) available
       </div>
     </div>
   );

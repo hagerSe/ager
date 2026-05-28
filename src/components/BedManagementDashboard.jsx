@@ -16,7 +16,7 @@ import {
   FaStethoscope, FaProcedures, FaUserInjured, FaEdit, FaSave, FaKey, FaCamera,
   FaReply, FaEye, FaFileAlt, FaPaperclip, FaTrash, FaBell as FaBellIcon,
   FaRegClock, FaBuilding, FaGlobe, FaMapMarkerAlt,
-  FaIdCard, FaUserPlus, FaHistory, FaSync, FaTools, FaWrench
+  FaIdCard, FaUserPlus, FaHistory, FaSync, FaTools, FaWrench, FaAmbulance
 } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import ScheduleViewer from '../components/ScheduleViewer';
@@ -47,7 +47,7 @@ const BedManagementDashboard = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [newBed, setNewBed] = useState({
     number: '',
-    type: 'general',
+    type: 'OPD',
     notes: ''
   });
 
@@ -107,11 +107,6 @@ const BedManagementDashboard = ({
 
   const navigate = useNavigate();
 
-
-//   backend connection placce  and  in  the  cloud 
-
-
-  
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
   const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001';
   const isSelectionMode = selectionMode;
@@ -152,22 +147,18 @@ const BedManagementDashboard = ({
 
   const getBedTypeText = (type) => {
     const types = {
-      general: 'General Ward',
-      private: 'Private Room',
-      'semi-private': 'Semi-Private',
-      icu: 'ICU',
-      isolation: 'Isolation'
+      OPD: 'OPD Ward',
+      EME: 'EME Ward',
+      ANC: 'ANC Ward'
     };
     return types[type] || type;
   };
 
   const getBedTypeIcon = (type) => {
     const icons = {
-      general: <FaBed className="text-blue-500" />,
-      private: <FaUserTie className="text-purple-500" />,
-      'semi-private': <FaUsers className="text-cyan-500" />,
-      icu: <FaHeartbeat className="text-red-500" />,
-      isolation: <FaExclamationTriangle className="text-orange-500" />
+      OPD: <FaHospital className="text-blue-500" />,
+      EME: <FaAmbulance className="text-red-500" />,
+      ANC: <FaBaby className="text-pink-500" />
     };
     return icons[type] || <FaBed className="text-gray-500" />;
   };
@@ -285,7 +276,6 @@ const BedManagementDashboard = ({
       setTimeout(() => setRealTimeNotification(null), 6000);
     });
 
-    // Listen for weekly schedule ready
     socketRef.current.on('weekly_schedule_ready', (data) => {
       console.log('📅 Weekly schedule ready event received:', data);
       setRealTimeNotification({
@@ -305,7 +295,6 @@ const BedManagementDashboard = ({
       setTimeout(() => setRealTimeNotification(null), 10000);
     });
 
-    // Listen for new schedule assigned
     socketRef.current.on('new_schedule_assigned', (data) => {
       console.log('📅 New schedule assigned event:', data);
       setRealTimeNotification({
@@ -697,7 +686,7 @@ const BedManagementDashboard = ({
       if (res.data.success) {
         setMessage({ type: 'success', text: `Bed ${newBed.number} added to ${selectedWard} ward` });
         setShowAddBedModal(false);
-        setNewBed({ number: '', type: 'general', notes: '' });
+        setNewBed({ number: '', type: 'OPD', notes: '' });
         fetchBeds();
         fetchWardStats();
         
