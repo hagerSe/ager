@@ -18,6 +18,17 @@ import {
 const TriageDashboard = ({ user, onLogout }) => {
   // ==================== HELPER: Get Hospital ID ====================
 // LINE ~23 - Update getHospitalId
+
+
+
+console.log('=== TRIAGE DASHBOARD DEBUG ===');
+  console.log('Full user object:', JSON.stringify(user, null, 2));
+  console.log('user?.hospital_id:', user?.hospital_id);
+  console.log('user?.hospitalId:', user?.hospitalId);
+  console.log('user?.id:', user?.id);
+  console.log('user?.department:', user?.department);
+
+  
 const getHospitalId = () => {
   if (!user) return null;
   return user?.hospital_id || user?.hospitalId;
