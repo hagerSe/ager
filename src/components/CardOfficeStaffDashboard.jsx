@@ -360,40 +360,7 @@ const getHospitalId = () => {
     }
   };
 
- // In CardOfficeDashboard.jsx - this part is correct
-const handleSendReport = async (e) => {
-  e.preventDefault();
-  if (!sendReportForm.recipient_id) {
-    setMessage({ type: 'error', text: 'Please select a recipient' });
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    return;
-  }
-  
-  try {
-    setLoading(true);
-    const token = localStorage.getItem('token');
-    const formData = new FormData();
-    formData.append('title', sendReportForm.title);
-    formData.append('body', sendReportForm.body);
-    formData.append('priority', sendReportForm.priority);
-    formData.append('recipient_id', sendReportForm.recipient_id);
-    
-    // ✅ This correctly appends files with field name 'attachments'
-    sendReportForm.attachments.forEach((file) => {
-      formData.append('attachments', file);
-    });
-    
-    const res = await axios.post(`${API_URL}/cardoffice/reports/send`, formData, {
-      headers: { 
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'multipart/form-data' 
-      }
-    });
-    // ... rest of code
-  } catch (error) {
-    // ... error handling
-  }
-};
+ 
   const viewReportDetails = (report) => {
     setSelectedReport(report);
     setShowReportDetailModal(true);
@@ -571,46 +538,48 @@ const handleSendReport = async (e) => {
   };
 
   // ==================== SEARCH ====================
-  const handleSearch = async () => {
-    const hospitalId = getHospitalId();
-    if (!hospitalId) {
-      setMessage({ type: 'error', text: 'Hospital ID not found. Please login again.' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      return;
-    }
+const handleSearch = async () => {
+  const hospitalId = getHospitalId();
+  if (!hospitalId) {
+    setMessage({ type: 'error', text: 'Hospital ID not found. Please login again.' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    return;
+  }
+  
+  if (!searchQuery.trim()) {
+    setSearchResults([]);
+    setMessage({ type: 'error', text: 'Please enter a search term' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    return;
+  }
+
+  setSearching(true);
+  try {
+    const token = localStorage.getItem('token');
+    const encodedQuery = encodeURIComponent(searchQuery.trim());
     
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      setMessage({ type: 'error', text: 'Please enter a search term' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      return;
-    }
+    // ✅ FIX: Add both query and hospital_id parameters
+    const response = await axios.get(
+      `${API_URL}/cardoffice/patients/search?query=${encodedQuery}&hospital_id=${hospitalId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
 
-    setSearching(true);
-    try {
-      const token = localStorage.getItem('token');
-      const encodedQuery = encodeURIComponent(searchQuery.trim());
-      const response = await axios.get(
-        `${API_URL}/cardoffice/patients/search`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (response.data.success) {
-        setSearchResults(response.data.patients || []);
-        if (!response.data.patients || response.data.patients.length === 0) {
-          setMessage({ type: 'info', text: 'No patients found matching your search' });
-          setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-        }
+    if (response.data.success) {
+      setSearchResults(response.data.patients || []);
+      if (!response.data.patients || response.data.patients.length === 0) {
+        setMessage({ type: 'info', text: 'No patients found matching your search' });
+        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
       }
-    } catch (error) {
-      console.error('Search error:', error);
-      setSearchResults([]);
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Error searching patients' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } finally {
-      setSearching(false);
     }
-  };
+  } catch (error) {
+    console.error('Search error:', error);
+    setSearchResults([]);
+    setMessage({ type: 'error', text: error.response?.data?.message || 'Error searching patients' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+  } finally {
+    setSearching(false);
+  }
+};
 
   const handleSendToTriage = async (patient) => {
     const reason = prompt('Enter reason for return visit:');
