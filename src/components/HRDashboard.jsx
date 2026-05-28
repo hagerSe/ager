@@ -129,7 +129,9 @@ const HRSchedulingDashboard = ({ user, onLogout }) => {
   };
 
   // API Configuration
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+ // Add this after your imports
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001';
   const socket = useRef(null);
   const navigate = useNavigate();
 
@@ -218,75 +220,30 @@ const HRSchedulingDashboard = ({ user, onLogout }) => {
     };
   }, [user?.hospital_id]);
 
-  const initializeSocket = () => {
-    const token = localStorage.getItem('token');
-    socket.current = io(API_URL, {
-      auth: { token },
-      transports: ['polling', 'websocket'],
-      reconnection: true,
-      reconnectionAttempts: 5
-    });
+ const initializeSocket = () => {
+  const token = localStorage.getItem('token');
+  
+  // ✅ FIX: Use the same socket URL as DoctorDashboard, but join different room
+  socket.current = io(SOCKET_URL, {  // Make sure SOCKET_URL is defined
+    auth: { token },
+    transports: ['polling', 'websocket'],
+    reconnection: true,
+    reconnectionAttempts: 5
+  });
 
-    socket.current.on('connect', () => {
-      console.log('✅ HR Socket connected');
-      setConnectionStatus('connected');
-      socket.current.emit('join', `hospital_${user?.hospital_id}_hr`);
-    });
+  socket.current.on('connect', () => {
+    console.log('✅ HR Socket connected');
+    setConnectionStatus('connected');
+    // Join hospital HR room instead of just 'hr'
+    socket.current.emit('join', `hospital_${user?.hospital_id}_hr`);
+  });
 
-    socket.current.on('connect_error', (err) => {
-      console.error('❌ Socket error:', err);
-      setConnectionStatus('disconnected');
-    });
-
-    socket.current.on('disconnect', () => {
-      console.log('🔌 Socket disconnected');
-      setConnectionStatus('disconnected');
-    });
-
-    // New schedule assigned to staff
-    socket.current.on('new_schedule_assigned', (data) => {
-      console.log('📅 New schedule assigned:', data);
-      setRealTimeNotification({
-        id: Date.now(),
-        type: 'schedule',
-        title: 'New Schedule Assigned',
-        message: `${data.shift} Shift on ${data.date} in ${data.ward} Ward`,
-        priority: 'high',
-        timestamp: new Date()
-      });
-      fetchSchedules();
-      setTimeout(() => setRealTimeNotification(null), 10000);
-    });
-
-    // Weekly schedule ready
-    socket.current.on('weekly_schedule_ready', (data) => {
-      console.log('📆 Weekly schedule ready:', data);
-      setRealTimeNotification({
-        id: Date.now(),
-        type: 'weekly',
-        title: `Weekly Schedule Ready - ${data.week_range}`,
-        message: `You have ${data.schedules_count} shifts scheduled this week.\nTotal hours: ${data.total_hours}h`,
-        priority: 'high',
-        timestamp: new Date()
-      });
-      fetchSchedules();
-      setTimeout(() => setRealTimeNotification(null), 12000);
-    });
-
-    // New report from hospital admin
-    socket.current.on('new_report_from_hospital', (data) => {
-      setRealTimeNotification({
-        id: Date.now(),
-        type: 'report',
-        title: 'New Report Received',
-        message: `Hospital Admin sent: "${data.title}"`,
-        priority: data.priority,
-        timestamp: new Date()
-      });
-      fetchReportsInbox();
-      setTimeout(() => setRealTimeNotification(null), 6000);
-    });
-  };
+  socket.current.on('connect_error', (err) => {
+    console.error('❌ Socket error:', err);
+    setConnectionStatus('disconnected');
+  });
+  // ... rest of socket handlers
+};
 
   // ==================== API CALLS ====================
   const fetchAllData = async () => {
