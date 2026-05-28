@@ -351,24 +351,112 @@ const initializeSocket = () => {
     setLoading(false);
   };
 
-  const fetchStaff = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/hr/staff`, {
-        params: { hospital_id: user?.hospital_id },
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.data.success) {
-        const staffWithFullName = (res.data.staff || []).map(s => ({
-          ...s,
-          full_name: formatFullName(s)
-        }));
-        setStaff(staffWithFullName);
-      }
-    } catch (error) {
-      console.error('Error fetching staff:', error);
+// Update all fetch functions to validate hospital_id
+const fetchStaff = async () => {
+  try {
+    const hospitalId = user?.hospital_id || user?.hospitalId;
+    if (!hospitalId) {
+      console.error('❌ Cannot fetch staff: No hospital_id available');
+      return;
     }
-  };
+    
+    const token = localStorage.getItem('token');
+    const res = await axios.get(`${API_URL}/hr/staff`, {
+      params: { hospital_id: hospitalId },
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.data.success) {
+      const staffWithFullName = (res.data.staff || []).map(s => ({
+        ...s,
+        full_name: formatFullName(s)
+      }));
+      setStaff(staffWithFullName);
+    }
+  } catch (error) {
+    console.error('Error fetching staff:', error);
+  }
+};
+
+const fetchSchedules = async () => {
+  try {
+    const hospitalId = user?.hospital_id || user?.hospitalId;
+    if (!hospitalId) {
+      console.error('❌ Cannot fetch schedules: No hospital_id available');
+      return;
+    }
+    
+    const token = localStorage.getItem('token');
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 60);
+    
+    const res = await axios.get(`${API_URL}/hr/schedules`, {
+      params: { 
+        hospital_id: hospitalId,
+        start_date: startDate.toISOString().split('T')[0],
+        end_date: endDate.toISOString().split('T')[0]
+      },
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.data.success) {
+      setSchedules(res.data.schedules || []);
+    }
+  } catch (error) {
+    console.error('Error fetching schedules:', error);
+  }
+};
+
+const fetchLeaveRequests = async () => {
+  try {
+    const hospitalId = user?.hospital_id || user?.hospitalId;
+    if (!hospitalId) {
+      console.error('❌ Cannot fetch leave requests: No hospital_id available');
+      return;
+    }
+    
+    const token = localStorage.getItem('token');
+    const res = await axios.get(`${API_URL}/hr/leave-requests`, {
+      params: { hospital_id: hospitalId },
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.data.success) {
+      setLeaveRequests(res.data.requests || []);
+    }
+  } catch (error) {
+    console.error('Error fetching leave requests:', error);
+  }
+};
+
+const fetchStats = async () => {
+  try {
+    const hospitalId = user?.hospital_id || user?.hospitalId;
+    if (!hospitalId) {
+      console.error('❌ Cannot fetch stats: No hospital_id available');
+      // Set default empty stats
+      setStats({
+        totalStaff: 0,
+        onDuty: 0,
+        onLeave: 0,
+        shiftsToday: 0,
+        pendingRequests: 0,
+        staffByDepartment: [],
+        upcomingShifts: []
+      });
+      return;
+    }
+    
+    const token = localStorage.getItem('token');
+    const res = await axios.get(`${API_URL}/hr/stats`, {
+      params: { hospital_id: hospitalId },
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.data.success) {
+      setStats(res.data.stats);
+    }
+  } catch (error) {
+    console.error('Error fetching stats:', error);
+  }
+};
 
   const fetchSchedules = async () => {
     try {
@@ -656,117 +744,139 @@ const initializeSocket = () => {
   };
 
   // ==================== AUTO GENERATE WEEKLY SCHEDULE ====================
-  const autoGenerateWeeklySchedule = async () => {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const weekRange = getWeekRange(selectedWeek);
-      const startDate = weekRange.start.toISOString().split('T')[0];
-      const endDate = weekRange.end.toISOString().split('T')[0];
-      
-      const res = await axios.post(`${API_URL}/hr/schedule/auto-generate`, {
-        hospital_id: user?.hospital_id,
-        start_date: startDate,
-        end_date: endDate,
-        ward: 'all'
-      }, { headers: { Authorization: `Bearer ${token}` } });
-      
-      if (res.data.success) {
-        setMessage({ 
-          type: 'success', 
-          text: `✅ Generated ${res.data.schedules?.length || 0} shifts for ${res.data.staff_notified || 0} staff members! Notifications sent to all staff.` 
-        });
-        fetchSchedules();
-        fetchStats();
-      }
-    } catch (error) {
-      console.error('Error generating schedule:', error);
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Error generating schedule' });
-    } finally {
-      setLoading(false);
-      setTimeout(() => setMessage({ type: '', text: '' }), 5000);
+const autoGenerateWeeklySchedule = async () => {
+  const hospitalId = user?.hospital_id || user?.hospitalId;
+  if (!hospitalId) {
+    setMessage({ type: 'error', text: 'Hospital ID not found. Please login again.' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    return;
+  }
+  
+  setLoading(true);
+  try {
+    const token = localStorage.getItem('token');
+    const weekRange = getWeekRange(selectedWeek);
+    const startDate = weekRange.start.toISOString().split('T')[0];
+    const endDate = weekRange.end.toISOString().split('T')[0];
+    
+    const res = await axios.post(`${API_URL}/hr/schedule/auto-generate`, {
+      hospital_id: hospitalId,
+      start_date: startDate,
+      end_date: endDate,
+      ward: 'all'
+    }, { headers: { Authorization: `Bearer ${token}` } });
+    
+    if (res.data.success) {
+      setMessage({ 
+        type: 'success', 
+        text: `✅ Generated ${res.data.schedules?.length || 0} shifts for ${res.data.staff_notified || 0} staff members!` 
+      });
+      fetchSchedules();
+      fetchStats();
     }
-  };
+  } catch (error) {
+    console.error('Error generating schedule:', error);
+    setMessage({ type: 'error', text: error.response?.data?.message || 'Error generating schedule' });
+  } finally {
+    setLoading(false);
+    setTimeout(() => setMessage({ type: '', text: '' }), 5000);
+  }
+};
 
   // ==================== STAFF SCHEDULE FETCH ====================
-  const fetchStaffSchedule = async (staffMember) => {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const startDate = new Date();
-      const endDate = new Date();
-      endDate.setDate(endDate.getDate() + 60);
-      
-      const res = await axios.get(`${API_URL}/hr/schedules`, {
-        params: {
-          hospital_id: user?.hospital_id,
-          staff_id: staffMember.id,
-          start_date: startDate.toISOString().split('T')[0],
-          end_date: endDate.toISOString().split('T')[0]
-        },
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (res.data.success) {
-        const sortedSchedules = (res.data.schedules || []).sort((a, b) => 
-          new Date(a.date) - new Date(b.date)
-        );
-        setStaffSchedules(sortedSchedules);
-        setViewingStaff(staffMember);
-        setShowStaffDetailsModal(true);
-      } else {
-        setStaffSchedules([]);
-        setViewingStaff(staffMember);
-        setShowStaffDetailsModal(true);
-      }
-    } catch (error) {
-      console.error('Error fetching staff schedule:', error);
+const fetchStaffSchedule = async (staffMember) => {
+  const hospitalId = user?.hospital_id || user?.hospitalId;
+  if (!hospitalId) {
+    console.error('❌ Cannot fetch staff schedule: No hospital_id available');
+    setStaffSchedules([]);
+    setViewingStaff(staffMember);
+    setShowStaffDetailsModal(true);
+    return;
+  }
+  
+  setLoading(true);
+  try {
+    const token = localStorage.getItem('token');
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 60);
+    
+    const res = await axios.get(`${API_URL}/hr/schedules`, {
+      params: {
+        hospital_id: hospitalId,
+        staff_id: staffMember.id,
+        start_date: startDate.toISOString().split('T')[0],
+        end_date: endDate.toISOString().split('T')[0]
+      },
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    if (res.data.success) {
+      const sortedSchedules = (res.data.schedules || []).sort((a, b) => 
+        new Date(a.date) - new Date(b.date)
+      );
+      setStaffSchedules(sortedSchedules);
+      setViewingStaff(staffMember);
+      setShowStaffDetailsModal(true);
+    } else {
       setStaffSchedules([]);
       setViewingStaff(staffMember);
       setShowStaffDetailsModal(true);
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (error) {
+    console.error('Error fetching staff schedule:', error);
+    setStaffSchedules([]);
+    setViewingStaff(staffMember);
+    setShowStaffDetailsModal(true);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // ==================== STAFF MANAGEMENT ====================
-  const addStaff = async () => {
-    if (!newStaff.first_name || !newStaff.last_name || !newStaff.email) {
-      setMessage({ type: 'error', text: 'Please fill all required fields' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/hr/staff`, {
-        ...newStaff,
-        hospital_id: user?.hospital_id
-      }, { headers: { Authorization: `Bearer ${token}` } });
-      
-      if (res.data.success) {
-        setMessage({ type: 'success', text: `Staff ${formatFullName(newStaff)} added successfully! Password: ${res.data.staff.password}` });
-        fetchStaff();
-        setShowStaffModal(false);
-        setNewStaff({
-          first_name: '',
-          middle_name: '',
-          last_name: '',
-          email: '',
-          phone: '',
-          department: '',
-          ward: '',
-          role: '',
-          max_hours_per_week: 40
-        });
-      }
-    } catch (error) {
-      console.error('Error adding staff:', error);
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Error adding staff' });
-    }
+const addStaff = async () => {
+  const hospitalId = user?.hospital_id || user?.hospitalId;
+  if (!hospitalId) {
+    setMessage({ type: 'error', text: 'Hospital ID not found. Please login again.' });
     setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-  };
+    return;
+  }
+  
+  if (!newStaff.first_name || !newStaff.last_name || !newStaff.email) {
+    setMessage({ type: 'error', text: 'Please fill all required fields' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    return;
+  }
 
+  try {
+    const token = localStorage.getItem('token');
+    const res = await axios.post(`${API_URL}/hr/staff`, {
+      ...newStaff,
+      hospital_id: hospitalId
+    }, { headers: { Authorization: `Bearer ${token}` } });
+    
+    if (res.data.success) {
+      setMessage({ type: 'success', text: `Staff ${formatFullName(newStaff)} added successfully! Password: ${res.data.staff.password}` });
+      fetchStaff();
+      setShowStaffModal(false);
+      setNewStaff({
+        first_name: '',
+        middle_name: '',
+        last_name: '',
+        email: '',
+        phone: '',
+        department: '',
+        ward: '',
+        role: '',
+        max_hours_per_week: 40
+      });
+    }
+  } catch (error) {
+    console.error('Error adding staff:', error);
+    setMessage({ type: 'error', text: error.response?.data?.message || 'Error adding staff' });
+  }
+  setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+};
   const approveLeaveRequest = async (requestId, status) => {
     try {
       const token = localStorage.getItem('token');
@@ -1128,13 +1238,47 @@ const initializeSocket = () => {
   };
 
   // ==================== INITIAL LOAD ====================
-  useEffect(() => {
-    if (user?.hospital_id) {
-      fetchAllData();
-      fetchHospitalAdmins();
+useEffect(() => {
+  const hospitalId = getHospitalId();
+  if (hospitalId) {
+    console.log('✅ HR Dashboard initialized with hospital_id:', hospitalId);
+    // Ensure user object has hospital_id
+    if (user && !user.hospital_id) {
+      user.hospital_id = hospitalId;
     }
-  }, [user?.hospital_id]);
-
+    fetchAllData();
+    fetchHospitalAdmins();
+    initializeSocket();
+  } else {
+    console.warn('⚠️ HR Dashboard: No hospital_id available, waiting for user data...');
+    // Retry after 2 seconds
+    const retryTimer = setTimeout(() => {
+      const retryHospitalId = getHospitalId();
+      if (retryHospitalId) {
+        if (user && !user.hospital_id) {
+          user.hospital_id = retryHospitalId;
+        }
+        fetchAllData();
+        fetchHospitalAdmins();
+        initializeSocket();
+      }
+    }, 2000);
+    return () => clearTimeout(retryTimer);
+  }
+  
+  const interval = setInterval(() => {
+    const currentHospitalId = getHospitalId();
+    if (currentHospitalId) {
+      fetchAllData();
+    }
+  }, 60000);
+  
+  return () => {
+    if (socket.current) socket.current.disconnect();
+    clearInterval(interval);
+  };
+// eslint-disable-next-line react-hooks/exhaustive-deps
+}, [user?.hospital_id, user?.hospitalId]);
   // ==================== MAIN RENDER ====================
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 to-purple-50 flex">
