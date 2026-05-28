@@ -220,31 +220,121 @@ const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_U
     };
   }, [user?.hospital_id]);
 
- const initializeSocket = () => {
+
+// Then update the initializeSocket function:
+const initializeSocket = () => {
   const token = localStorage.getItem('token');
   
-  // ✅ FIX: Use the same socket URL as DoctorDashboard, but join different room
-  socket.current = io(SOCKET_URL, {  // Make sure SOCKET_URL is defined
+  // Use the same socket URL as other dashboards
+  socket.current = io(SOCKET_URL, {
     auth: { token },
     transports: ['polling', 'websocket'],
     reconnection: true,
-    reconnectionAttempts: 5
+    reconnectionAttempts: 5,
+    reconnectionDelay: 2000
   });
 
   socket.current.on('connect', () => {
-    console.log('✅ HR Socket connected');
+    console.log('✅ HR Socket connected successfully');
     setConnectionStatus('connected');
-    // Join hospital HR room instead of just 'hr'
-    socket.current.emit('join', `hospital_${user?.hospital_id}_hr`);
+    
+    // Join hospital HR room - use the same pattern as DoctorDashboard
+    const hrRoom = `hospital_${user?.hospital_id}_hr`;
+    console.log(`📡 Joining HR room: ${hrRoom}`);
+    socket.current.emit('join', hrRoom);
+    
+    // Also join staff room for receiving notifications
+    const staffRoom = `hospital_${user?.hospital_id}_staff_${user?.id}`;
+    console.log(`📡 Joining staff room: ${staffRoom}`);
+    socket.current.emit('join', staffRoom);
   });
 
   socket.current.on('connect_error', (err) => {
-    console.error('❌ Socket error:', err);
+    console.error('❌ Socket connection error:', err);
     setConnectionStatus('disconnected');
   });
-  // ... rest of socket handlers
-};
 
+  socket.current.on('disconnect', () => {
+    console.log('🔌 Socket disconnected');
+    setConnectionStatus('disconnected');
+  });
+
+  // Listen for schedule updates
+  socket.current.on('schedule_updated', (data) => {
+    console.log('📅 Schedule updated:', data);
+    setRealTimeNotification({
+      id: Date.now(),
+      type: 'schedule',
+      title: 'Schedule Updated',
+      message: `${data.action === 'created' ? 'New' : data.action === 'updated' ? 'Schedule' : 'Schedule'} update: ${data.staff_name || 'Staff'} - ${data.shift || ''} shift`,
+      priority: 'medium',
+      timestamp: new Date()
+    });
+    fetchSchedules();
+    fetchStats();
+    setTimeout(() => setRealTimeNotification(null), 8000);
+  });
+
+  // Listen for weekly schedule ready
+  socket.current.on('weekly_schedule_ready', (data) => {
+    console.log('📆 Weekly schedule ready:', data);
+    setRealTimeNotification({
+      id: Date.now(),
+      type: 'weekly',
+      title: 'Weekly Schedule Ready',
+      message: `Schedule for ${data.week_range} has been published. ${data.schedules_count} shifts, ${data.total_hours} hours.`,
+      priority: 'high',
+      timestamp: new Date()
+    });
+    fetchSchedules();
+    setTimeout(() => setRealTimeNotification(null), 10000);
+  });
+
+  // Listen for leave request updates
+  socket.current.on('leave_request_updated', (data) => {
+    console.log('📝 Leave request updated:', data);
+    setRealTimeNotification({
+      id: Date.now(),
+      type: 'leave',
+      title: 'Leave Request Update',
+      message: `${data.staff_name}'s leave request has been ${data.status}.`,
+      priority: 'medium',
+      timestamp: new Date()
+    });
+    fetchLeaveRequests();
+    setTimeout(() => setRealTimeNotification(null), 6000);
+  });
+
+  // Listen for new reports
+  socket.current.on('new_report_from_hospital', (data) => {
+    console.log('📬 New report from hospital admin:', data);
+    setRealTimeNotification({
+      id: Date.now(),
+      type: 'report',
+      title: 'New Report Received',
+      message: `"${data.title}" from Hospital Admin`,
+      priority: data.priority || 'medium',
+      timestamp: new Date()
+    });
+    fetchReportsInbox();
+    setTimeout(() => setRealTimeNotification(null), 8000);
+  });
+
+  // Listen for report replies
+  socket.current.on('report_reply_from_admin', (data) => {
+    console.log('💬 Report reply received:', data);
+    setRealTimeNotification({
+      id: Date.now(),
+      type: 'reply',
+      title: 'Report Reply',
+      message: `Reply received for "${data.title}"`,
+      priority: 'medium',
+      timestamp: new Date()
+    });
+    fetchReportsInbox();
+    setTimeout(() => setRealTimeNotification(null), 6000);
+  });
+};
   // ==================== API CALLS ====================
   const fetchAllData = async () => {
     setLoading(true);
