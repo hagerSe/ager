@@ -278,7 +278,7 @@ const TriageDashboard = ({ user, onLogout }) => {
     setScheduleLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/api/triage/my-schedule`, {
+      const response = await axios.get(`${API_URL}/triage/my-schedule`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.success) {
@@ -307,7 +307,7 @@ const TriageDashboard = ({ user, onLogout }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/api/triage/queue`, {
+      const response = await axios.get(`${API_URL}/triage/queue`, {
         params: { hospital_id: hospitalId },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -326,7 +326,7 @@ const TriageDashboard = ({ user, onLogout }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/api/triage/triaged`, {
+      const response = await axios.get(`${API_URL}/triage/triaged`, {
         params: { hospital_id: hospitalId },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -344,7 +344,7 @@ const TriageDashboard = ({ user, onLogout }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/api/triage/stats`, {
+      const response = await axios.get(`${API_URL}/triage/stats`, {
         params: { hospital_id: hospitalId },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -361,7 +361,7 @@ const TriageDashboard = ({ user, onLogout }) => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/triage/reports/inbox`, {
+      const res = await axios.get(`${API_URL}/triage/reports/inbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -381,7 +381,7 @@ const TriageDashboard = ({ user, onLogout }) => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/triage/reports/outbox`, {
+      const res = await axios.get(`${API_URL}triage/reports/outbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) setReportsOutbox(res.data.reports || []);
@@ -399,7 +399,7 @@ const TriageDashboard = ({ user, onLogout }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/triage/hospital-admins`, {
+      const res = await axios.get(`${API_URL}triage/hospital-admins`, {
         params: { hospital_id: hospitalId },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -433,7 +433,7 @@ const TriageDashboard = ({ user, onLogout }) => {
       formData.append('recipient_id', sendReportForm.recipient_id);
       sendReportForm.attachments.forEach((file) => formData.append('attachments', file));
       
-      const res = await axios.post(`${API_URL}/api/triage/reports/send`, formData, {
+      const res = await axios.post(`${API_URL}/triage/reports/send`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
 
@@ -469,7 +469,7 @@ const TriageDashboard = ({ user, onLogout }) => {
   const markReportAsRead = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/triage/reports/${reportId}/read`, {}, {
+      await axios.put(`${API_URL}/triage/reports/${reportId}/read`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchReportsInbox();
@@ -492,7 +492,7 @@ const TriageDashboard = ({ user, onLogout }) => {
       formData.append('body', replyText);
       if (replyAttachment) formData.append('attachment', replyAttachment);
       
-      const res = await axios.post(`${API_URL}/api/triage/reports/${selectedReport.id}/reply`, formData, {
+      const res = await axios.post(`${API_URL}/triage/reports/${selectedReport.id}/reply`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
 
@@ -517,7 +517,7 @@ const TriageDashboard = ({ user, onLogout }) => {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/triage/profile`, {
+      const res = await axios.get(`${API_URL}/triage/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -541,7 +541,7 @@ const TriageDashboard = ({ user, onLogout }) => {
   const updateProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/triage/profile`, profileData, {
+      const res = await axios.put(`${API_URL}/triage/profile`, profileData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
