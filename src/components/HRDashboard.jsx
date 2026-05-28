@@ -129,9 +129,8 @@ const HRSchedulingDashboard = ({ user, onLogout }) => {
   };
 
   // API Configuration
- // Add this after your imports
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001';
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+  const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001';
   const socket = useRef(null);
   const navigate = useNavigate();
 
@@ -152,6 +151,11 @@ const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_U
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
     return { start: monday, end: sunday };
+  };
+
+  // ✅ ADD THIS HELPER FUNCTION HERE
+  const getHospitalId = () => {
+    return user?.hospital_id || user?.hospitalId || null;
   };
 
   // ==================== REAL TIME NOTIFICATION COMPONENT ====================
@@ -208,133 +212,120 @@ const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_U
   };
 
   // ==================== SOCKET CONNECTION ====================
-  useEffect(() => {
-    if (!user?.hospital_id) return;
-    initializeSocket();
-    fetchAllData();
+  const initializeSocket = () => {
+    const token = localStorage.getItem('token');
+    const hospitalId = getHospitalId();
     
-    const interval = setInterval(() => fetchAllData(), 60000);
-    return () => {
-      if (socket.current) socket.current.disconnect();
-      clearInterval(interval);
-    };
-  }, [user?.hospital_id]);
-
-
-// Then update the initializeSocket function:
-const initializeSocket = () => {
-  const token = localStorage.getItem('token');
-  
-  // Use the same socket URL as other dashboards
-  socket.current = io(SOCKET_URL, {
-    auth: { token },
-    transports: ['polling', 'websocket'],
-    reconnection: true,
-    reconnectionAttempts: 5,
-    reconnectionDelay: 2000
-  });
-
-  socket.current.on('connect', () => {
-    console.log('✅ HR Socket connected successfully');
-    setConnectionStatus('connected');
+    if (!hospitalId) {
+      console.error('❌ Cannot initialize socket: No hospital_id available');
+      return;
+    }
     
-    // Join hospital HR room - use the same pattern as DoctorDashboard
-    const hrRoom = `hospital_${user?.hospital_id}_hr`;
-    console.log(`📡 Joining HR room: ${hrRoom}`);
-    socket.current.emit('join', hrRoom);
-    
-    // Also join staff room for receiving notifications
-    const staffRoom = `hospital_${user?.hospital_id}_staff_${user?.id}`;
-    console.log(`📡 Joining staff room: ${staffRoom}`);
-    socket.current.emit('join', staffRoom);
-  });
-
-  socket.current.on('connect_error', (err) => {
-    console.error('❌ Socket connection error:', err);
-    setConnectionStatus('disconnected');
-  });
-
-  socket.current.on('disconnect', () => {
-    console.log('🔌 Socket disconnected');
-    setConnectionStatus('disconnected');
-  });
-
-  // Listen for schedule updates
-  socket.current.on('schedule_updated', (data) => {
-    console.log('📅 Schedule updated:', data);
-    setRealTimeNotification({
-      id: Date.now(),
-      type: 'schedule',
-      title: 'Schedule Updated',
-      message: `${data.action === 'created' ? 'New' : data.action === 'updated' ? 'Schedule' : 'Schedule'} update: ${data.staff_name || 'Staff'} - ${data.shift || ''} shift`,
-      priority: 'medium',
-      timestamp: new Date()
+    socket.current = io(SOCKET_URL, {
+      auth: { token },
+      transports: ['polling', 'websocket'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 2000
     });
-    fetchSchedules();
-    fetchStats();
-    setTimeout(() => setRealTimeNotification(null), 8000);
-  });
 
-  // Listen for weekly schedule ready
-  socket.current.on('weekly_schedule_ready', (data) => {
-    console.log('📆 Weekly schedule ready:', data);
-    setRealTimeNotification({
-      id: Date.now(),
-      type: 'weekly',
-      title: 'Weekly Schedule Ready',
-      message: `Schedule for ${data.week_range} has been published. ${data.schedules_count} shifts, ${data.total_hours} hours.`,
-      priority: 'high',
-      timestamp: new Date()
+    socket.current.on('connect', () => {
+      console.log('✅ HR Socket connected successfully');
+      setConnectionStatus('connected');
+      
+      const hrRoom = `hospital_${hospitalId}_hr`;
+      console.log(`📡 Joining HR room: ${hrRoom}`);
+      socket.current.emit('join', hrRoom);
+      
+      if (user?.id) {
+        const staffRoom = `hospital_${hospitalId}_staff_${user.id}`;
+        console.log(`📡 Joining staff room: ${staffRoom}`);
+        socket.current.emit('join', staffRoom);
+      }
     });
-    fetchSchedules();
-    setTimeout(() => setRealTimeNotification(null), 10000);
-  });
 
-  // Listen for leave request updates
-  socket.current.on('leave_request_updated', (data) => {
-    console.log('📝 Leave request updated:', data);
-    setRealTimeNotification({
-      id: Date.now(),
-      type: 'leave',
-      title: 'Leave Request Update',
-      message: `${data.staff_name}'s leave request has been ${data.status}.`,
-      priority: 'medium',
-      timestamp: new Date()
+    socket.current.on('connect_error', (err) => {
+      console.error('❌ Socket connection error:', err);
+      setConnectionStatus('disconnected');
     });
-    fetchLeaveRequests();
-    setTimeout(() => setRealTimeNotification(null), 6000);
-  });
 
-  // Listen for new reports
-  socket.current.on('new_report_from_hospital', (data) => {
-    console.log('📬 New report from hospital admin:', data);
-    setRealTimeNotification({
-      id: Date.now(),
-      type: 'report',
-      title: 'New Report Received',
-      message: `"${data.title}" from Hospital Admin`,
-      priority: data.priority || 'medium',
-      timestamp: new Date()
+    socket.current.on('disconnect', () => {
+      console.log('🔌 Socket disconnected');
+      setConnectionStatus('disconnected');
     });
-    fetchReportsInbox();
-    setTimeout(() => setRealTimeNotification(null), 8000);
-  });
 
-  // Listen for report replies
-  socket.current.on('report_reply_from_admin', (data) => {
-    console.log('💬 Report reply received:', data);
-    setRealTimeNotification({
-      id: Date.now(),
-      type: 'reply',
-      title: 'Report Reply',
-      message: `Reply received for "${data.title}"`,
-      priority: 'medium',
-      timestamp: new Date()
+    socket.current.on('schedule_updated', (data) => {
+      console.log('📅 Schedule updated:', data);
+      setRealTimeNotification({
+        id: Date.now(),
+        type: 'schedule',
+        title: 'Schedule Updated',
+        message: `${data.action === 'created' ? 'New' : data.action === 'updated' ? 'Schedule' : 'Schedule'} update: ${data.staff_name || 'Staff'} - ${data.shift || ''} shift`,
+        priority: 'medium',
+        timestamp: new Date()
+      });
+      fetchSchedules();
+      fetchStats();
+      setTimeout(() => setRealTimeNotification(null), 8000);
     });
-    fetchReportsInbox();
-    setTimeout(() => setRealTimeNotification(null), 6000);
-  });
-};
+
+    socket.current.on('weekly_schedule_ready', (data) => {
+      console.log('📆 Weekly schedule ready:', data);
+      setRealTimeNotification({
+        id: Date.now(),
+        type: 'weekly',
+        title: 'Weekly Schedule Ready',
+        message: `Schedule for ${data.week_range} has been published. ${data.schedules_count} shifts, ${data.total_hours} hours.`,
+        priority: 'high',
+        timestamp: new Date()
+      });
+      fetchSchedules();
+      setTimeout(() => setRealTimeNotification(null), 10000);
+    });
+
+    socket.current.on('leave_request_updated', (data) => {
+      console.log('📝 Leave request updated:', data);
+      setRealTimeNotification({
+        id: Date.now(),
+        type: 'leave',
+        title: 'Leave Request Update',
+        message: `${data.staff_name}'s leave request has been ${data.status}.`,
+        priority: 'medium',
+        timestamp: new Date()
+      });
+      fetchLeaveRequests();
+      setTimeout(() => setRealTimeNotification(null), 6000);
+    });
+
+    socket.current.on('new_report_from_hospital', (data) => {
+      console.log('📬 New report from hospital admin:', data);
+      setRealTimeNotification({
+        id: Date.now(),
+        type: 'report',
+        title: 'New Report Received',
+        message: `"${data.title}" from Hospital Admin`,
+        priority: data.priority || 'medium',
+        timestamp: new Date()
+      });
+      fetchReportsInbox();
+      setTimeout(() => setRealTimeNotification(null), 8000);
+    });
+
+    socket.current.on('report_reply_from_admin', (data) => {
+      console.log('💬 Report reply received:', data);
+      setRealTimeNotification({
+        id: Date.now(),
+        type: 'reply',
+        title: 'Report Reply',
+        message: `Reply received for "${data.title}"`,
+        priority: 'medium',
+        timestamp: new Date()
+      });
+      fetchReportsInbox();
+      setTimeout(() => setRealTimeNotification(null), 6000);
+    });
+  };
+
   // ==================== API CALLS ====================
   const fetchAllData = async () => {
     setLoading(true);
@@ -351,88 +342,39 @@ const initializeSocket = () => {
     setLoading(false);
   };
 
-// Update all fetch functions to validate hospital_id
-const fetchStaff = async () => {
-  try {
-    const hospitalId = user?.hospital_id || user?.hospitalId;
-    if (!hospitalId) {
-      console.error('❌ Cannot fetch staff: No hospital_id available');
-      return;
-    }
-    
-    const token = localStorage.getItem('token');
-    const res = await axios.get(`${API_URL}/hr/staff`, {
-      params: { hospital_id: hospitalId },
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (res.data.success) {
-      const staffWithFullName = (res.data.staff || []).map(s => ({
-        ...s,
-        full_name: formatFullName(s)
-      }));
-      setStaff(staffWithFullName);
-    }
-  } catch (error) {
-    console.error('Error fetching staff:', error);
-  }
-};
-
-
-
-const fetchLeaveRequests = async () => {
-  try {
-    const hospitalId = user?.hospital_id || user?.hospitalId;
-    if (!hospitalId) {
-      console.error('❌ Cannot fetch leave requests: No hospital_id available');
-      return;
-    }
-    
-    const token = localStorage.getItem('token');
-    const res = await axios.get(`${API_URL}/hr/leave-requests`, {
-      params: { hospital_id: hospitalId },
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (res.data.success) {
-      setLeaveRequests(res.data.requests || []);
-    }
-  } catch (error) {
-    console.error('Error fetching leave requests:', error);
-  }
-};
-
-const fetchStats = async () => {
-  try {
-    const hospitalId = user?.hospital_id || user?.hospitalId;
-    if (!hospitalId) {
-      console.error('❌ Cannot fetch stats: No hospital_id available');
-      // Set default empty stats
-      setStats({
-        totalStaff: 0,
-        onDuty: 0,
-        onLeave: 0,
-        shiftsToday: 0,
-        pendingRequests: 0,
-        staffByDepartment: [],
-        upcomingShifts: []
+  const fetchStaff = async () => {
+    try {
+      const hospitalId = getHospitalId();
+      if (!hospitalId) {
+        console.error('❌ Cannot fetch staff: No hospital_id available');
+        return;
+      }
+      
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`${API_URL}/hr/staff`, {
+        params: { hospital_id: hospitalId },
+        headers: { Authorization: `Bearer ${token}` }
       });
-      return;
+      if (res.data.success) {
+        const staffWithFullName = (res.data.staff || []).map(s => ({
+          ...s,
+          full_name: formatFullName(s)
+        }));
+        setStaff(staffWithFullName);
+      }
+    } catch (error) {
+      console.error('Error fetching staff:', error);
     }
-    
-    const token = localStorage.getItem('token');
-    const res = await axios.get(`${API_URL}/hr/stats`, {
-      params: { hospital_id: hospitalId },
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (res.data.success) {
-      setStats(res.data.stats);
-    }
-  } catch (error) {
-    console.error('Error fetching stats:', error);
-  }
-};
+  };
 
   const fetchSchedules = async () => {
     try {
+      const hospitalId = getHospitalId();
+      if (!hospitalId) {
+        console.error('❌ Cannot fetch schedules: No hospital_id available');
+        return;
+      }
+      
       const token = localStorage.getItem('token');
       const startDate = new Date();
       const endDate = new Date();
@@ -440,7 +382,7 @@ const fetchStats = async () => {
       
       const res = await axios.get(`${API_URL}/hr/schedules`, {
         params: { 
-          hospital_id: user?.hospital_id,
+          hospital_id: hospitalId,
           start_date: startDate.toISOString().split('T')[0],
           end_date: endDate.toISOString().split('T')[0]
         },
@@ -468,9 +410,56 @@ const fetchStats = async () => {
     }
   };
 
+  const fetchLeaveRequests = async () => {
+    try {
+      const hospitalId = getHospitalId();
+      if (!hospitalId) {
+        console.error('❌ Cannot fetch leave requests: No hospital_id available');
+        return;
+      }
+      
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`${API_URL}/hr/leave-requests`, {
+        params: { hospital_id: hospitalId },
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        setLeaveRequests(res.data.requests || []);
+      }
+    } catch (error) {
+      console.error('Error fetching leave requests:', error);
+    }
+  };
 
-
- 
+  const fetchStats = async () => {
+    try {
+      const hospitalId = getHospitalId();
+      if (!hospitalId) {
+        console.error('❌ Cannot fetch stats: No hospital_id available');
+        setStats({
+          totalStaff: 0,
+          onDuty: 0,
+          onLeave: 0,
+          shiftsToday: 0,
+          pendingRequests: 0,
+          staffByDepartment: [],
+          upcomingShifts: []
+        });
+        return;
+      }
+      
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`${API_URL}/hr/stats`, {
+        params: { hospital_id: hospitalId },
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        setStats(res.data.stats);
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  };
 
   // ==================== REPORT FUNCTIONS ====================
   const fetchReportsInbox = async () => {
@@ -632,16 +621,16 @@ const fetchStats = async () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
-        const staff = res.data.staff;
+        const staffData = res.data.staff;
         setProfileData({
-          first_name: staff.first_name || '',
-          middle_name: staff.middle_name || '',
-          last_name: staff.last_name || '',
-          gender: staff.gender || '',
-          age: staff.age || '',
-          phone: staff.phone || '',
-          email: staff.email || '',
-          department: staff.department || 'Human_Resource'
+          first_name: staffData.first_name || '',
+          middle_name: staffData.middle_name || '',
+          last_name: staffData.last_name || '',
+          gender: staffData.gender || '',
+          age: staffData.age || '',
+          phone: staffData.phone || '',
+          email: staffData.email || '',
+          department: staffData.department || 'Human_Resource'
         });
       }
     } catch (error) {
@@ -691,139 +680,140 @@ const fetchStats = async () => {
   };
 
   // ==================== AUTO GENERATE WEEKLY SCHEDULE ====================
-const autoGenerateWeeklySchedule = async () => {
-  const hospitalId = user?.hospital_id || user?.hospitalId;
-  if (!hospitalId) {
-    setMessage({ type: 'error', text: 'Hospital ID not found. Please login again.' });
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    return;
-  }
-  
-  setLoading(true);
-  try {
-    const token = localStorage.getItem('token');
-    const weekRange = getWeekRange(selectedWeek);
-    const startDate = weekRange.start.toISOString().split('T')[0];
-    const endDate = weekRange.end.toISOString().split('T')[0];
-    
-    const res = await axios.post(`${API_URL}/hr/schedule/auto-generate`, {
-      hospital_id: hospitalId,
-      start_date: startDate,
-      end_date: endDate,
-      ward: 'all'
-    }, { headers: { Authorization: `Bearer ${token}` } });
-    
-    if (res.data.success) {
-      setMessage({ 
-        type: 'success', 
-        text: `✅ Generated ${res.data.schedules?.length || 0} shifts for ${res.data.staff_notified || 0} staff members!` 
-      });
-      fetchSchedules();
-      fetchStats();
+  const autoGenerateWeeklySchedule = async () => {
+    const hospitalId = getHospitalId();
+    if (!hospitalId) {
+      setMessage({ type: 'error', text: 'Hospital ID not found. Please login again.' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      return;
     }
-  } catch (error) {
-    console.error('Error generating schedule:', error);
-    setMessage({ type: 'error', text: error.response?.data?.message || 'Error generating schedule' });
-  } finally {
-    setLoading(false);
-    setTimeout(() => setMessage({ type: '', text: '' }), 5000);
-  }
-};
+    
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const weekRange = getWeekRange(selectedWeek);
+      const startDate = weekRange.start.toISOString().split('T')[0];
+      const endDate = weekRange.end.toISOString().split('T')[0];
+      
+      const res = await axios.post(`${API_URL}/hr/schedule/auto-generate`, {
+        hospital_id: hospitalId,
+        start_date: startDate,
+        end_date: endDate,
+        ward: 'all'
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      
+      if (res.data.success) {
+        setMessage({ 
+          type: 'success', 
+          text: `✅ Generated ${res.data.schedules?.length || 0} shifts for ${res.data.staff_notified || 0} staff members!` 
+        });
+        fetchSchedules();
+        fetchStats();
+      }
+    } catch (error) {
+      console.error('Error generating schedule:', error);
+      setMessage({ type: 'error', text: error.response?.data?.message || 'Error generating schedule' });
+    } finally {
+      setLoading(false);
+      setTimeout(() => setMessage({ type: '', text: '' }), 5000);
+    }
+  };
 
   // ==================== STAFF SCHEDULE FETCH ====================
-const fetchStaffSchedule = async (staffMember) => {
-  const hospitalId = user?.hospital_id || user?.hospitalId;
-  if (!hospitalId) {
-    console.error('❌ Cannot fetch staff schedule: No hospital_id available');
-    setStaffSchedules([]);
-    setViewingStaff(staffMember);
-    setShowStaffDetailsModal(true);
-    return;
-  }
-  
-  setLoading(true);
-  try {
-    const token = localStorage.getItem('token');
-    const startDate = new Date();
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() + 60);
-    
-    const res = await axios.get(`${API_URL}/hr/schedules`, {
-      params: {
-        hospital_id: hospitalId,
-        staff_id: staffMember.id,
-        start_date: startDate.toISOString().split('T')[0],
-        end_date: endDate.toISOString().split('T')[0]
-      },
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    
-    if (res.data.success) {
-      const sortedSchedules = (res.data.schedules || []).sort((a, b) => 
-        new Date(a.date) - new Date(b.date)
-      );
-      setStaffSchedules(sortedSchedules);
-      setViewingStaff(staffMember);
-      setShowStaffDetailsModal(true);
-    } else {
+  const fetchStaffSchedule = async (staffMember) => {
+    const hospitalId = getHospitalId();
+    if (!hospitalId) {
+      console.error('❌ Cannot fetch staff schedule: No hospital_id available');
       setStaffSchedules([]);
       setViewingStaff(staffMember);
       setShowStaffDetailsModal(true);
+      return;
     }
-  } catch (error) {
-    console.error('Error fetching staff schedule:', error);
-    setStaffSchedules([]);
-    setViewingStaff(staffMember);
-    setShowStaffDetailsModal(true);
-  } finally {
-    setLoading(false);
-  }
-};
+    
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const startDate = new Date();
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + 60);
+      
+      const res = await axios.get(`${API_URL}/hr/schedules`, {
+        params: {
+          hospital_id: hospitalId,
+          staff_id: staffMember.id,
+          start_date: startDate.toISOString().split('T')[0],
+          end_date: endDate.toISOString().split('T')[0]
+        },
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (res.data.success) {
+        const sortedSchedules = (res.data.schedules || []).sort((a, b) => 
+          new Date(a.date) - new Date(b.date)
+        );
+        setStaffSchedules(sortedSchedules);
+        setViewingStaff(staffMember);
+        setShowStaffDetailsModal(true);
+      } else {
+        setStaffSchedules([]);
+        setViewingStaff(staffMember);
+        setShowStaffDetailsModal(true);
+      }
+    } catch (error) {
+      console.error('Error fetching staff schedule:', error);
+      setStaffSchedules([]);
+      setViewingStaff(staffMember);
+      setShowStaffDetailsModal(true);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ==================== STAFF MANAGEMENT ====================
-const addStaff = async () => {
-  const hospitalId = user?.hospital_id || user?.hospitalId;
-  if (!hospitalId) {
-    setMessage({ type: 'error', text: 'Hospital ID not found. Please login again.' });
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    return;
-  }
-  
-  if (!newStaff.first_name || !newStaff.last_name || !newStaff.email) {
-    setMessage({ type: 'error', text: 'Please fill all required fields' });
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    return;
-  }
-
-  try {
-    const token = localStorage.getItem('token');
-    const res = await axios.post(`${API_URL}/hr/staff`, {
-      ...newStaff,
-      hospital_id: hospitalId
-    }, { headers: { Authorization: `Bearer ${token}` } });
-    
-    if (res.data.success) {
-      setMessage({ type: 'success', text: `Staff ${formatFullName(newStaff)} added successfully! Password: ${res.data.staff.password}` });
-      fetchStaff();
-      setShowStaffModal(false);
-      setNewStaff({
-        first_name: '',
-        middle_name: '',
-        last_name: '',
-        email: '',
-        phone: '',
-        department: '',
-        ward: '',
-        role: '',
-        max_hours_per_week: 40
-      });
+  const addStaff = async () => {
+    const hospitalId = getHospitalId();
+    if (!hospitalId) {
+      setMessage({ type: 'error', text: 'Hospital ID not found. Please login again.' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      return;
     }
-  } catch (error) {
-    console.error('Error adding staff:', error);
-    setMessage({ type: 'error', text: error.response?.data?.message || 'Error adding staff' });
-  }
-  setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-};
+    
+    if (!newStaff.first_name || !newStaff.last_name || !newStaff.email) {
+      setMessage({ type: 'error', text: 'Please fill all required fields' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post(`${API_URL}/hr/staff`, {
+        ...newStaff,
+        hospital_id: hospitalId
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      
+      if (res.data.success) {
+        setMessage({ type: 'success', text: `Staff ${formatFullName(newStaff)} added successfully! Password: ${res.data.staff.password}` });
+        fetchStaff();
+        setShowStaffModal(false);
+        setNewStaff({
+          first_name: '',
+          middle_name: '',
+          last_name: '',
+          email: '',
+          phone: '',
+          department: '',
+          ward: '',
+          role: '',
+          max_hours_per_week: 40
+        });
+      }
+    } catch (error) {
+      console.error('Error adding staff:', error);
+      setMessage({ type: 'error', text: error.response?.data?.message || 'Error adding staff' });
+    }
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+  };
+
   const approveLeaveRequest = async (requestId, status) => {
     try {
       const token = localStorage.getItem('token');
@@ -885,7 +875,6 @@ const addStaff = async () => {
     const upcomingSchedules = allSchedules.filter(s => s.date >= today);
     const pastSchedules = allSchedules.filter(s => s.date < today);
     
-    // Calculate total hours
     let totalUpcomingHours = 0;
     upcomingSchedules.forEach(schedule => {
       const shift = shiftDefinitions[schedule.ward]?.[schedule.shift_type];
@@ -900,7 +889,6 @@ const addStaff = async () => {
             <button onClick={() => setShowStaffDetailsModal(false)} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
           </div>
           
-          {/* Staff Info Card */}
           <div className="bg-gradient-to-r from-violet-50 to-purple-50 rounded-xl p-4 mb-6">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 bg-violet-200 rounded-full flex items-center justify-center text-3xl font-bold text-violet-700">
@@ -914,7 +902,6 @@ const addStaff = async () => {
             </div>
           </div>
           
-          {/* Quick Stats */}
           <div className="grid grid-cols-4 gap-4 mb-6">
             <div className="border rounded-lg p-3 text-center bg-violet-50">
               <p className="text-2xl font-bold text-violet-600">{allSchedules.length}</p>
@@ -934,7 +921,6 @@ const addStaff = async () => {
             </div>
           </div>
           
-          {/* Upcoming Schedule Section */}
           {upcomingSchedules.length > 0 && (
             <div className="mb-6">
               <h4 className="font-semibold text-lg mb-3 flex items-center gap-2">
@@ -975,7 +961,6 @@ const addStaff = async () => {
             </div>
           )}
           
-          {/* No Schedule Message */}
           {allSchedules.length === 0 && (
             <div className="text-center py-12 bg-gray-50 rounded-lg">
               <FaCalendarAlt className="text-5xl text-gray-300 mx-auto mb-3" />
@@ -1139,7 +1124,6 @@ const addStaff = async () => {
 
   const LeaveRequestsView = () => {
     const pendingRequests = leaveRequests.filter(r => r.status === 'pending');
-    const approvedRequests = leaveRequests.filter(r => r.status === 'approved');
     
     return (
       <div className="space-y-6">
@@ -1183,53 +1167,49 @@ const addStaff = async () => {
       </div>
     );
   };
-  const getHospitalId = () => {
-  return user?.hospital_id || user?.hospitalId || null;
-};
 
   // ==================== INITIAL LOAD ====================
-useEffect(() => {
-  const hospitalId = getHospitalId();
-  if (hospitalId) {
-    console.log('✅ HR Dashboard initialized with hospital_id:', hospitalId);
-    // Ensure user object has hospital_id
-    if (user && !user.hospital_id) {
-      user.hospital_id = hospitalId;
-    }
-    fetchAllData();
-    fetchHospitalAdmins();
-    initializeSocket();
-  } else {
-    console.warn('⚠️ HR Dashboard: No hospital_id available, waiting for user data...');
-    // Retry after 2 seconds
-    const retryTimer = setTimeout(() => {
-      const retryHospitalId = getHospitalId();
-      if (retryHospitalId) {
-        if (user && !user.hospital_id) {
-          user.hospital_id = retryHospitalId;
-        }
-        fetchAllData();
-        fetchHospitalAdmins();
-        initializeSocket();
+  useEffect(() => {
+    const hospitalId = getHospitalId();
+    if (hospitalId) {
+      console.log('✅ HR Dashboard initialized with hospital_id:', hospitalId);
+      if (user && !user.hospital_id) {
+        user.hospital_id = hospitalId;
       }
-    }, 2000);
-    return () => clearTimeout(retryTimer);
-  }
-  
-  const interval = setInterval(() => {
-    const currentHospitalId = getHospitalId();
-    if (currentHospitalId) {
       fetchAllData();
+      fetchHospitalAdmins();
+      initializeSocket();
+    } else {
+      console.warn('⚠️ HR Dashboard: No hospital_id available, waiting for user data...');
+      const retryTimer = setTimeout(() => {
+        const retryHospitalId = getHospitalId();
+        if (retryHospitalId) {
+          if (user && !user.hospital_id) {
+            user.hospital_id = retryHospitalId;
+          }
+          fetchAllData();
+          fetchHospitalAdmins();
+          initializeSocket();
+        }
+      }, 2000);
+      return () => clearTimeout(retryTimer);
     }
-  }, 60000);
-  
-  return () => {
-    if (socket.current) socket.current.disconnect();
-    clearInterval(interval);
-  };
-// eslint-disable-next-line react-hooks/exhaustive-deps
-}, [user?.hospital_id, user?.hospitalId]);
-  // ==================== MAIN RENDER ====================
+    
+    const interval = setInterval(() => {
+      const currentHospitalId = getHospitalId();
+      if (currentHospitalId) {
+        fetchAllData();
+      }
+    }, 60000);
+    
+    return () => {
+      if (socket.current) socket.current.disconnect();
+      clearInterval(interval);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.hospital_id, user?.hospitalId]);
+
+  // ==================== MAIN RENDER (truncated for brevity - the JSX remains the same as your original) ====================
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 to-purple-50 flex">
       <RealTimeNotification />
@@ -1246,10 +1226,11 @@ useEffect(() => {
         .rbc-toolbar button:hover { background-color: #e9d5ff; }
       `}</style>
 
-      {/* ==================== SIDEBAR ==================== */}
+      {/* Sidebar - same as your original */}
       <div className={`bg-gradient-to-b from-slate-900 to-slate-800 text-white transition-all duration-300 ${
         sidebarCollapsed ? 'w-20' : 'w-64'
       } shadow-2xl flex flex-col h-screen sticky top-0 z-50`}>
+        {/* ... keep your existing sidebar JSX ... */}
         <div className="p-4">
           <div className="flex items-center justify-between mb-8">
             {!sidebarCollapsed && (
@@ -1362,7 +1343,7 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* ==================== MAIN CONTENT ==================== */}
+      {/* Main Content - keep your existing main content JSX */}
       <div className="flex-1 overflow-y-auto">
         {/* Header */}
         <div className="bg-gradient-to-r from-violet-600 to-purple-600 py-6 px-8 shadow-xl sticky top-0 z-40">
@@ -1424,7 +1405,7 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* Main Content */}
+        {/* Main Content Area */}
         <div className="max-w-[1600px] mx-auto p-8">
           {/* Message Display */}
           {message.text && (
