@@ -497,54 +497,7 @@ const HRSchedulingDashboard = ({ user, onLogout }) => {
     }
   };
 
-const fetchHospitalAdmins = async () => {
-  try {
-    const token = localStorage.getItem('token');
-    const hospitalId = getHospitalId();
-    const currentUserId = user?.id;
-    
-    if (!hospitalId) {
-      console.error('❌ Cannot fetch hospital admins: No hospital_id available');
-      return;
-    }
-    
-    console.log('📡 Fetching hospital admins for hospital_id:', hospitalId);
-    
-    let admins = [];
-    
-    // ✅ ONLY use the HR specific endpoint (same pattern as LaboratoryDashboard)
-    try {
-      const res = await axios.get(`${API_URL}/hr/hospital-admins`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.data.success && res.data.admins && res.data.admins.length > 0) {
-        admins = res.data.admins;
-        console.log('✅ Found hospital admins via /hr/hospital-admins:', admins);
-      } else {
-        console.log('⚠️ No admins found in response:', res.data);
-      }
-    } catch (err) {
-      console.error('Error fetching from /hr/hospital-admins:', err);
-    }
-    
-    setHospitalAdmins(admins);
-    
-    if (admins.length === 1) {
-      setSendReportForm(prev => ({ ...prev, recipient_id: admins[0].id }));
-      console.log('✅ Auto-selected admin:', admins[0].full_name, 'ID:', admins[0].id);
-    } else if (admins.length > 1) {
-      console.log(`✅ Found ${admins.length} hospital admins, user must select one`);
-    } else {
-      console.warn('⚠️ No hospital admins found');
-      setMessage({ type: 'warning', text: 'No hospital admins found. Please contact system administrator.' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 5000);
-    }
-  } catch (error) {
-    console.error('Error fetching hospital admins:', error);
-    setMessage({ type: 'error', text: 'Error loading hospital admins' });
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-  }
-};
+
 const handleSendReport = async (e) => {
   e.preventDefault();
   
