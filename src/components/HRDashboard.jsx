@@ -501,6 +501,7 @@ const fetchHospitalAdmins = async () => {
   try {
     const token = localStorage.getItem('token');
     const hospitalId = getHospitalId();
+    const currentUserId = user?.id;
     
     if (!hospitalId) {
       console.error('❌ Cannot fetch hospital admins: No hospital_id available');
@@ -509,8 +510,8 @@ const fetchHospitalAdmins = async () => {
     }
     
     console.log('📡 Fetching hospital admins for hospital_id:', hospitalId);
+    console.log('👤 Current user ID:', currentUserId);
     
-    // Try both endpoints
     let admins = [];
     
     // Method 1: Use the HR specific endpoint
@@ -519,51 +520,65 @@ const fetchHospitalAdmins = async () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success && res.data.admins && res.data.admins.length > 0) {
-        admins = res.data.admins;
+        // Filter out current user
+        admins = res.data.admins.filter(admin => admin.id !== currentUserId);
         console.log('✅ Found admins via /hr/hospital-admins:', admins);
       }
     } catch (err) {
       console.error('Error fetching from /hr/hospital-admins:', err);
     }
     
-    // Method 2: If no admins found, try direct hospital admin lookup
-    if (admins.length === 0) {
-      try {
-        const res = await axios.get(`${API_URL}/hospital-admin/by-hospital/${hospitalId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.data.success && res.data.admin) {
-          admins = [res.data.admin];
-          console.log('✅ Found admin via direct lookup:', admins);
-        }
-      } catch (err) {
-        console.error('Error fetching from direct endpoint:', err);
-      }
-    }
-    
-    // Method 3: Try to get from hospital staff with role
+    // Method 2: Try to get from hospital staff with role 'Hospital_Admin' or department 'Human_Resource'
     if (admins.length === 0) {
       try {
         const res = await axios.get(`${API_URL}/hr/staff`, {
           params: { 
             hospital_id: hospitalId,
-            department: 'Human_Resource',
-            role: 'Administrator'
+            role: 'Hospital_Admin'
           },
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.data.success && res.data.staff && res.data.staff.length > 0) {
-          admins = res.data.staff.map(s => ({
-            id: s.id,
-            full_name: formatFullName(s),
-            email: s.email,
-            hospital_name: s.hospital_name,
-            hospital_id: s.hospital_id
-          }));
-          console.log('✅ Found admin via staff lookup:', admins);
+          admins = res.data.staff
+            .filter(s => s.id !== currentUserId)
+            .map(s => ({
+              id: s.id,
+              full_name: formatFullName(s),
+              email: s.email,
+              hospital_name: s.hospital_name,
+              hospital_id: s.hospital_id
+            }));
+          console.log('✅ Found admins via role lookup:', admins);
         }
       } catch (err) {
-        console.error('Error fetching from staff lookup:', err);
+        console.error('Error fetching from role lookup:', err);
+      }
+    }
+    
+    // Method 3: If still no admins, look for any staff with department 'Human_Resource' that is not current user
+    if (admins.length === 0) {
+      try {
+        const res = await axios.get(`${API_URL}/hr/staff`, {
+          params: { 
+            hospital_id: hospitalId,
+            department: 'Human_Resource'
+          },
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.data.success && res.data.staff && res.data.staff.length > 0) {
+          admins = res.data.staff
+            .filter(s => s.id !== currentUserId)
+            .map(s => ({
+              id: s.id,
+              full_name: formatFullName(s),
+              email: s.email,
+              hospital_name: s.hospital_name,
+              hospital_id: s.hospital_id
+            }));
+          console.log('✅ Found admins via department lookup:', admins);
+        }
+      } catch (err) {
+        console.error('Error fetching from department lookup:', err);
       }
     }
     
@@ -575,8 +590,8 @@ const fetchHospitalAdmins = async () => {
     } else if (admins.length > 1) {
       console.log(`⚠️ Found ${admins.length} admins, user must select one`);
     } else {
-      console.warn('⚠️ No hospital admins found');
-      setMessage({ type: 'warning', text: 'No hospital admin found. Please contact support.' });
+      console.warn('⚠️ No hospital admins found (excluding current user)');
+      setMessage({ type: 'warning', text: 'No other hospital admin found. You can only send reports to yourself.' });
       setTimeout(() => setMessage({ type: '', text: '' }), 5000);
     }
   } catch (error) {
@@ -585,7 +600,6 @@ const fetchHospitalAdmins = async () => {
     setTimeout(() => setMessage({ type: '', text: '' }), 3000);
   }
 };
-
 const handleSendReport = async (e) => {
   e.preventDefault();
   
