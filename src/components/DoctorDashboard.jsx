@@ -28,7 +28,14 @@ import ScheduleViewer from '../components/ScheduleViewer';
 
 const DoctorDashboard = ({ user, onLogout }) => {
   // ==================== STATE MANAGEMENT ====================
+// At the top of your component, before the return
+console.log('🔴 COMPONENT RENDER - Current user:', user);
+console.log('🔴 COMPONENT RENDER - hospital_id:', user?.hospital_id);
+console.log('🔴 COMPONENT RENDER - ward:', user?.ward);
+
+
   const [patients, setPatients] = useState([]);
+  const [isUserLoaded, setIsUserLoaded] = useState(false);
   const [queuePatients, setQueuePatients] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -1191,241 +1198,293 @@ const DoctorDashboard = ({ user, onLogout }) => {
   };
 
   // ==================== INITIALIZATION ====================
-  useEffect(() => {
-    if (!user?.hospital_id || !user?.ward) {
-      console.log('Waiting for user data...');
-      return;
+useEffect(() => {
+  // Add a timeout to prevent infinite waiting
+  let timeoutId;
+  
+  // Check if user data is available
+  if (!user) {
+    console.log('⏳ User object is null/undefined, waiting...');
+    return;
+  }
+  
+  if (!user?.hospital_id || !user?.ward) {
+    console.log('⏳ User data incomplete:', {
+      hasUser: !!user,
+      hospital_id: user?.hospital_id,
+      ward: user?.ward,
+      id: user?.id,
+      full_name: user?.full_name
+    });
+    
+    // Set a timeout to re-check after 1 second (prevents infinite loop)
+    timeoutId = setTimeout(() => {
+      console.log('🔄 Re-checking user data...');
+      // Force a re-render by setting a state (optional)
+      setConnectionStatus(prev => prev);
+    }, 1000);
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }
+
+  console.log('✅ Initializing dashboard for:', {
+    hospital_id: user.hospital_id,
+    ward: user.ward,
+    doctor_id: user.id,
+    department: user.department,
+    full_name: user.full_name
+  });
+
+  const token = localStorage.getItem('token');
+  
+  // Don't proceed without token
+  if (!token) {
+    console.error('❌ No token found in localStorage');
+    setMessage({ type: 'error', text: 'Session expired. Please login again.' });
+    setTimeout(() => onLogout(), 2000);
+    return;
+  }
+  
+  // Initialize socket connection
+  if (socket.current) {
+    socket.current.disconnect();
+  }
+  
+  socket.current = io(SOCKET_URL, {
+    auth: { token },
+    transports: ['polling', 'websocket'],
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 2000
+  });
+  
+  socket.current.on('connect', () => {
+    console.log('✅ Socket connected successfully');
+    setConnectionStatus('connected');
+    
+    if (user?.hospital_id && user?.ward) {
+      const wardRoom = `hospital_${user.hospital_id}_ward_${user.ward}`;
+      console.log(`📡 Joining ward room: ${wardRoom}`);
+      socket.current.emit('join', wardRoom);
+      
+      const doctorRoom = `hospital_${user.hospital_id}_doctor_${user.id}`;
+      console.log(`📡 Joining doctor room: ${doctorRoom}`);
+      socket.current.emit('join', doctorRoom);
     }
+  });
+  
+  socket.current.on('connect_error', (error) => {
+    console.error('❌ Socket connection error:', error);
+    setConnectionStatus('disconnected');
+  });
 
-    console.log('Initializing dashboard for:', {
-      hospital_id: user.hospital_id,
-      ward: user.ward,
-      doctor_id: user.id,
-      department: user.department
+  socket.current.on('disconnect', () => {
+    console.log('🔌 Socket disconnected');
+    setConnectionStatus('disconnected');
+  });
+
+  socket.current.on('joined_room', (data) => {
+    console.log('✅ Successfully joined room:', data);
+  });
+
+  socket.current.emit('join_staff', { 
+    staffId: user.id, 
+    hospitalId: user.hospital_id 
+  });
+  console.log(`📡 Joined staff room: hospital_${user.hospital_id}_staff_${user.id}`);
+
+  // Socket event handlers
+  socket.current.on('weekly_schedule_ready', (data) => {
+    console.log('📅 Weekly schedule ready event received:', data);
+    setRealTimeNotification({
+      id: Date.now(),
+      type: 'weekly_schedule',
+      title: 'Weekly Schedule Ready',
+      message: `Your schedule for ${data.week_range} is ready. ${data.schedules_count} shifts, ${data.total_hours} hours.`,
+      priority: 'high',
+      timestamp: new Date()
     });
-
-    const token = localStorage.getItem('token');
     
-    socket.current = io(SOCKET_URL, {
-      auth: { token },
-      transports: ['polling', 'websocket'],
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 2000
+    if (reportMainTab === 'schedule') {
+      const event = new CustomEvent('refreshSchedule');
+      window.dispatchEvent(event);
+    }
+    
+    setTimeout(() => setRealTimeNotification(null), 10000);
+  });
+
+  socket.current.on('new_schedule_assigned', (data) => {
+    console.log('📅 New schedule assigned event:', data);
+    setRealTimeNotification({
+      id: Date.now(),
+      type: 'schedule',
+      title: 'New Schedule Assigned',
+      message: `${data.shift} Shift on ${data.date} in ${data.ward} Ward`,
+      priority: 'high',
+      timestamp: new Date()
     });
     
-    socket.current.on('connect', () => {
-      console.log('✅ Socket connected successfully');
-      setConnectionStatus('connected');
-      
-      if (user?.hospital_id && user?.ward) {
-        const wardRoom = `hospital_${user.hospital_id}_ward_${user.ward}`;
-        console.log(`📡 Joining ward room: ${wardRoom}`);
-        socket.current.emit('join', wardRoom);
-        
-        const doctorRoom = `hospital_${user.hospital_id}_doctor_${user.id}`;
-        console.log(`📡 Joining doctor room: ${doctorRoom}`);
-        socket.current.emit('join', doctorRoom);
-      }
+    if (reportMainTab === 'schedule') {
+      const event = new CustomEvent('refreshSchedule');
+      window.dispatchEvent(event);
+    }
+    
+    setTimeout(() => setRealTimeNotification(null), 8000);
+  });
+
+  socket.current.on('schedule_updated_notification', (data) => {
+    console.log('📅 Schedule updated event:', data);
+    setRealTimeNotification({
+      id: Date.now(),
+      type: 'schedule_update',
+      title: 'Schedule Updated',
+      message: `Your ${data.shift} shift on ${data.date} has been ${data.status || 'updated'}`,
+      priority: 'medium',
+      timestamp: new Date()
     });
     
-    socket.current.on('connect_error', (error) => {
-      console.error('❌ Socket connection error:', error);
-      setConnectionStatus('disconnected');
-    });
+    if (reportMainTab === 'schedule') {
+      const event = new CustomEvent('refreshSchedule');
+      window.dispatchEvent(event);
+    }
+    
+    setTimeout(() => setRealTimeNotification(null), 6000);
+  });
 
-    socket.current.on('disconnect', () => {
-      console.log('🔌 Socket disconnected');
-      setConnectionStatus('disconnected');
+  socket.current.on('schedule_cancelled', (data) => {
+    console.log('❌ Schedule cancelled event:', data);
+    setRealTimeNotification({
+      id: Date.now(),
+      type: 'schedule_cancel',
+      title: 'Schedule Cancelled',
+      message: `Your ${data.shift} shift on ${data.date} has been cancelled.`,
+      priority: 'urgent',
+      timestamp: new Date()
     });
+    
+    if (reportMainTab === 'schedule') {
+      const event = new CustomEvent('refreshSchedule');
+      window.dispatchEvent(event);
+    }
+    
+    setTimeout(() => setRealTimeNotification(null), 8000);
+  });
 
-    socket.current.on('joined_room', (data) => {
-      console.log('✅ Successfully joined room:', data);
+  socket.current.on('report_reply_from_hospital', (data) => {
+    console.log('💬 New reply received from Hospital Admin:', data);
+    setNotification({
+      type: 'info',
+      message: `💬 New reply on report: ${data.title} from Hospital Admin`
     });
+    fetchReportsInbox();
+    setTimeout(() => setNotification(null), 5000);
+  });
 
-    socket.current.emit('join_staff', { 
-      staffId: user.id, 
-      hospitalId: user.hospital_id 
-    });
-    console.log(`📡 Joined staff room: hospital_${user.hospital_id}_staff_${user.id}`);
-
-    socket.current.on('weekly_schedule_ready', (data) => {
-      console.log('📅 Weekly schedule ready event received:', data);
-      setRealTimeNotification({
-        id: Date.now(),
-        type: 'weekly_schedule',
-        title: 'Weekly Schedule Ready',
-        message: `Your schedule for ${data.week_range} is ready. ${data.schedules_count} shifts, ${data.total_hours} hours.`,
-        priority: 'high',
-        timestamp: new Date()
-      });
-      
-      if (reportMainTab === 'schedule') {
-        const event = new CustomEvent('refreshSchedule');
-        window.dispatchEvent(event);
-      }
-      
-      setTimeout(() => setRealTimeNotification(null), 10000);
-    });
-
-    socket.current.on('new_schedule_assigned', (data) => {
-      console.log('📅 New schedule assigned event:', data);
-      setRealTimeNotification({
-        id: Date.now(),
-        type: 'schedule',
-        title: 'New Schedule Assigned',
-        message: `${data.shift} Shift on ${data.date} in ${data.ward} Ward`,
-        priority: 'high',
-        timestamp: new Date()
-      });
-      
-      if (reportMainTab === 'schedule') {
-        const event = new CustomEvent('refreshSchedule');
-        window.dispatchEvent(event);
-      }
-      
-      setTimeout(() => setRealTimeNotification(null), 8000);
-    });
-
-    socket.current.on('schedule_updated_notification', (data) => {
-      console.log('📅 Schedule updated event:', data);
-      setRealTimeNotification({
-        id: Date.now(),
-        type: 'schedule_update',
-        title: 'Schedule Updated',
-        message: `Your ${data.shift} shift on ${data.date} has been ${data.status || 'updated'}`,
-        priority: 'medium',
-        timestamp: new Date()
-      });
-      
-      if (reportMainTab === 'schedule') {
-        const event = new CustomEvent('refreshSchedule');
-        window.dispatchEvent(event);
-      }
-      
-      setTimeout(() => setRealTimeNotification(null), 6000);
-    });
-
-    socket.current.on('schedule_cancelled', (data) => {
-      console.log('❌ Schedule cancelled event:', data);
-      setRealTimeNotification({
-        id: Date.now(),
-        type: 'schedule_cancel',
-        title: 'Schedule Cancelled',
-        message: `Your ${data.shift} shift on ${data.date} has been cancelled.`,
-        priority: 'urgent',
-        timestamp: new Date()
-      });
-      
-      if (reportMainTab === 'schedule') {
-        const event = new CustomEvent('refreshSchedule');
-        window.dispatchEvent(event);
-      }
-      
-      setTimeout(() => setRealTimeNotification(null), 8000);
-    });
-
-    socket.current.on('report_reply_from_hospital', (data) => {
-      console.log('💬 New reply received from Hospital Admin:', data);
+  socket.current.on('new_patient_in_ward', (data) => {
+    console.log('🆕 New patient in ward:', data);
+    
+    if (data.hospital_id === user?.hospital_id && data.ward === user?.ward) {
       setNotification({
         type: 'info',
-        message: `💬 New reply on report: ${data.title} from Hospital Admin`
+        message: `🆕 New ${data.priority} patient: ${data.patient_name}`
       });
-      fetchReportsInbox();
-      setTimeout(() => setNotification(null), 5000);
-    });
-
-    socket.current.on('new_patient_in_ward', (data) => {
-      console.log('🆕 New patient in ward:', data);
-      
-      if (data.hospital_id === user?.hospital_id && data.ward === user?.ward) {
-        setNotification({
-          type: 'info',
-          message: `🆕 New ${data.priority} patient: ${data.patient_name}`
-        });
-        fetchQueue();
-        fetchStats();
-        setTimeout(() => setNotification(null), 5000);
-      }
-    });
-
-    socket.current.on('radiology_report_ready', (data) => {
-      console.log('📷 Radiology report ready:', data);
-      setNotification({
-        type: data.critical ? 'error' : 'success',
-        message: `${data.critical ? '⚠️ CRITICAL: ' : '📷 '}Radiology report ready for ${data.patient_name}`
-      });
-      if (selectedPatient && selectedPatient.id === data.patient_id) {
-        fetchRadiologyResults(data.patient_id);
-        if (activeTab === 'results') {
-          setTimeout(() => fetchRadiologyResults(data.patient_id), 500);
-        }
-      } else {
-        setQueuePatients(prev => prev.map(p => 
-          p.id === data.patient_id ? { ...p, has_new_results: true, has_new_radiology: true } : p
-        ));
-      }
-      fetchStats();
-      setTimeout(() => setNotification(null), 8000);
-    });
-
-    socket.current.on('prescription_status_update', (data) => {
-      console.log('💊 Prescription status updated:', data);
-      if (data.patient_id === selectedPatient?.id) {
-        setPrescriptions(prev => prev.map(p => 
-          p.id === data.prescription_id ? { ...p, status: data.status, pharmacy_notes: data.notes } : p
-        ));
-        setNotification({
-          type: 'info',
-          message: `💊 Prescription ${data.status}: ${data.medication_name}`
-        });
-        setTimeout(() => setNotification(null), 5000);
-      }
-    });
-
-    socket.current.on('bed_availability_update', (data) => {
-      setAvailableBeds(data.beds || []);
-      if (activeTab === 'admit') {
-        fetchAvailableBeds();
-      }
-    });
-
-    socket.current.on('patient_discharged', (data) => {
-      console.log('🏥 Patient discharged:', data);
-      fetchStats();
-      if (showDischargeList) {
-        fetchDischargedPatients();
-      }
-    });
-
-    fetchQueue();
-    fetchStats();
-    fetchDischargedPatients();
-    fetchReportsInbox();
-    fetchReportsOutbox();
-    fetchHospitalAdmins();
-    fetchStaffMembers();
-    fetchProfile();
-
-    const interval = setInterval(() => {
       fetchQueue();
       fetchStats();
-      if (showDischargeList) {
-        fetchDischargedPatients();
-      }
-      fetchReportsInbox();
-    }, 30000);
+      setTimeout(() => setNotification(null), 5000);
+    }
+  });
 
-    return () => {
-      console.log('🔌 Cleaning up socket connection');
-      if (socket.current) {
-        socket.current.disconnect();
+  socket.current.on('radiology_report_ready', (data) => {
+    console.log('📷 Radiology report ready:', data);
+    setNotification({
+      type: data.critical ? 'error' : 'success',
+      message: `${data.critical ? '⚠️ CRITICAL: ' : '📷 '}Radiology report ready for ${data.patient_name}`
+    });
+    if (selectedPatient && selectedPatient.id === data.patient_id) {
+      fetchRadiologyResults(data.patient_id);
+      if (activeTab === 'results') {
+        setTimeout(() => fetchRadiologyResults(data.patient_id), 500);
       }
-      clearInterval(interval);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.hospital_id, user?.ward, showDischargeList]);
+    } else {
+      setQueuePatients(prev => prev.map(p => 
+        p.id === data.patient_id ? { ...p, has_new_results: true, has_new_radiology: true } : p
+      ));
+    }
+    fetchStats();
+    setTimeout(() => setNotification(null), 8000);
+  });
 
+  socket.current.on('prescription_status_update', (data) => {
+    console.log('💊 Prescription status updated:', data);
+    if (data.patient_id === selectedPatient?.id) {
+      setPrescriptions(prev => prev.map(p => 
+        p.id === data.prescription_id ? { ...p, status: data.status, pharmacy_notes: data.notes } : p
+      ));
+      setNotification({
+        type: 'info',
+        message: `💊 Prescription ${data.status}: ${data.medication_name}`
+      });
+      setTimeout(() => setNotification(null), 5000);
+    }
+  });
+
+  socket.current.on('bed_availability_update', (data) => {
+    setAvailableBeds(data.beds || []);
+    if (activeTab === 'admit') {
+      fetchAvailableBeds();
+    }
+  });
+
+  socket.current.on('patient_discharged', (data) => {
+    console.log('🏥 Patient discharged:', data);
+    fetchStats();
+    if (showDischargeList) {
+      fetchDischargedPatients();
+    }
+  });
+
+  // Initial data fetch
+  const initializeData = async () => {
+    console.log('📡 Fetching initial data...');
+    await Promise.all([
+      fetchQueue(),
+      fetchStats(),
+      fetchDischargedPatients(),
+      fetchReportsInbox(),
+      fetchReportsOutbox(),
+      fetchHospitalAdmins(),
+      fetchStaffMembers(),
+      fetchProfile()
+    ]);
+    console.log('✅ Initial data fetch complete');
+  };
+  
+  initializeData();
+
+  // Set up polling interval
+  const interval = setInterval(() => {
+    fetchQueue();
+    fetchStats();
+    if (showDischargeList) {
+      fetchDischargedPatients();
+    }
+    fetchReportsInbox();
+  }, 30000);
+
+  // Cleanup function
+  return () => {
+    console.log('🔌 Cleaning up socket connection and intervals');
+    if (socket.current) {
+      socket.current.disconnect();
+    }
+    clearInterval(interval);
+    if (timeoutId) clearTimeout(timeoutId);
+  };
+  
+// eslint-disable-next-line react-hooks/exhaustive-deps
+}, [user?.hospital_id, user?.ward, showDischargeList]);
   // ==================== API CALLS ====================
   const fetchQueue = async () => {
     try {
