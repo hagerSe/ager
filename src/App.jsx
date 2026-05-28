@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import axios from 'axios';
 import Home from './pages/Home';
 import Contact from './pages/Contact';
 import Login from './pages/Login';
@@ -11,7 +12,6 @@ import ZoneDashboard from './components/ZoneDashboard';
 import WoredaDashboard from './components/WoredaDashboard';
 import KebeleDashboard from './components/KebeleDashboard';
 import HospitalDashboard from './components/HospitalDashboard';
-
 import DoctorDashboard from './components/DoctorDashboard';
 import NurseDashboard from './components/NurseDashboard';
 import PharmaDashboard from './components/PharmaDashboard';
@@ -23,33 +23,81 @@ import CardOfficeStaffDashboard from './components/CardOfficeStaffDashboard';
 import BedManagementDashboard from './components/BedManagementDashboard';
 import HRDashboard from './components/HRDashboard';
 
+// ✅ FIXED: API URL without double /api
+const API_URL = import.meta.env.VITE_API_URL || 'https://health-backend-2-gqv6.onrender.com/api';
+
 const App = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Check for stored user on app load
-    const storedUser = localStorage.getItem('user');
+  // ✅ FIXED: Verify token with backend (NO double /api)
+  const verifyToken = async () => {
     const token = localStorage.getItem('token');
+    const storedUser = localStorage.getItem('user');
     
-    if (storedUser && token) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        console.log('🔄 Loaded user from storage:', parsedUser);
-        setUser(parsedUser);
-      } catch (error) {
-        console.error('Error parsing stored user:', error);
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
-      }
+    if (!token) {
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+
+    try {
+      // ✅ CORRECT: Use /auth/me (NOT /api/auth/me)
+      const response = await axios.get(`${API_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        const userData = response.data.user;
+        console.log('✅ User verified:', userData);
+        
+        // Update stored user with fresh data
+        localStorage.setItem('user', JSON.stringify(userData));
+        if (userData.hospital_id) {
+          localStorage.setItem('hospital_id', userData.hospital_id);
+        }
+        setUser(userData);
+      } else {
+        // Token invalid, clear storage
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('hospital_id');
+        setUser(null);
+      }
+    } catch (error) {
+      console.error('❌ Token verification failed:', error);
+      
+      // If verification fails but we have stored user, use it as fallback
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          console.log('⚠️ Using stored user as fallback');
+          setUser(parsedUser);
+        } catch (e) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          localStorage.removeItem('hospital_id');
+          setUser(null);
+        }
+      } else {
+        setUser(null);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    verifyToken();
   }, []);
 
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem('user');
     localStorage.removeItem('token');
+    localStorage.removeItem('hospital_id');
+    // Clear axios default header
+    delete axios.defaults.headers.common['Authorization'];
+    window.location.href = '/login';
   };
 
   if (loading) {
@@ -65,9 +113,9 @@ const App = () => {
       <Routes>
         {/* Public Routes */}
         <Route path='/' element={<Home />} />
-        <Route path='/login' element={<Login setAdmin={setUser} />} />
-        <Route path='/contact' element={<Contact setAdmin={setUser} />} />
-        <Route path='/about' element={<About setAdmin={setUser} />} />
+        <Route path='/login' element={<Login />} />
+        <Route path='/contact' element={<Contact />} />
+        <Route path='/about' element={<About />} />
         
         {/* Protected Routes - Admin Levels */}
         <Route 
@@ -124,8 +172,7 @@ const App = () => {
           } 
         />
 
-        {/* Staff Department Routes - FIXED to match database ENUM values */}
-        
+        {/* Staff Department Routes */}
         <Route 
           path='/doctor-dashboard' 
           element={
@@ -189,7 +236,6 @@ const App = () => {
           } 
         />
 
-        {/* ✅ FIXED: Card_Office - matches database ENUM */}
         <Route 
           path='/card-office-dashboard' 
           element={
@@ -199,7 +245,6 @@ const App = () => {
           } 
         />
 
-        {/* ✅ FIXED: Bed_Management - matches database ENUM */}
         <Route 
           path='/bed-management-dashboard' 
           element={
@@ -209,7 +254,6 @@ const App = () => {
           } 
         />
 
-        {/* ✅ FIXED: Human_Resource - matches database ENUM */}
         <Route 
           path='/hr-dashboard' 
           element={
@@ -219,7 +263,7 @@ const App = () => {
           } 
         />
         
-        {/* Fallback staff dashboard - for any unmatched department */}
+        {/* Fallback staff dashboard */}
         <Route 
           path='/staff-dashboard' 
           element={
@@ -241,7 +285,9 @@ const App = () => {
             <Navigate to="/login" />
           } 
         />
+        
         <Route path="/verify-email/:token" element={<VerifyEmail />} />
+        
         {/* Catch all - redirect to home */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
