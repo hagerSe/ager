@@ -23,36 +23,7 @@ const getHospitalId = () => {
   return user?.hospital_id || user?.hospitalId;
 };
 
-// LINE ~700 - Update useEffect
-useEffect(() => {
-  const hospitalId = getHospitalId();
-  
-  if (!hospitalId) {
-    console.warn('No hospital_id available - waiting for user data');
-    return;
-  }
 
-  initializeSocket();
-  fetchTriageQueue();
-  fetchTriagedPatients();
-  fetchStats();
-  fetchReportsInbox();
-  fetchReportsOutbox();
-  fetchHospitalAdmins();
-  fetchProfile();
-  fetchMySchedule();
-
-  const interval = setInterval(() => {
-    fetchTriageQueue();
-    fetchStats();
-    fetchReportsInbox();
-  }, 30000);
-
-  return () => {
-    if (socket.current) socket.current.disconnect();
-    clearInterval(interval);
-  };
-}, [user?.hospital_id]); // ← ADD THIS DEPENDENCY
 
   // ==================== STATE MANAGEMENT ====================
   const [activeTab, setActiveTab] = useState('queue');
@@ -889,35 +860,38 @@ useEffect(() => {
   };
 
   // ==================== INITIAL LOAD ====================
-  useEffect(() => {
-    const hospitalId = getHospitalId();
-    if (!hospitalId) {
-      console.warn('No hospital_id available on initial load');
-      return;
-    }
+// ==================== INITIAL LOAD ====================
+useEffect(() => {
+  const hospitalId = getHospitalId();
+  if (!hospitalId) {
+    console.warn('No hospital_id available - waiting for user data');
+    return;
+  }
 
-    initializeSocket();
+  console.log('✅ Hospital ID found:', hospitalId);
+  console.log('✅ Initializing Triage Dashboard...');
+
+  initializeSocket();
+  fetchTriageQueue();
+  fetchTriagedPatients();
+  fetchStats();
+  fetchReportsInbox();
+  fetchReportsOutbox();
+  fetchHospitalAdmins();
+  fetchProfile();
+  fetchMySchedule();
+
+  const interval = setInterval(() => {
     fetchTriageQueue();
-    fetchTriagedPatients();
     fetchStats();
     fetchReportsInbox();
-    fetchReportsOutbox();
-    fetchHospitalAdmins();
-    fetchProfile();
-    fetchMySchedule();
+  }, 30000);
 
-    const interval = setInterval(() => {
-      fetchTriageQueue();
-      fetchStats();
-      fetchReportsInbox();
-    }, 30000);
-
-    return () => {
-      if (socket.current) socket.current.disconnect();
-      clearInterval(interval);
-    };
-  }, []);
-
+  return () => {
+    if (socket.current) socket.current.disconnect();
+    clearInterval(interval);
+  };
+}, [user?.hospital_id]); // ← ONLY THIS LINE CHANGED
   // ==================== RENDER ====================
   return (
     <div className={`min-h-screen bg-gradient-to-br from-teal-50 to-emerald-50 flex ${textSizeClasses.base}`}>
