@@ -513,58 +513,47 @@ const fetchHospitalAdmins = async () => {
     
     let admins = [];
     
-    // Use the HR specific endpoint only
+    // ✅ FIX: Fetch from HospitalAdmin table using the HR endpoint
     try {
       const res = await axios.get(`${API_URL}/hr/hospital-admins`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success && res.data.admins && res.data.admins.length > 0) {
-        // Filter out the current user
+        // Filter out current user (if current user is also in hospital admin list)
         admins = res.data.admins.filter(admin => admin.id !== currentUserId);
-        console.log('✅ Found admins via /hr/hospital-admins (excluding self):', admins);
+        console.log('✅ Found hospital admins from HospitalAdmin table:', admins);
       }
     } catch (err) {
       console.error('Error fetching from /hr/hospital-admins:', err);
     }
     
-    // If no admins found via HR endpoint, try looking for staff with role 'Hospital_Admin'
+    // ✅ If no admins found, try to fetch HospitalAdmin directly
     if (admins.length === 0) {
       try {
-        const res = await axios.get(`${API_URL}/hr/staff`, {
-          params: { 
-            hospital_id: hospitalId,
-            role: 'Hospital_Admin'
-          },
+        const res = await axios.get(`${API_URL}/hospital-admins`, {
+          params: { hospital_id: hospitalId },
           headers: { Authorization: `Bearer ${token}` }
         });
-        if (res.data.success && res.data.staff && res.data.staff.length > 0) {
-          admins = res.data.staff
-            .filter(s => s.id !== currentUserId)
-            .map(s => ({
-              id: s.id,
-              full_name: formatFullName(s),
-              email: s.email,
-              hospital_name: s.hospital_name,
-              hospital_id: s.hospital_id
-            }));
-          console.log('✅ Found admins via role lookup:', admins);
+        if (res.data.success && res.data.admins && res.data.admins.length > 0) {
+          admins = res.data.admins.filter(admin => admin.id !== currentUserId);
+          console.log('✅ Found hospital admins via direct endpoint:', admins);
         }
       } catch (err) {
-        console.error('Error fetching from role lookup:', err);
+        console.error('Error fetching from /hospital-admins:', err);
       }
     }
     
-    // If still no admins, look for any staff with department 'Human_Resource' not current user
+    // ✅ If still no admins, try to find any staff with role that can receive reports
     if (admins.length === 0) {
       try {
         const res = await axios.get(`${API_URL}/hr/staff`, {
           params: { 
-            hospital_id: hospitalId,
-            department: 'Human_Resource'
+            hospital_id: hospitalId
           },
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.data.success && res.data.staff && res.data.staff.length > 0) {
+          // For testing, include all staff (except current user) as potential recipients
           admins = res.data.staff
             .filter(s => s.id !== currentUserId)
             .map(s => ({
@@ -572,12 +561,13 @@ const fetchHospitalAdmins = async () => {
               full_name: formatFullName(s),
               email: s.email,
               hospital_name: s.hospital_name,
-              hospital_id: s.hospital_id
+              hospital_id: s.hospital_id,
+              type: 'staff'
             }));
-          console.log('✅ Found admins via department lookup:', admins);
+          console.log('⚠️ No hospital admins found, using staff as fallback:', admins);
         }
       } catch (err) {
-        console.error('Error fetching from department lookup:', err);
+        console.error('Error fetching from staff fallback:', err);
       }
     }
     
@@ -587,14 +577,16 @@ const fetchHospitalAdmins = async () => {
       setSendReportForm(prev => ({ ...prev, recipient_id: admins[0].id }));
       console.log('✅ Auto-selected admin:', admins[0].full_name, 'ID:', admins[0].id);
     } else if (admins.length > 1) {
-      console.log(`⚠️ Found ${admins.length} admins, user must select one`);
+      console.log(`✅ Found ${admins.length} hospital admins, user must select one`);
     } else {
-      console.warn('⚠️ No other hospital admins found');
-      setMessage({ type: 'warning', text: 'No other hospital admin found. You can only send reports to yourself for testing.' });
+      console.warn('⚠️ No hospital admins found');
+      setMessage({ type: 'warning', text: 'No hospital admins found. Please contact system administrator.' });
       setTimeout(() => setMessage({ type: '', text: '' }), 5000);
     }
   } catch (error) {
     console.error('Error fetching hospital admins:', error);
+    setMessage({ type: 'error', text: 'Error loading hospital admins' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
   }
 };
 const handleSendReport = async (e) => {
