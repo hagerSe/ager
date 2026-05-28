@@ -1179,29 +1179,40 @@ const DoctorDashboard = ({ user, onLogout }) => {
   };
 
   // ==================== FETCH DISCHARGED PATIENTS ====================
-  const fetchDischargedPatients = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get(
-        `${API_URL}/doctor/discharged-patients`,
-        { 
-          params: {
-            hospital_id: user?.hospital_id,
-            ward: user?.ward
-          },
-          headers: { Authorization: `Bearer ${token}` },
-          timeout: 10000
-        }
-      );
-      
-      if (res.data.success) {
-        setDischargedPatients(res.data.patients);
-      }
-    } catch (error) {
-      console.error('Error fetching discharged patients:', error);
+const fetchDischargedPatients = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    
+    // Make sure both hospital_id AND ward are provided
+    if (!user?.hospital_id || !user?.ward) {
+      console.log('Missing hospital_id or ward for discharged patients');
+      return;
     }
-  };
-
+    
+    console.log('Fetching discharged patients for:', {
+      hospital_id: user.hospital_id,
+      ward: user.ward
+    });
+    
+    const res = await axios.get(
+      `${API_URL}/doctor/discharged-patients`,
+      { 
+        params: {
+          hospital_id: user.hospital_id,
+          ward: user.ward  // ← Make sure this is included
+        },
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 10000
+      }
+    );
+    
+    if (res.data.success) {
+      setDischargedPatients(res.data.patients);
+    }
+  } catch (error) {
+    console.error('Error fetching discharged patients:', error);
+  }
+};
   // ==================== INITIALIZATION ====================
   useEffect(() => {
     if (!user?.hospital_id || !user?.ward) {
