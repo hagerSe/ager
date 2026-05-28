@@ -222,7 +222,7 @@ const LaboratoryDashboard = ({ user, onLogout }) => {
         params.ward = selectedWard;
       }
       
-      const res = await axios.get(`${API_URL}/api/lab/pending`, {
+      const res = await axios.get(`${API_URL}/lab/pending`, {
         params: params,
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -267,7 +267,7 @@ const LaboratoryDashboard = ({ user, onLogout }) => {
         params.ward = selectedWard;
       }
       
-      const res = await axios.get(`${API_URL}/api/lab/stats`, {
+      const res = await axios.get(`${API_URL}/lab/stats`, {
         params: params,
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -300,7 +300,7 @@ const LaboratoryDashboard = ({ user, onLogout }) => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/lab/reports/inbox`, {
+      const res = await axios.get(`${API_URL}/lab/reports/inbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -318,7 +318,7 @@ const LaboratoryDashboard = ({ user, onLogout }) => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/lab/reports/outbox`, {
+      const res = await axios.get(`${API_URL}/lab/reports/outbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -334,7 +334,7 @@ const LaboratoryDashboard = ({ user, onLogout }) => {
   const fetchHospitalAdmins = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/lab/hospital-admins`, {
+      const res = await axios.get(`${API_URL}/lab/hospital-admins`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -368,7 +368,7 @@ const LaboratoryDashboard = ({ user, onLogout }) => {
       formData.append('recipient_id', sendReportForm.recipient_id);
       sendReportForm.attachments.forEach((file) => formData.append('attachments', file));
       
-      const res = await axios.post(`${API_URL}/api/lab/reports/send`, formData, {
+      const res = await axios.post(`${API_URL}/lab/reports/send`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
 
@@ -404,7 +404,7 @@ const LaboratoryDashboard = ({ user, onLogout }) => {
   const markReportAsRead = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/lab/reports/${reportId}/read`, {}, {
+      await axios.put(`${API_URL}/lab/reports/${reportId}/read`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchReportsInbox();
@@ -427,7 +427,7 @@ const LaboratoryDashboard = ({ user, onLogout }) => {
       formData.append('body', replyText);
       if (replyAttachment) formData.append('attachment', replyAttachment);
       
-      const res = await axios.post(`${API_URL}/api/lab/reports/${selectedReport.id}/reply`, formData, {
+      const res = await axios.post(`${API_URL}/lab/reports/${selectedReport.id}/reply`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
 
@@ -452,7 +452,7 @@ const LaboratoryDashboard = ({ user, onLogout }) => {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/lab/profile`, {
+      const res = await axios.get(`${API_URL}/lab/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -476,7 +476,7 @@ const LaboratoryDashboard = ({ user, onLogout }) => {
   const updateProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/lab/profile`, profileData, {
+      const res = await axios.put(`${API_URL}/lab/profile`, profileData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -498,7 +498,7 @@ const LaboratoryDashboard = ({ user, onLogout }) => {
     }
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/lab/change-password`, {
+      const res = await axios.put(`${API_URL}/lab/change-password`, {
         current_password: passwordData.current_password,
         new_password: passwordData.new_password
       }, { headers: { Authorization: `Bearer ${token}` } });
@@ -520,7 +520,7 @@ const LaboratoryDashboard = ({ user, onLogout }) => {
       setLoading(true);
       const token = localStorage.getItem('token');
       await axios.post(
-        `${API_URL}/api/lab/start/${requestId}`,
+        `${API_URL}/lab/start/${requestId}`,
         { technician_id: user?.id, technician_name: formatFullName(user) },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -542,7 +542,7 @@ const LaboratoryDashboard = ({ user, onLogout }) => {
       setLoading(true);
       const token = localStorage.getItem('token');
       await axios.post(
-        `${API_URL}/api/lab/collect/${requestId}`,
+        `${API_URL}/lab/collect/${requestId}`,
         { technician_id: user?.id, technician_name: formatFullName(user) },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -593,7 +593,7 @@ const LaboratoryDashboard = ({ user, onLogout }) => {
       const criticalResults = checkCriticalValues(selectedRequest.testName, resultData);
       
       const res = await axios.post(
-        `${API_URL}/api/lab/results/${selectedRequest.id}`,
+        `${API_URL}/lab/results/${selectedRequest.id}`,
         {
           results: resultData,
           recommendations: recommendations,

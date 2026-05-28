@@ -23,7 +23,7 @@ const BedSelection = ({ ward, hospitalId, onBedSelect, selectedBed, title = "Sel
       
       console.log(`🔍 Fetching available beds for ${ward} ward`);
       
-      const res = await axios.get(`${API_URL}/api/doctor/available-beds`, {
+      const res = await axios.get(`${API_URL}/doctor/available-beds`, {
         params: {
           ward: ward,
           hospital_id: hospitalId

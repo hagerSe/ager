@@ -304,7 +304,7 @@ const HospitalDashboard = ({ user, onLogout }) => {
       
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.post(`${API_URL}/api/upload`, formData, {
+        const res = await axios.post(`${API_URL}/upload`, formData, {
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
         });
         
@@ -372,7 +372,7 @@ const HospitalDashboard = ({ user, onLogout }) => {
       }
       
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/api/download/${encodeURIComponent(fileKey)}`, {
+      const response = await axios.get(`${API_URL}/download/${encodeURIComponent(fileKey)}`, {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob'
       });
@@ -398,11 +398,11 @@ const HospitalDashboard = ({ user, onLogout }) => {
       setLoading(true);
       const token = localStorage.getItem('token');
       const [statsRes, inboxRes, outboxRes, staffRes, notifRes] = await Promise.all([
-        axios.get(`${API_URL}/api/hospital/dashboard/stats`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/hospital/reports/inbox`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/hospital/reports/outbox`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/hospital/staff`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/hospital/notifications?limit=5`, { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${API_URL}/hospital/dashboard/stats`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/hospital/reports/inbox`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/hospital/reports/outbox`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/hospital/staff`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/hospital/notifications?limit=5`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
 
       if (statsRes.data.success) setStats(statsRes.data.stats);
@@ -423,7 +423,7 @@ const HospitalDashboard = ({ user, onLogout }) => {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/hospital/profile`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.get(`${API_URL}/hospital/profile`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.data.success) {
         const hospital = res.data.hospital;
         setProfileData({
@@ -440,8 +440,8 @@ const HospitalDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       const [staffRes, kebeleRes] = await Promise.all([
-        axios.get(`${API_URL}/api/hospital/staff/all`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/hospital/kebele-admin`, { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${API_URL}/hospital/staff/all`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/hospital/kebele-admin`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
       if (staffRes.data.success) setRecipients(staffRes.data.staff || []);
       if (kebeleRes.data.success) setKebeleAdmin(kebeleRes.data.kebele_admin);
@@ -452,7 +452,7 @@ const HospitalDashboard = ({ user, onLogout }) => {
   const fetchConversationThread = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/hospital/reports/thread/${reportId}`, {
+      const res = await axios.get(`${API_URL}/hospital/reports/thread/${reportId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -488,7 +488,7 @@ const HospitalDashboard = ({ user, onLogout }) => {
         }
       });
       
-      const res = await axios.post(`${API_URL}/api/hospital/reports/${currentConversationId}/reply`, 
+      const res = await axios.post(`${API_URL}/hospital/reports/${currentConversationId}/reply`, 
         formData,
         { 
           headers: { 
@@ -517,7 +517,7 @@ const HospitalDashboard = ({ user, onLogout }) => {
   const fetchReportTypes = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/hospital/reports/types`, {
+      const res = await axios.get(`${API_URL}/hospital/reports/types`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -531,7 +531,7 @@ const HospitalDashboard = ({ user, onLogout }) => {
   const fetchStaffListForReport = async (department) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/hospital/reports/staff-list?department=${department || 'all'}`, {
+      const res = await axios.get(`${API_URL}/hospital/reports/staff-list?department=${department || 'all'}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -546,7 +546,7 @@ const HospitalDashboard = ({ user, onLogout }) => {
     setLoadingReport(true);
     try {
       const token = localStorage.getItem('token');
-      let url = `${API_URL}/api/hospital/reports/summary?type=${selectedReportType}`;
+      let url = `${API_URL}/hospital/reports/summary?type=${selectedReportType}`;
       
       if (selectedReportType === 'by_department' && selectedDepartment) {
         url += `&department=${selectedDepartment}`;
@@ -592,7 +592,7 @@ const HospitalDashboard = ({ user, onLogout }) => {
       const submitData = { ...staffFormData };
       if (!needsWardSelection) delete submitData.ward;
       
-      const res = await axios.post(`${API_URL}/api/hospital/staff`, submitData, { 
+      const res = await axios.post(`${API_URL}/hospital/staff`, submitData, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       if (res.data.success) {
@@ -621,7 +621,7 @@ const HospitalDashboard = ({ user, onLogout }) => {
     }
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/api/hospital/reports/send`, reportFormData, { 
+      const res = await axios.post(`${API_URL}/hospital/reports/send`, reportFormData, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       if (res.data.success) {
@@ -642,7 +642,7 @@ const HospitalDashboard = ({ user, onLogout }) => {
     }
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/api/hospital/reports/${selectedReport.id}/reply`, 
+      const res = await axios.post(`${API_URL}/hospital/reports/${selectedReport.id}/reply`, 
         { body: replyText }, 
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -666,7 +666,7 @@ const HospitalDashboard = ({ user, onLogout }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/hospital/profile`, profileData, { 
+      const res = await axios.put(`${API_URL}/hospital/profile`, profileData, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       if (res.data.success) { 
@@ -692,7 +692,7 @@ const HospitalDashboard = ({ user, onLogout }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/hospital/change-password`, 
+      const res = await axios.put(`${API_URL}/hospital/change-password`, 
         { current_password: passwordData.current_password, new_password: passwordData.new_password }, 
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -711,7 +711,7 @@ const HospitalDashboard = ({ user, onLogout }) => {
   const markNotificationAsRead = async (id) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/hospital/notifications/${id}/read`, {}, { 
+      await axios.put(`${API_URL}/hospital/notifications/${id}/read`, {}, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       fetchDashboardData();
@@ -721,7 +721,7 @@ const HospitalDashboard = ({ user, onLogout }) => {
   const markAllAsRead = async () => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/hospital/notifications/read-all`, {}, { 
+      await axios.put(`${API_URL}/hospital/notifications/read-all`, {}, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       fetchDashboardData();
@@ -731,7 +731,7 @@ const HospitalDashboard = ({ user, onLogout }) => {
   const markReportAsRead = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/hospital/reports/${reportId}/read`, {}, { 
+      await axios.put(`${API_URL}/hospital/reports/${reportId}/read`, {}, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       fetchDashboardData();

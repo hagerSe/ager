@@ -74,7 +74,7 @@ const StaffDashboard = ({ user, onLogout }) => {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/staff/profile`, {
+      const res = await axios.get(`${API_URL}/staff/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -91,9 +91,9 @@ const StaffDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       const [inboxRes, outboxRes, notifRes] = await Promise.all([
-        axios.get(`${API_URL}/api/staff/reports/inbox`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/staff/reports/outbox`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/staff/notifications`, { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${API_URL}/staff/reports/inbox`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/staff/reports/outbox`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/staff/notifications`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
 
       if (inboxRes.data.success) {
@@ -110,7 +110,7 @@ const StaffDashboard = ({ user, onLogout }) => {
   const fetchSchedule = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/staff/my-schedule`, {
+      const res = await axios.get(`${API_URL}/staff/my-schedule`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) setSchedule(res.data);
@@ -122,7 +122,7 @@ const StaffDashboard = ({ user, onLogout }) => {
   const fetchTodaySchedule = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/staff/today-schedule`, {
+      const res = await axios.get(`${API_URL}/staff/today-schedule`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) setTodaySchedule(res.data);
@@ -134,7 +134,7 @@ const StaffDashboard = ({ user, onLogout }) => {
   const fetchWeeklySchedule = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/staff/weekly-schedule`, {
+      const res = await axios.get(`${API_URL}/staff/weekly-schedule`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) setWeeklySchedule(res.data);
@@ -147,7 +147,7 @@ const StaffDashboard = ({ user, onLogout }) => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/api/staff/reports/send`, reportFormData, {
+      const res = await axios.post(`${API_URL}/staff/reports/send`, reportFormData, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -170,7 +170,7 @@ const StaffDashboard = ({ user, onLogout }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/api/staff/reports/${selectedReport.id}/reply`, {
+      const res = await axios.post(`${API_URL}/staff/reports/${selectedReport.id}/reply`, {
         body: replyText
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -190,7 +190,7 @@ const StaffDashboard = ({ user, onLogout }) => {
   const markNotificationAsRead = async (id) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/staff/notifications/${id}/read`, {}, {
+      await axios.put(`${API_URL}/staff/notifications/${id}/read`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchDashboardData();

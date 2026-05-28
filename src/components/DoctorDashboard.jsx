@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import bcrypt from 'bcrypt';
-import Patient from '../models/Patient.js';
-
 import { io } from 'socket.io-client';
 import SignaturePad from 'react-signature-canvas';
 import BedManagement from './BedManagementDashboard';
@@ -21,7 +18,7 @@ import {
   FaKey, FaCamera, FaTrash, FaPaperclip, FaCalendar, FaBell as FaBellIcon,
   FaRegClock, FaChartLine, FaFileExport, FaCalendarWeek, FaHeartbeat,
   FaPills, FaFlask, FaXRay, FaBaby, FaBed, FaUserTie, FaCreditCard,
-  FaPlus, FaUpload, FaArrowLeft, FaHome, FaSync  // ← ADD THIS
+  FaPlus, FaUpload, FaArrowLeft, FaHome, FaSync
 } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
@@ -59,7 +56,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
   const [connectionStatus, setConnectionStatus] = useState('connecting');
 
   // ==================== REPORT STATES ====================
-  const [reportMainTab, setReportMainTab] = useState('queue'); // 'queue', 'inbox', 'sent', 'profile', 'schedule'
+  const [reportMainTab, setReportMainTab] = useState('queue');
   const [reportsInbox, setReportsInbox] = useState([]);
   const [reportsOutbox, setReportsOutbox] = useState([]);
   const [unreadReportsCount, setUnreadReportsCount] = useState(0);
@@ -212,13 +209,11 @@ const DoctorDashboard = ({ user, onLogout }) => {
     return 'Doctor';
   };
 
-  // Handle back to main menu
   const handleBackToMain = () => {
     setShowDischargeList(false);
     setReportMainTab('queue');
   };
 
-  // Handle logout with confirmation
   const handleLogoutWithConfirm = () => {
     setShowLogoutConfirm(true);
   };
@@ -231,7 +226,6 @@ const DoctorDashboard = ({ user, onLogout }) => {
 
   // ==================== REPORT FUNCTIONS ====================
 
-  // Fetch reports inbox
   const fetchReportsInbox = async () => {
     try {
       setReportsLoading(true);
@@ -250,7 +244,6 @@ const DoctorDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // Fetch reports outbox
   const fetchReportsOutbox = async () => {
     try {
       setReportsLoading(true);
@@ -268,7 +261,6 @@ const DoctorDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // Fetch hospital admins for sending reports
   const fetchHospitalAdmins = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -356,7 +348,6 @@ const DoctorDashboard = ({ user, onLogout }) => {
     );
   };
 
-  // Fetch staff members for sending reports
   const fetchStaffMembers = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -371,11 +362,10 @@ const DoctorDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // Handle file attachment
   const handleFileAttachment = (e) => {
     const files = Array.from(e.target.files);
     const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxSize = 5 * 1024 * 1024;
     
     const validFiles = files.filter(file => {
       if (!validTypes.includes(file.type)) {
@@ -394,7 +384,6 @@ const DoctorDashboard = ({ user, onLogout }) => {
       attachments: [...prev.attachments, ...validFiles]
     }));
     
-    // Create preview URLs for images
     validFiles.forEach(file => {
       if (file.type.startsWith('image/')) {
         const reader = new FileReader();
@@ -416,7 +405,6 @@ const DoctorDashboard = ({ user, onLogout }) => {
     setAttachmentPreview(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Send report to hospital admin or staff
   const handleSendReport = async (e) => {
     e.preventDefault();
     if (!sendReportForm.recipient_id) {
@@ -429,7 +417,6 @@ const DoctorDashboard = ({ user, onLogout }) => {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      // Create FormData for file uploads
       const formData = new FormData();
       formData.append('title', sendReportForm.title);
       formData.append('subject', sendReportForm.title);
@@ -442,8 +429,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
         formData.append('reminder_frequency', sendReportForm.reminder_frequency);
       }
       
-      // Append attachments
-      sendReportForm.attachments.forEach((file, index) => {
+      sendReportForm.attachments.forEach((file) => {
         formData.append('attachments', file);
       });
       
@@ -480,7 +466,6 @@ const DoctorDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // Mark report as read
   const markReportAsRead = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
@@ -493,7 +478,6 @@ const DoctorDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // View report details
   const viewReportDetails = (report) => {
     setSelectedReport(report);
     setShowReportDetailModal(true);
@@ -502,7 +486,6 @@ const DoctorDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // Send reply to report with attachment
   const handleSendReply = async () => {
     if (!replyText.trim() && !replyAttachment) {
       setMessage({ type: 'error', text: 'Please enter a reply message or attach a file' });
@@ -545,7 +528,6 @@ const DoctorDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // Set reminder for report
   const handleSetReminder = async () => {
     if (!reminderData.reminder_date) {
       setMessage({ type: 'error', text: 'Please select a reminder date' });
@@ -1179,40 +1161,35 @@ const DoctorDashboard = ({ user, onLogout }) => {
   };
 
   // ==================== FETCH DISCHARGED PATIENTS ====================
-const fetchDischargedPatients = async () => {
-  try {
-    const token = localStorage.getItem('token');
-    
-    // Make sure both hospital_id AND ward are provided
-    if (!user?.hospital_id || !user?.ward) {
-      console.log('Missing hospital_id or ward for discharged patients');
-      return;
-    }
-    
-    console.log('Fetching discharged patients for:', {
-      hospital_id: user.hospital_id,
-      ward: user.ward
-    });
-    
-    const res = await axios.get(
-      `${API_URL}/doctor/discharged-patients`,
-      { 
-        params: {
-          hospital_id: user.hospital_id,
-          ward: user.ward  // ← Make sure this is included
-        },
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 10000
+  const fetchDischargedPatients = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (!user?.hospital_id || !user?.ward) {
+        console.log('Missing hospital_id or ward for discharged patients');
+        return;
       }
-    );
-    
-    if (res.data.success) {
-      setDischargedPatients(res.data.patients);
+      
+      const res = await axios.get(
+        `${API_URL}/doctor/discharged-patients`,
+        { 
+          params: {
+            hospital_id: user.hospital_id,
+            ward: user.ward
+          },
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 10000
+        }
+      );
+      
+      if (res.data.success) {
+        setDischargedPatients(res.data.patients);
+      }
+    } catch (error) {
+      console.error('Error fetching discharged patients:', error);
     }
-  } catch (error) {
-    console.error('Error fetching discharged patients:', error);
-  }
-};
+  };
+
   // ==================== INITIALIZATION ====================
   useEffect(() => {
     if (!user?.hospital_id || !user?.ward) {
@@ -1446,6 +1423,7 @@ const fetchDischargedPatients = async () => {
       }
       clearInterval(interval);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.hospital_id, user?.ward, showDischargeList]);
 
   // ==================== API CALLS ====================
@@ -2370,7 +2348,6 @@ const fetchDischargedPatients = async () => {
               </div>
               
               <div className="flex items-center gap-3 flex-wrap">
-                {/* Google Search Button */}
                 <button
                   onClick={() => setShowSearchBar(!showSearchBar)}
                   className="bg-white/20 backdrop-blur px-4 py-2.5 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg text-sm font-medium"
@@ -2378,7 +2355,6 @@ const fetchDischargedPatients = async () => {
                   <FaSearch className="text-sm" /> <span className="hidden sm:inline">Medical Search</span>
                 </button>
                 
-                {/* Generate Report Button */}
                 <button
                   onClick={() => setShowReportModal(true)}
                   className="bg-white/20 backdrop-blur px-4 py-2.5 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg text-sm font-medium"
@@ -2386,7 +2362,6 @@ const fetchDischargedPatients = async () => {
                   <FaFileAlt className="text-sm" /> <span className="hidden sm:inline">Generate Report</span>
                 </button>
 
-                {/* Send Report Button */}
                 <button
                   onClick={() => { setShowSendReportModal(true); fetchHospitalAdmins(); fetchStaffMembers(); }}
                   className="bg-white/20 backdrop-blur px-4 py-2.5 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg text-sm font-medium"
@@ -2396,7 +2371,7 @@ const fetchDischargedPatients = async () => {
               </div>
             </div>
             
-            {/* Stats Cards - Moved from sidebar to header */}
+            {/* Stats Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mt-4">
               <div className="bg-white/15 backdrop-blur rounded-xl p-3 text-center">
                 <div className="text-2xl font-bold text-white">{queuePatients.length}</div>
@@ -2430,7 +2405,7 @@ const fetchDischargedPatients = async () => {
           </div>
         </div>
 
-        {/* Back Button - Show when not in main queue */}
+        {/* Back Button */}
         {(showDischargeList || reportMainTab !== 'queue') && (
           <div className="max-w-[1600px] mx-auto px-8 pt-6">
             <button
@@ -2442,7 +2417,7 @@ const fetchDischargedPatients = async () => {
           </div>
         )}
 
-        {/* Google Search Bar - Animated */}
+        {/* Google Search Bar */}
         <AnimatePresence>
           {showSearchBar && (
             <motion.div
@@ -2542,7 +2517,7 @@ const fetchDischargedPatients = async () => {
           )}
         </AnimatePresence>
 
-        {/* Send Report Modal - Keep existing */}
+        {/* Send Report Modal */}
         <AnimatePresence>
           {showSendReportModal && (
             <motion.div
@@ -2649,7 +2624,6 @@ const fetchDischargedPatients = async () => {
                     />
                   </div>
 
-                  {/* File Attachments */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Attachments <span className="text-xs text-gray-400">(Images, PDF, DOC - Max 5MB each)</span>
@@ -2687,7 +2661,6 @@ const fetchDischargedPatients = async () => {
                     )}
                   </div>
 
-                  {/* Reminder */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       <FaBellIcon className="inline mr-1 text-amber-500" /> Set Reminder
@@ -2736,7 +2709,7 @@ const fetchDischargedPatients = async () => {
           )}
         </AnimatePresence>
 
-        {/* Report Detail Modal - Keep existing */}
+        {/* Report Detail Modal */}
         <AnimatePresence>
           {showReportDetailModal && selectedReport && (
             <motion.div
@@ -2843,7 +2816,7 @@ const fetchDischargedPatients = async () => {
           )}
         </AnimatePresence>
 
-        {/* Reply Modal - Keep existing */}
+        {/* Reply Modal */}
         <AnimatePresence>
           {showReplyModal && selectedReport && (
             <motion.div
@@ -2945,12 +2918,11 @@ const fetchDischargedPatients = async () => {
               </button>
             </div>
             
-            {/* Schedule Viewer Component */}
             <ScheduleViewer user={user} compact={false} />
           </div>
         )}
 
-        {/* Reminder Modal - Keep existing */}
+        {/* Reminder Modal */}
         <AnimatePresence>
           {showReminderModal && (
             <motion.div
@@ -3085,7 +3057,7 @@ const fetchDischargedPatients = async () => {
           )}
         </AnimatePresence>
 
-        {/* Notification Banner - Keep existing */}
+        {/* Notification Banner */}
         <AnimatePresence>
           {notification && (
             <motion.div
@@ -3107,7 +3079,7 @@ const fetchDischargedPatients = async () => {
           )}
         </AnimatePresence>
 
-        {/* Message Toast - Keep existing */}
+        {/* Message Toast */}
         {message.text && (
           <div className={`fixed bottom-8 right-8 z-[1000] ${message.type === 'error' ? 'bg-red-100 text-red-800 border-red-400' : 'bg-green-100 text-green-800 border-green-400'} py-3 px-6 rounded-lg shadow-md animate-slide-in border-l-4`}>
             {message.text}
@@ -3116,140 +3088,135 @@ const fetchDischargedPatients = async () => {
 
         {/* Main Content Area */}
         <div className="max-w-[1600px] mx-auto p-8">
-          {/* Patient Queue View - Keep existing */}
+          {/* Patient Queue View */}
           {!showDischargeList && reportMainTab === 'queue' && (
-            <>
-              {/* Patient Queue Table - Increased card size and text size */}
-              <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100">
-                <div className="flex justify-between items-center mb-6">
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-2xl font-semibold text-gray-900 m-0">{currentWard.queueTitle}</h2>
-                    <span className={`px-4 py-1.5 rounded-full text-base font-semibold text-white bg-gradient-to-r ${currentWard.bgGradient}`}>
-                      {queuePatients.length} waiting
-                    </span>
-                  </div>
-                  <div className="flex gap-3 items-center">
-                    <span className="text-sm text-gray-500">Last updated: {new Date().toLocaleTimeString()}</span>
-                    <span className={`w-2 h-2 rounded-full inline-block ${connectionStatus === 'connected' ? 'bg-green-500 animate-pulse-custom' : 'bg-red-500'}`} />
-                  </div>
+            <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100">
+              <div className="flex justify-between items-center mb-6">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-2xl font-semibold text-gray-900 m-0">{currentWard.queueTitle}</h2>
+                  <span className={`px-4 py-1.5 rounded-full text-base font-semibold text-white bg-gradient-to-r ${currentWard.bgGradient}`}>
+                    {queuePatients.length} waiting
+                  </span>
                 </div>
-                
-                {queuePatients.length === 0 ? (
-                  <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                    <span className="text-6xl block mb-4">🛋️</span>
-                    <p className="text-xl text-gray-500 mb-2">No patients waiting</p>
-                    <p className="text-base text-gray-400">Patients from triage will appear here automatically</p>
-                  </div>
-                ) : (
-                  <div className="grid gap-5">
-                    {queuePatients.map(patient => {
-                      const priority = getPriorityColor(patient.triage_info?.priority || 'routine');
-                      const criticalBP = getCriticalFlag('bp', patient.vitals?.blood_pressure);
-                      const criticalTemp = getCriticalFlag('temperature', patient.vitals?.temperature);
-                      const criticalHR = getCriticalFlag('heartRate', patient.vitals?.heart_rate);
-                      const criticalO2 = getCriticalFlag('o2', patient.vitals?.oxygen_saturation);
-                      const hasCritical = criticalBP || criticalTemp || criticalHR || criticalO2;
-                      
-                      return (
-                        <div 
-                          key={patient.id} 
-                          className={`${hasCritical ? 'border-2 border-red-500 bg-red-50' : 'border border-gray-200 bg-white'} rounded-xl p-6 flex justify-between items-center shadow-sm transition-all cursor-pointer animate-fade-in hover:shadow-lg`}
-                          onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.1)'}
-                          onMouseLeave={(e) => e.currentTarget.style.boxShadow = hasCritical ? '0 4px 12px rgba(239,68,68,0.1)' : 'none'}
-                        >
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-3 flex-wrap">
-                              <span className="font-mono text-sm px-3 py-1.5 rounded bg-teal-50 text-teal-700 font-medium">
-                                {patient.card_number}
+                <div className="flex gap-3 items-center">
+                  <span className="text-sm text-gray-500">Last updated: {new Date().toLocaleTimeString()}</span>
+                  <span className={`w-2 h-2 rounded-full inline-block ${connectionStatus === 'connected' ? 'bg-green-500 animate-pulse-custom' : 'bg-red-500'}`} />
+                </div>
+              </div>
+              
+              {queuePatients.length === 0 ? (
+                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                  <span className="text-6xl block mb-4">🛋️</span>
+                  <p className="text-xl text-gray-500 mb-2">No patients waiting</p>
+                  <p className="text-base text-gray-400">Patients from triage will appear here automatically</p>
+                </div>
+              ) : (
+                <div className="grid gap-5">
+                  {queuePatients.map(patient => {
+                    const priority = getPriorityColor(patient.triage_info?.priority || 'routine');
+                    const criticalBP = getCriticalFlag('bp', patient.vitals?.blood_pressure);
+                    const criticalTemp = getCriticalFlag('temperature', patient.vitals?.temperature);
+                    const criticalHR = getCriticalFlag('heartRate', patient.vitals?.heart_rate);
+                    const criticalO2 = getCriticalFlag('o2', patient.vitals?.oxygen_saturation);
+                    const hasCritical = criticalBP || criticalTemp || criticalHR || criticalO2;
+                    
+                    return (
+                      <div 
+                        key={patient.id} 
+                        className={`${hasCritical ? 'border-2 border-red-500 bg-red-50' : 'border border-gray-200 bg-white'} rounded-xl p-6 flex justify-between items-center shadow-sm transition-all cursor-pointer animate-fade-in hover:shadow-lg`}
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-3 flex-wrap">
+                            <span className="font-mono text-sm px-3 py-1.5 rounded bg-teal-50 text-teal-700 font-medium">
+                              {patient.card_number}
+                            </span>
+                            <span className={`px-3 py-1.5 rounded-full text-sm font-semibold flex items-center gap-1.5 ${priority.bg} ${priority.color}`}>
+                              <span>{priority.icon}</span>
+                              {priority.text}
+                            </span>
+                            {hasCritical && (
+                              <span className="px-3 py-1.5 rounded-full text-sm font-semibold bg-red-100 text-red-800 animate-pulse">
+                                ⚠️ CRITICAL VITALS
                               </span>
-                              <span className={`px-3 py-1.5 rounded-full text-sm font-semibold flex items-center gap-1.5 ${priority.bg} ${priority.color}`}>
-                                <span>{priority.icon}</span>
-                                {priority.text}
+                            )}
+                            {patient.has_new_results && (
+                              <span className="px-3 py-1.5 rounded-full text-sm font-semibold bg-blue-500 text-white flex items-center gap-1.5">
+                                <span>🔬</span> New Results
                               </span>
-                              {hasCritical && (
-                                <span className="px-3 py-1.5 rounded-full text-sm font-semibold bg-red-100 text-red-800 animate-pulse">
-                                  ⚠️ CRITICAL VITALS
-                                </span>
-                              )}
-                              {patient.has_new_results && (
-                                <span className="px-3 py-1.5 rounded-full text-sm font-semibold bg-blue-500 text-white flex items-center gap-1.5">
-                                  <span>🔬</span> New Results
-                                </span>
-                              )}
-                            </div>
-                            
-                            <div className="flex items-center gap-4 mb-3 flex-wrap">
-                              <h3 className="text-xl font-semibold m-0 text-gray-800">
-                                {patient.first_name} {patient.middle_name} {patient.last_name}
-                              </h3>
-                              <span className="text-base text-gray-500">
-                                {patient.age} yrs, {patient.gender}
-                              </span>
-                            </div>
-                            
-                            <p className="text-base text-gray-600 m-0 mb-3">
-                              <span className="font-semibold">Complaint:</span> {patient.vitals?.chief_complaint || 'Not recorded'}
-                            </p>
-                            
-                            {patient.vitals ? (
-                              <div className="flex gap-8 text-base flex-wrap">
-                                <div>
-                                  <span className="text-gray-500">BP:</span>{' '}
-                                  <span className={`font-semibold ${criticalBP ? 'text-red-500' : 'text-gray-900'} text-base`}>
-                                    {patient.vitals?.blood_pressure || 'N/A'}
-                                    {criticalBP && ' ⚠️'}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="text-gray-500">Temp:</span>{' '}
-                                  <span className={`font-semibold ${criticalTemp ? 'text-red-500' : 'text-gray-900'} text-base`}>
-                                    {patient.vitals?.temperature || 'N/A'}°C
-                                    {criticalTemp && ' ⚠️'}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="text-gray-500">HR:</span>{' '}
-                                  <span className={`font-semibold ${criticalHR ? 'text-red-500' : 'text-gray-900'} text-base`}>
-                                    {patient.vitals?.heart_rate || 'N/A'}
-                                    {criticalHR && ' ⚠️'}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="text-gray-500">O2:</span>{' '}
-                                  <span className={`font-semibold ${criticalO2 ? 'text-red-500' : 'text-gray-900'} text-base`}>
-                                    {patient.vitals?.oxygen_saturation || 'N/A'}%
-                                    {criticalO2 && ' ⚠️'}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="text-gray-500">Pain:</span>{' '}
-                                  <span className="font-semibold text-gray-900 text-base">
-                                    {patient.vitals?.pain_level || '0'}/10
-                                  </span>
-                                </div>
-                              </div>
-                            ) : (
-                              <p className="text-sm text-gray-400">No vitals recorded yet</p>
                             )}
                           </div>
                           
-                          <button
-                            onClick={() => handleTakePatient(patient)}
-                            className={`py-3.5 px-8 text-white border-none rounded-xl cursor-pointer text-base font-semibold transition-all shadow-md ml-5 whitespace-nowrap hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r ${currentWard.bgGradient}`}
-                            disabled={loading}
-                          >
-                            {hasCritical ? '🚨 Take Now' : 'Start Consultation'}
-                          </button>
+                          <div className="flex items-center gap-4 mb-3 flex-wrap">
+                            <h3 className="text-xl font-semibold m-0 text-gray-800">
+                              {patient.first_name} {patient.middle_name} {patient.last_name}
+                            </h3>
+                            <span className="text-base text-gray-500">
+                              {patient.age} yrs, {patient.gender}
+                            </span>
+                          </div>
+                          
+                          <p className="text-base text-gray-600 m-0 mb-3">
+                            <span className="font-semibold">Complaint:</span> {patient.vitals?.chief_complaint || 'Not recorded'}
+                          </p>
+                          
+                          {patient.vitals ? (
+                            <div className="flex gap-8 text-base flex-wrap">
+                              <div>
+                                <span className="text-gray-500">BP:</span>{' '}
+                                <span className={`font-semibold ${criticalBP ? 'text-red-500' : 'text-gray-900'} text-base`}>
+                                  {patient.vitals?.blood_pressure || 'N/A'}
+                                  {criticalBP && ' ⚠️'}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-gray-500">Temp:</span>{' '}
+                                <span className={`font-semibold ${criticalTemp ? 'text-red-500' : 'text-gray-900'} text-base`}>
+                                  {patient.vitals?.temperature || 'N/A'}°C
+                                  {criticalTemp && ' ⚠️'}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-gray-500">HR:</span>{' '}
+                                <span className={`font-semibold ${criticalHR ? 'text-red-500' : 'text-gray-900'} text-base`}>
+                                  {patient.vitals?.heart_rate || 'N/A'}
+                                  {criticalHR && ' ⚠️'}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-gray-500">O2:</span>{' '}
+                                <span className={`font-semibold ${criticalO2 ? 'text-red-500' : 'text-gray-900'} text-base`}>
+                                  {patient.vitals?.oxygen_saturation || 'N/A'}%
+                                  {criticalO2 && ' ⚠️'}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-gray-500">Pain:</span>{' '}
+                                <span className="font-semibold text-gray-900 text-base">
+                                  {patient.vitals?.pain_level || '0'}/10
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-400">No vitals recorded yet</p>
+                          )}
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </>
+                        
+                        <button
+                          onClick={() => handleTakePatient(patient)}
+                          className={`py-3.5 px-8 text-white border-none rounded-xl cursor-pointer text-base font-semibold transition-all shadow-md ml-5 whitespace-nowrap hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r ${currentWard.bgGradient}`}
+                          disabled={loading}
+                        >
+                          {hasCritical ? '🚨 Take Now' : 'Start Consultation'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
 
-          {/* Reports Inbox View - Keep existing */}
+          {/* Reports Inbox View */}
           {!showDischargeList && reportMainTab === 'inbox' && (
             <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 m-8">
               <div className="flex justify-between items-center mb-6">
@@ -3290,11 +3257,7 @@ const fetchDischargedPatients = async () => {
                     >
                       <div className="flex justify-between items-start mb-3 flex-wrap gap-2">
                         <div className="flex items-center gap-3">
-                          {!report.is_opened ? (
-                            <FaEnvelope className="text-teal-500 text-lg" />
-                          ) : (
-                            <FaEnvelopeOpen className="text-gray-400 text-lg" />
-                          )}
+                          {!report.is_opened ? <FaEnvelope className="text-teal-500 text-lg" /> : <FaEnvelopeOpen className="text-gray-400 text-lg" />}
                           <h3 className="font-semibold text-gray-900">{report.title}</h3>
                         </div>
                         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getPriorityBadge(report.priority)}`}>
@@ -3307,22 +3270,13 @@ const fetchDischargedPatients = async () => {
                         <span>{new Date(report.sent_at).toLocaleString()}</span>
                       </div>
                       <div className="mt-4 flex gap-2">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); viewReportDetails(report); }}
-                          className="px-3 py-1.5 bg-teal-500 text-white rounded-lg text-xs hover:bg-teal-600 transition flex items-center gap-1"
-                        >
+                        <button onClick={(e) => { e.stopPropagation(); viewReportDetails(report); }} className="px-3 py-1.5 bg-teal-500 text-white rounded-lg text-xs hover:bg-teal-600 transition flex items-center gap-1">
                           <FaEye size={10} /> View
                         </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setSelectedReport(report); setShowReportDetailModal(false); setShowReplyModal(true); }}
-                          className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-xs hover:bg-emerald-600 transition flex items-center gap-1"
-                        >
+                        <button onClick={(e) => { e.stopPropagation(); setSelectedReport(report); setShowReportDetailModal(false); setShowReplyModal(true); }} className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-xs hover:bg-emerald-600 transition flex items-center gap-1">
                           <FaReply size={10} /> Reply
                         </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setShowReminderModal(true); setReminderData({...reminderData, report_id: report.id}); }}
-                          className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs hover:bg-amber-600 transition flex items-center gap-1"
-                        >
+                        <button onClick={(e) => { e.stopPropagation(); setShowReminderModal(true); setReminderData({...reminderData, report_id: report.id}); }} className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs hover:bg-amber-600 transition flex items-center gap-1">
                           <FaBellIcon size={10} /> Remind
                         </button>
                       </div>
@@ -3333,17 +3287,14 @@ const fetchDischargedPatients = async () => {
             </div>
           )}
 
-          {/* Sent Reports View - Keep existing */}
+          {/* Sent Reports View */}
           {!showDischargeList && reportMainTab === 'sent' && (
             <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 m-8">
               <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-3">
                   <h2 className="text-xl font-semibold text-gray-900 m-0">📤 Sent Reports</h2>
                 </div>
-                <button
-                  onClick={() => fetchReportsOutbox()}
-                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition flex items-center gap-2 text-sm"
-                >
+                <button onClick={() => fetchReportsOutbox()} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition flex items-center gap-2 text-sm">
                   <FaSpinner className={reportsLoading ? 'animate-spin' : ''} /> Refresh
                 </button>
               </div>
@@ -3362,11 +3313,7 @@ const fetchDischargedPatients = async () => {
               ) : (
                 <div className="grid gap-4">
                   {reportsOutbox.map(report => (
-                    <div
-                      key={report.id}
-                      className="border border-gray-200 rounded-xl p-5 transition-all hover:shadow-md bg-white cursor-pointer"
-                      onClick={() => viewReportDetails(report)}
-                    >
+                    <div key={report.id} className="border border-gray-200 rounded-xl p-5 transition-all hover:shadow-md bg-white cursor-pointer" onClick={() => viewReportDetails(report)}>
                       <div className="flex justify-between items-start mb-3 flex-wrap gap-2">
                         <div className="flex items-center gap-3">
                           <FaPaperPlane className="text-gray-400 text-lg" />
@@ -3393,10 +3340,9 @@ const fetchDischargedPatients = async () => {
             </div>
           )}
 
-          {/* Profile View - Keep existing */}
+          {/* Profile View */}
           {!showDischargeList && reportMainTab === 'profile' && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden m-8">
-              {/* Profile Header */}
               <div className="bg-gradient-to-r from-teal-600 to-emerald-600 px-8 py-10">
                 <div className="flex items-center gap-6">
                   <div className="relative">
@@ -3606,7 +3552,7 @@ const fetchDischargedPatients = async () => {
             </div>
           )}
 
-          {/* Discharge List View - Keep existing */}
+          {/* Discharge List View */}
           {showDischargeList && (
             <div className="m-8">
               <DischargeList 
@@ -3619,9 +3565,8 @@ const fetchDischargedPatients = async () => {
           )}
         </div>
 
-        {/* Patient Consultation Modal - Keep existing (too long to re-write, but it's there) */}
+        {/* Patient Consultation Modal */}
         {showPatientModal && selectedPatient && (
-          // ... Keep existing modal code (unchanged)
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2000] backdrop-blur-sm">
             <div className="bg-white rounded-3xl p-8 max-w-6xl w-[95%] max-h-[90vh] overflow-auto shadow-2xl">
               {/* Modal Header */}
@@ -3642,7 +3587,7 @@ const fetchDischargedPatients = async () => {
                 </button>
               </div>
 
-              {/* Patient Info Card - Increased size */}
+              {/* Patient Info Card */}
               <div className="bg-gray-50 rounded-2xl p-6 mb-6 grid grid-cols-4 gap-5">
                 <div>
                   <p className="text-xs text-gray-500 m-0 mb-1">Age / Gender</p>
@@ -3673,7 +3618,7 @@ const fetchDischargedPatients = async () => {
                 </div>
               </div>
 
-              {/* Tabs - Increased size */}
+              {/* Tabs */}
               <div className="flex gap-2 mb-6 border-b-2 border-gray-200 pb-3 overflow-x-auto whitespace-nowrap">
                 {[
                   { id: 'details', label: '📋 Diagnosis', icon: '📋' },
@@ -3700,7 +3645,7 @@ const fetchDischargedPatients = async () => {
                 ))}
               </div>
 
-              {/* Diagnosis Tab - Keep existing content */}
+              {/* Diagnosis Tab */}
               {activeTab === 'details' && (
                 <div>
                   <h3 className="text-lg font-semibold mb-5">Diagnosis</h3>
@@ -3770,13 +3715,10 @@ const fetchDischargedPatients = async () => {
                 </div>
               )}
 
-              {/* Other tabs remain the same - keeping the original code for brevity since they're unchanged */}
               {/* Vitals Tab */}
               {activeTab === 'vitals' && vitals && (
                 <div>
-                  <h3 className="text-lg font-semibold mb-5">
-                    Vital Signs from Triage
-                  </h3>
+                  <h3 className="text-lg font-semibold mb-5">Vital Signs from Triage</h3>
                   
                   <div className="grid grid-cols-4 gap-4 mb-6">
                     {[
@@ -3817,63 +3759,23 @@ const fetchDischargedPatients = async () => {
                     <h4 className="text-base font-semibold mb-4">Add Medication</h4>
                     <div className="grid grid-cols-4 gap-3">
                       <div>
-                        <label className="text-xs font-medium mb-1 block">
-                          Medication Name *
-                        </label>
-                        <input
-                          type="text"
-                          name="name"
-                          value={newMedication.name}
-                          onChange={handleMedicationChange}
-                          placeholder="e.g., Amoxicillin"
-                          className={`w-full p-2 border ${prescriptionValidation.name ? 'border-red-500' : 'border-gray-200'} rounded-md text-sm`}
-                        />
-                        {prescriptionValidation.name && (
-                          <p className="text-red-500 text-xs mt-1">{prescriptionValidation.name}</p>
-                        )}
+                        <label className="text-xs font-medium mb-1 block">Medication Name *</label>
+                        <input type="text" name="name" value={newMedication.name} onChange={handleMedicationChange} placeholder="e.g., Amoxicillin" className={`w-full p-2 border ${prescriptionValidation.name ? 'border-red-500' : 'border-gray-200'} rounded-md text-sm`} />
+                        {prescriptionValidation.name && <p className="text-red-500 text-xs mt-1">{prescriptionValidation.name}</p>}
                       </div>
                       <div>
-                        <label className="text-xs font-medium mb-1 block">
-                          Dosage *
-                        </label>
-                        <input
-                          type="text"
-                          name="dosage"
-                          value={newMedication.dosage}
-                          onChange={handleMedicationChange}
-                          placeholder="e.g., 500mg"
-                          className={`w-full p-2 border ${prescriptionValidation.dosage ? 'border-red-500' : 'border-gray-200'} rounded-md text-sm`}
-                        />
-                        {prescriptionValidation.dosage && (
-                          <p className="text-red-500 text-xs mt-1">{prescriptionValidation.dosage}</p>
-                        )}
+                        <label className="text-xs font-medium mb-1 block">Dosage *</label>
+                        <input type="text" name="dosage" value={newMedication.dosage} onChange={handleMedicationChange} placeholder="e.g., 500mg" className={`w-full p-2 border ${prescriptionValidation.dosage ? 'border-red-500' : 'border-gray-200'} rounded-md text-sm`} />
+                        {prescriptionValidation.dosage && <p className="text-red-500 text-xs mt-1">{prescriptionValidation.dosage}</p>}
                       </div>
                       <div>
-                        <label className="text-xs font-medium mb-1 block">
-                          Quantity
-                        </label>
-                        <input
-                          type="number"
-                          name="quantity"
-                          value={newMedication.quantity || 1}
-                          onChange={handleMedicationChange}
-                          placeholder="e.g., 10"
-                          className={`w-full p-2 border ${prescriptionValidation.quantity ? 'border-red-500' : 'border-gray-200'} rounded-md text-sm`}
-                        />
-                        {prescriptionValidation.quantity && (
-                          <p className="text-red-500 text-xs mt-1">{prescriptionValidation.quantity}</p>
-                        )}
+                        <label className="text-xs font-medium mb-1 block">Quantity</label>
+                        <input type="number" name="quantity" value={newMedication.quantity || 1} onChange={handleMedicationChange} placeholder="e.g., 10" className={`w-full p-2 border ${prescriptionValidation.quantity ? 'border-red-500' : 'border-gray-200'} rounded-md text-sm`} />
+                        {prescriptionValidation.quantity && <p className="text-red-500 text-xs mt-1">{prescriptionValidation.quantity}</p>}
                       </div>
                       <div>
-                        <label className="text-xs font-medium mb-1 block">
-                          Unit
-                        </label>
-                        <select
-                          name="unit"
-                          value={newMedication.unit || 'tablet'}
-                          onChange={handleMedicationChange}
-                          className="w-full p-2 border border-gray-200 rounded-md text-sm"
-                        >
+                        <label className="text-xs font-medium mb-1 block">Unit</label>
+                        <select name="unit" value={newMedication.unit || 'tablet'} onChange={handleMedicationChange} className="w-full p-2 border border-gray-200 rounded-md text-sm">
                           <option value="tablet">Tablet</option>
                           <option value="capsule">Capsule</option>
                           <option value="ml">ml</option>
@@ -3882,47 +3784,18 @@ const fetchDischargedPatients = async () => {
                         </select>
                       </div>
                       <div>
-                        <label className="text-xs font-medium mb-1 block">
-                          Frequency
-                        </label>
-                        <input
-                          type="text"
-                          name="frequency"
-                          value={newMedication.frequency}
-                          onChange={handleMedicationChange}
-                          placeholder="e.g., twice daily"
-                          className={`w-full p-2 border ${prescriptionValidation.frequency ? 'border-red-500' : 'border-gray-200'} rounded-md text-sm`}
-                        />
-                        {prescriptionValidation.frequency && (
-                          <p className="text-red-500 text-xs mt-1">{prescriptionValidation.frequency}</p>
-                        )}
+                        <label className="text-xs font-medium mb-1 block">Frequency</label>
+                        <input type="text" name="frequency" value={newMedication.frequency} onChange={handleMedicationChange} placeholder="e.g., twice daily" className={`w-full p-2 border ${prescriptionValidation.frequency ? 'border-red-500' : 'border-gray-200'} rounded-md text-sm`} />
+                        {prescriptionValidation.frequency && <p className="text-red-500 text-xs mt-1">{prescriptionValidation.frequency}</p>}
                       </div>
                       <div>
-                        <label className="text-xs font-medium mb-1 block">
-                          Duration
-                        </label>
-                        <input
-                          type="text"
-                          name="duration"
-                          value={newMedication.duration}
-                          onChange={handleMedicationChange}
-                          placeholder="e.g., 7 days"
-                          className={`w-full p-2 border ${prescriptionValidation.duration ? 'border-red-500' : 'border-gray-200'} rounded-md text-sm`}
-                        />
-                        {prescriptionValidation.duration && (
-                          <p className="text-red-500 text-xs mt-1">{prescriptionValidation.duration}</p>
-                        )}
+                        <label className="text-xs font-medium mb-1 block">Duration</label>
+                        <input type="text" name="duration" value={newMedication.duration} onChange={handleMedicationChange} placeholder="e.g., 7 days" className={`w-full p-2 border ${prescriptionValidation.duration ? 'border-red-500' : 'border-gray-200'} rounded-md text-sm`} />
+                        {prescriptionValidation.duration && <p className="text-red-500 text-xs mt-1">{prescriptionValidation.duration}</p>}
                       </div>
                       <div>
-                        <label className="text-xs font-medium mb-1 block">
-                          Route
-                        </label>
-                        <select
-                          name="route"
-                          value={newMedication.route}
-                          onChange={handleMedicationChange}
-                          className="w-full p-2 border border-gray-200 rounded-md text-sm"
-                        >
+                        <label className="text-xs font-medium mb-1 block">Route</label>
+                        <select name="route" value={newMedication.route} onChange={handleMedicationChange} className="w-full p-2 border border-gray-200 rounded-md text-sm">
                           <option value="oral">Oral</option>
                           <option value="IV">IV</option>
                           <option value="IM">IM</option>
@@ -3931,28 +3804,12 @@ const fetchDischargedPatients = async () => {
                         </select>
                       </div>
                       <div className="col-span-3">
-                        <label className="text-xs font-medium mb-1 block">
-                          Notes
-                        </label>
-                        <input
-                          type="text"
-                          name="notes"
-                          value={newMedication.notes}
-                          onChange={handleMedicationChange}
-                          placeholder="Additional instructions"
-                          className={`w-full p-2 border ${prescriptionValidation.notes ? 'border-red-500' : 'border-gray-200'} rounded-md text-sm`}
-                        />
-                        {prescriptionValidation.notes && (
-                          <p className="text-red-500 text-xs mt-1">{prescriptionValidation.notes}</p>
-                        )}
+                        <label className="text-xs font-medium mb-1 block">Notes</label>
+                        <input type="text" name="notes" value={newMedication.notes} onChange={handleMedicationChange} placeholder="Additional instructions" className={`w-full p-2 border ${prescriptionValidation.notes ? 'border-red-500' : 'border-gray-200'} rounded-md text-sm`} />
+                        {prescriptionValidation.notes && <p className="text-red-500 text-xs mt-1">{prescriptionValidation.notes}</p>}
                       </div>
                     </div>
-                    <button
-                      onClick={addMedication}
-                      className="mt-4 py-2 px-5 text-white border-none rounded-full cursor-pointer text-sm font-medium"
-                      style={{ backgroundColor: currentWard.primaryColor }}
-                      disabled={loading}
-                    >
+                    <button onClick={addMedication} className="mt-4 py-2 px-5 text-white border-none rounded-full cursor-pointer text-sm font-medium" style={{ backgroundColor: currentWard.primaryColor }} disabled={loading}>
                       + Add Medication
                     </button>
                   </div>
@@ -3961,52 +3818,33 @@ const fetchDischargedPatients = async () => {
                     <div>
                       <h4 className="text-base font-semibold mb-4">Current Prescriptions ({prescriptions.length} items)</h4>
                       <div className="grid gap-3">
-                        {prescriptions.map((med, idx) => {
-                          return (
-                            <div key={idx} className="border border-gray-200 rounded-lg p-4 flex justify-between items-center bg-white">
-                              <div>
-                                <p className="font-semibold m-0 mb-1">
-                                  {med.name} {med.dosage}
-                                </p>
-                                <p className="text-sm text-gray-500 m-0">
-                                  Quantity: {med.quantity || 1} {med.unit || 'tablet(s)'} • {med.frequency || 'as directed'} • {med.duration || 'as prescribed'} • {med.route || 'oral'}
-                                </p>
-                                {med.notes && (
-                                  <p className="text-xs text-gray-400 mt-1 m-0">
-                                    Note: {med.notes}
-                                  </p>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <button
-                                  onClick={() => removeMedication(med.id || idx)}
-                                  className="px-3 py-1 bg-red-100 text-red-800 border-none rounded cursor-pointer text-xs hover:bg-red-200"
-                                  disabled={loading}
-                                >
-                                  Remove
-                                </button>
-                              </div>
+                        {prescriptions.map((med, idx) => (
+                          <div key={idx} className="border border-gray-200 rounded-lg p-4 flex justify-between items-center bg-white">
+                            <div>
+                              <p className="font-semibold m-0 mb-1">{med.name} {med.dosage}</p>
+                              <p className="text-sm text-gray-500 m-0">
+                                Quantity: {med.quantity || 1} {med.unit || 'tablet(s)'} • {med.frequency || 'as directed'} • {med.duration || 'as prescribed'} • {med.route || 'oral'}
+                              </p>
+                              {med.notes && <p className="text-xs text-gray-400 mt-1 m-0">Note: {med.notes}</p>}
                             </div>
-                          );
-                        })}
+                            <div className="flex items-center gap-3">
+                              <button onClick={() => removeMedication(med.id || idx)} className="px-3 py-1 bg-red-100 text-red-800 border-none rounded cursor-pointer text-xs hover:bg-red-200" disabled={loading}>
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                       
                       <div className="mt-5 flex justify-end">
-                        <button
-                          onClick={savePrescriptions}
-                          className="py-3 px-8 text-white border-none rounded-full cursor-pointer text-base font-semibold"
-                          style={{ backgroundColor: currentWard.primaryColor }}
-                          disabled={loading}
-                        >
+                        <button onClick={savePrescriptions} className="py-3 px-8 text-white border-none rounded-full cursor-pointer text-base font-semibold" style={{ backgroundColor: currentWard.primaryColor }} disabled={loading}>
                           {loading ? <FaSpinner className="animate-spin inline mr-2" /> : <FaCheck className="inline mr-2" />}
                           Send to Pharmacy ({prescriptions.length} items)
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <p className="text-center text-gray-400 py-10">
-                      No prescriptions added yet. Use the form above to add medications.
-                    </p>
+                    <p className="text-center text-gray-400 py-10">No prescriptions added yet. Use the form above to add medications.</p>
                   )}
                 </div>
               )}
@@ -4020,77 +3858,36 @@ const fetchDischargedPatients = async () => {
                     <h4 className="text-base font-semibold mb-4">Request Lab Test</h4>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-xs font-medium mb-1 block">
-                          Test Type *
-                        </label>
-                        <select
-                          name="testType"
-                          value={newLabRequest.testType}
-                          onChange={handleLabRequestChange}
-                          className="w-full p-2 border border-gray-200 rounded-md text-sm"
-                        >
+                        <label className="text-xs font-medium mb-1 block">Test Type *</label>
+                        <select name="testType" value={newLabRequest.testType} onChange={handleLabRequestChange} className="w-full p-2 border border-gray-200 rounded-md text-sm">
                           <option value="blood">Blood</option>
                           <option value="urine">Urine</option>
                           <option value="stool">Stool</option>
                         </select>
                       </div>
                       <div>
-                        <label className="text-xs font-medium mb-1 block">
-                          Test Name *
-                        </label>
-                        <select
-                          name="testName"
-                          value={newLabRequest.testName}
-                          onChange={handleLabRequestChange}
-                          className={`w-full p-2 border ${labValidation.testName ? 'border-red-500' : 'border-gray-200'} rounded-md text-sm`}
-                        >
+                        <label className="text-xs font-medium mb-1 block">Test Name *</label>
+                        <select name="testName" value={newLabRequest.testName} onChange={handleLabRequestChange} className={`w-full p-2 border ${labValidation.testName ? 'border-red-500' : 'border-gray-200'} rounded-md text-sm`}>
                           <option value="">Select test</option>
-                          {labTests[newLabRequest.testType]?.map(test => (
-                            <option key={test} value={test}>{test}</option>
-                          ))}
+                          {labTests[newLabRequest.testType]?.map(test => <option key={test} value={test}>{test}</option>)}
                         </select>
-                        {labValidation.testName && (
-                          <p className="text-red-500 text-xs mt-1">{labValidation.testName}</p>
-                        )}
+                        {labValidation.testName && <p className="text-red-500 text-xs mt-1">{labValidation.testName}</p>}
                       </div>
                       <div>
-                        <label className="text-xs font-medium mb-1 block">
-                          Priority
-                        </label>
-                        <select
-                          name="priority"
-                          value={newLabRequest.priority}
-                          onChange={handleLabRequestChange}
-                          className="w-full p-2 border border-gray-200 rounded-md text-sm"
-                        >
+                        <label className="text-xs font-medium mb-1 block">Priority</label>
+                        <select name="priority" value={newLabRequest.priority} onChange={handleLabRequestChange} className="w-full p-2 border border-gray-200 rounded-md text-sm">
                           <option value="routine">Routine (24h)</option>
                           <option value="urgent">Urgent (2-4h)</option>
                           <option value="stat">STAT (1h)</option>
                         </select>
                       </div>
                       <div className="col-span-2">
-                        <label className="text-xs font-medium mb-1 block">
-                          Clinical Notes
-                        </label>
-                        <input
-                          type="text"
-                          name="notes"
-                          value={newLabRequest.notes}
-                          onChange={handleLabRequestChange}
-                          placeholder="e.g., Rule out infection"
-                          className={`w-full p-2 border ${labValidation.notes ? 'border-red-500' : 'border-gray-200'} rounded-md text-sm`}
-                        />
-                        {labValidation.notes && (
-                          <p className="text-red-500 text-xs mt-1">{labValidation.notes}</p>
-                        )}
+                        <label className="text-xs font-medium mb-1 block">Clinical Notes</label>
+                        <input type="text" name="notes" value={newLabRequest.notes} onChange={handleLabRequestChange} placeholder="e.g., Rule out infection" className={`w-full p-2 border ${labValidation.notes ? 'border-red-500' : 'border-gray-200'} rounded-md text-sm`} />
+                        {labValidation.notes && <p className="text-red-500 text-xs mt-1">{labValidation.notes}</p>}
                       </div>
                     </div>
-                    <button
-                      onClick={addLabRequest}
-                      className="mt-4 py-2 px-5 text-white border-none rounded-full cursor-pointer text-sm font-medium"
-                      style={{ backgroundColor: currentWard.primaryColor }}
-                      disabled={loading}
-                    >
+                    <button onClick={addLabRequest} className="mt-4 py-2 px-5 text-white border-none rounded-full cursor-pointer text-sm font-medium" style={{ backgroundColor: currentWard.primaryColor }} disabled={loading}>
                       Send to Laboratory
                     </button>
                   </div>
@@ -4103,13 +3900,9 @@ const fetchDischargedPatients = async () => {
                           <div key={req.id} className="border border-gray-200 rounded-lg p-3 flex justify-between items-center bg-white">
                             <div>
                               <p className="font-semibold m-0 mb-1">{req.testName}</p>
-                              <p className="text-xs text-gray-500 m-0">
-                                {req.testType} • {req.priority} priority
-                              </p>
+                              <p className="text-xs text-gray-500 m-0">{req.testType} • {req.priority} priority</p>
                             </div>
-                            <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs">
-                              ⏳ Pending
-                            </span>
+                            <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs">⏳ Pending</span>
                           </div>
                         ))}
                       </div>
@@ -4127,15 +3920,8 @@ const fetchDischargedPatients = async () => {
                     <h4 className="text-base font-semibold mb-4">Request Imaging</h4>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-xs font-medium mb-1 block">
-                          Exam Type *
-                        </label>
-                        <select
-                          name="examType"
-                          value={newRadiologyRequest.examType}
-                          onChange={handleRadiologyRequestChange}
-                          className="w-full p-2 border border-gray-200 rounded-md text-sm"
-                        >
+                        <label className="text-xs font-medium mb-1 block">Exam Type *</label>
+                        <select name="examType" value={newRadiologyRequest.examType} onChange={handleRadiologyRequestChange} className="w-full p-2 border border-gray-200 rounded-md text-sm">
                           <option value="X-ray">X-ray</option>
                           <option value="Ultrasound">Ultrasound</option>
                           <option value="CT Scan">CT Scan</option>
@@ -4144,59 +3930,25 @@ const fetchDischargedPatients = async () => {
                         </select>
                       </div>
                       <div>
-                        <label className="text-xs font-medium mb-1 block">
-                          Body Part *
-                        </label>
-                        <input
-                          type="text"
-                          name="bodyPart"
-                          value={newRadiologyRequest.bodyPart}
-                          onChange={handleRadiologyRequestChange}
-                          placeholder="e.g., Chest, Lumbar Spine"
-                          className={`w-full p-2 border ${radiologyValidation.bodyPart ? 'border-red-500' : 'border-gray-200'} rounded-md text-sm`}
-                        />
-                        {radiologyValidation.bodyPart && (
-                          <p className="text-red-500 text-xs mt-1">{radiologyValidation.bodyPart}</p>
-                        )}
+                        <label className="text-xs font-medium mb-1 block">Body Part *</label>
+                        <input type="text" name="bodyPart" value={newRadiologyRequest.bodyPart} onChange={handleRadiologyRequestChange} placeholder="e.g., Chest, Lumbar Spine" className={`w-full p-2 border ${radiologyValidation.bodyPart ? 'border-red-500' : 'border-gray-200'} rounded-md text-sm`} />
+                        {radiologyValidation.bodyPart && <p className="text-red-500 text-xs mt-1">{radiologyValidation.bodyPart}</p>}
                       </div>
                       <div>
-                        <label className="text-xs font-medium mb-1 block">
-                          Priority
-                        </label>
-                        <select
-                          name="priority"
-                          value={newRadiologyRequest.priority}
-                          onChange={handleRadiologyRequestChange}
-                          className="w-full p-2 border border-gray-200 rounded-md text-sm"
-                        >
+                        <label className="text-xs font-medium mb-1 block">Priority</label>
+                        <select name="priority" value={newRadiologyRequest.priority} onChange={handleRadiologyRequestChange} className="w-full p-2 border border-gray-200 rounded-md text-sm">
                           <option value="routine">Routine</option>
                           <option value="urgent">Urgent</option>
                           <option value="stat">STAT</option>
                         </select>
                       </div>
                       <div className="col-span-2">
-                        <label className="text-xs font-medium mb-1 block">
-                          Clinical Notes
-                        </label>
-                        <input
-                          type="text"
-                          name="notes"
-                          value={newRadiologyRequest.notes}
-                          onChange={handleRadiologyRequestChange}
-                          placeholder="e.g., Rule out fracture"
-                          className={`w-full p-2 border ${radiologyValidation.notes ? 'border-red-500' : 'border-gray-200'} rounded-md text-sm`}
-                        />
-                        {radiologyValidation.notes && (
-                          <p className="text-red-500 text-xs mt-1">{radiologyValidation.notes}</p>
-                        )}
+                        <label className="text-xs font-medium mb-1 block">Clinical Notes</label>
+                        <input type="text" name="notes" value={newRadiologyRequest.notes} onChange={handleRadiologyRequestChange} placeholder="e.g., Rule out fracture" className={`w-full p-2 border ${radiologyValidation.notes ? 'border-red-500' : 'border-gray-200'} rounded-md text-sm`} />
+                        {radiologyValidation.notes && <p className="text-red-500 text-xs mt-1">{radiologyValidation.notes}</p>}
                       </div>
                     </div>
-                    <button
-                      onClick={addRadiologyRequest}
-                      className="mt-4 py-2 px-5 text-white border-none rounded-full cursor-pointer text-sm font-medium"
-                      style={{ backgroundColor: currentWard.primaryColor }}
-                      disabled={loading}
-                    >
+                    <button onClick={addRadiologyRequest} className="mt-4 py-2 px-5 text-white border-none rounded-full cursor-pointer text-sm font-medium" style={{ backgroundColor: currentWard.primaryColor }} disabled={loading}>
                       Send to Radiology
                     </button>
                   </div>
@@ -4208,16 +3960,10 @@ const fetchDischargedPatients = async () => {
                         {radiologyRequests.filter(r => r.patient_id === selectedPatient.id && r.status === 'pending').map(req => (
                           <div key={req.id} className="border border-gray-200 rounded-lg p-3 flex justify-between items-center bg-white">
                             <div>
-                              <p className="font-semibold m-0 mb-1">
-                                {req.examType} - {req.bodyPart}
-                              </p>
-                              <p className="text-xs text-gray-500 m-0">
-                                {req.priority} priority
-                              </p>
+                              <p className="font-semibold m-0 mb-1">{req.examType} - {req.bodyPart}</p>
+                              <p className="text-xs text-gray-500 m-0">{req.priority} priority</p>
                             </div>
-                            <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs">
-                              ⏳ Pending
-                            </span>
+                            <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs">⏳ Pending</span>
                           </div>
                         ))}
                       </div>
@@ -4226,42 +3972,19 @@ const fetchDischargedPatients = async () => {
                 </div>
               )}
 
-              {/* Results Tab */}
+              {/* Results Tab - CORRECTED VERSION */}
               {activeTab === 'results' && (
                 <div>
                   <div className="flex justify-between items-center mb-5">
                     <h3 className="text-lg font-semibold">Test Results</h3>
                     <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          console.log('🔄 Manually refreshing lab results');
-                          fetchLabResults(selectedPatient.id);
-                        }}
-                        className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600"
-                        disabled={loading}
-                      >
+                      <button onClick={() => { fetchLabResults(selectedPatient.id); }} className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600" disabled={loading}>
                         🔬 Refresh Labs
                       </button>
-                      <button
-                        onClick={() => {
-                          console.log('🔄 Manually refreshing radiology results');
-                          fetchRadiologyResults(selectedPatient.id);
-                        }}
-                        className="px-4 py-2 bg-purple-500 text-white rounded-lg text-sm hover:bg-purple-600"
-                        disabled={loading}
-                      >
+                      <button onClick={() => { fetchRadiologyResults(selectedPatient.id); }} className="px-4 py-2 bg-purple-500 text-white rounded-lg text-sm hover:bg-purple-600" disabled={loading}>
                         📷 Refresh Radiology
                       </button>
-                      <button
-                        onClick={() => {
-                          Promise.all([
-                            fetchLabResults(selectedPatient.id),
-                            fetchRadiologyResults(selectedPatient.id)
-                          ]);
-                        }}
-                        className="px-4 py-2 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600"
-                        disabled={loading}
-                      >
+                      <button onClick={() => { Promise.all([fetchLabResults(selectedPatient.id), fetchRadiologyResults(selectedPatient.id)]); }} className="px-4 py-2 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600" disabled={loading}>
                         🔄 Refresh All
                       </button>
                     </div>
@@ -4277,28 +4000,15 @@ const fetchDischargedPatients = async () => {
                           if (typeof result.result === 'object') {
                             displayResult = JSON.stringify(result.result, null, 2);
                           }
-                          
                           return (
                             <div key={result.id} className={`border border-gray-200 rounded-lg p-4 ${result.critical ? 'bg-red-50' : 'bg-white'}`}>
                               <div className="flex justify-between items-center mb-2">
                                 <p className="font-semibold m-0">{result.testName || result.test_name}</p>
-                                {result.critical && (
-                                  <span className="bg-red-600 text-white px-3 py-1 rounded-full text-xs font-semibold">
-                                    CRITICAL
-                                  </span>
-                                )}
+                                {result.critical && <span className="bg-red-600 text-white px-3 py-1 rounded-full text-xs font-semibold">CRITICAL</span>}
                               </div>
-                              <div className="text-base m-0 mb-2 whitespace-pre-wrap">
-                                {displayResult}
-                              </div>
-                              {result.normal_range && (
-                                <p className="text-xs text-gray-500 m-0 mb-1">
-                                  Normal range: {result.normal_range}
-                                </p>
-                              )}
-                              <p className="text-[11px] text-gray-400 m-0">
-                                Reported by: {result.reported_by || 'Unknown'} at {result.reported_at ? new Date(result.reported_at).toLocaleString() : 'N/A'}
-                              </p>
+                              <div className="text-base m-0 mb-2 whitespace-pre-wrap">{displayResult}</div>
+                              {result.normal_range && <p className="text-xs text-gray-500 m-0 mb-1">Normal range: {result.normal_range}</p>}
+                              <p className="text-[11px] text-gray-400 m-0">Reported by: {result.reported_by || 'Unknown'} at {result.reported_at ? new Date(result.reported_at).toLocaleString() : 'N/A'}</p>
                             </div>
                           );
                         })}
@@ -4311,139 +4021,76 @@ const fetchDischargedPatients = async () => {
                   )}
 
                   {/* Radiology Results Section */}
-  {radiologyResults && radiologyResults.length > 0 ? (
-  <div className="mt-6">
-    <h4 className="text-base font-semibold mb-4 flex items-center gap-2">
-      <span>📷</span> Radiology Results
-      {radiologyResults.some(r => r.critical) && (
-        <span className="px-2 py-0.5 bg-red-500 text-white rounded-full text-xs animate-pulse">
-          Contains Critical Findings
-        </span>
-      )}
-    </h4>
-    <div className="grid gap-3">
-      {radiologyResults.map((result, index) => {
-        console.log('📷 Rendering radiology result:', {
-          id: result.id,
-          unique_key: result.unique_key || `rad_${result.request_id}`,
-          exam_type: result.exam_type,
-          images_count: result.images?.length || 0
-        });
-        
-        const uniqueKey = result.id || result.unique_key || `rad_${result.request_id || index}`;
-        
-        return (
-          <div 
-            key={uniqueKey} 
-            className={`border rounded-lg p-4 ${result.critical ? 'border-red-500 bg-red-50' : 'border-gray-200 bg-white'}`}
-          >
-            <div className="flex justify-between items-start mb-2">
-              <div>
-                <p className="font-semibold m-0">
-                  {result.exam_type || result.examType || 'Radiology Exam'}
-                </p>
-                <p className="text-sm text-gray-600 m-0">
-                  Body Part: {result.body_part || result.bodyPart || 'Not specified'}
-                </p>
-              </div>
-              {result.critical && (
-                <span className="bg-red-600 text-white px-3 py-1 rounded-full text-xs font-semibold animate-pulse">
-                  ⚠️ CRITICAL
-                </span>
-              )}
-            </div>
-            
-            <div className="mt-3">
-              <p className="text-sm font-medium text-gray-700 mb-1">Findings:</p>
-              <p className="text-sm m-0 mb-2 whitespace-pre-wrap">
-                {result.findings || result.report?.findings || 'No findings recorded'}
-              </p>
-            </div>
-            
-            {result.impression && (
-              <div className="mt-2">
-                <p className="text-sm font-medium text-gray-700 mb-1">Impression:</p>
-                <p className="text-sm m-0 mb-2">{result.impression}</p>
-              </div>
-            )}
-            
-            {result.recommendations && (
-              <div className="mt-2">
-                <p className="text-sm font-medium text-gray-700 mb-1">Recommendations:</p>
-                <p className="text-sm m-0 mb-2">{result.recommendations}</p>
-              </div>
-            )}
-            
-            {result.images && result.images.length > 0 ? (
-              <div className="mt-3">
-                <p className="text-xs font-medium text-gray-600 mb-2">
-                  📷 Images ({result.images.length}):
-                </p>
-                <div className="flex gap-3 flex-wrap">
-                  {result.images.map((img, idx) => {
-                    let imageUrl = img.url || img;
-                    if (imageUrl && !imageUrl.startsWith('http')) {
-                      imageUrl = `${API_URL}${imageUrl.startsWith('/') ? imageUrl : '/' + imageUrl}`;
-                    }
-                    return (
-                      <div 
-                        key={`${uniqueKey}_img_${idx}`}
-                        className="relative group cursor-pointer"
-                        onClick={() => {
-                          console.log('🔍 Opening image:', imageUrl);
-                          setSelectedImage({
-                            url: imageUrl,
-                            filename: img.filename || img.originalName || `radiology-image-${idx + 1}`,
-                            uploaded_at: img.uploaded_at,
-                            original: img
-                          });
-                          setShowImageModal(true);
-                        }}
-                      >
-                        <img
-                          src={imageUrl}
-                          alt={`Radiology ${idx + 1}`}
-                          className="w-24 h-24 object-cover rounded-lg border-2 border-gray-200 hover:border-pink-500 transition-all hover:shadow-lg"
-                          onError={(e) => {
-                            console.error('❌ Failed to load image:', imageUrl);
-                            e.target.onerror = null;
-                            e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="%23ef4444" stroke-width="1.5"%3E%3Crect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"%3E%3C/rect%3E%3Ccircle cx="8.5" cy="8.5" r="1.5"%3E%3C/circle%3E%3Cpolyline points="21 15 16 10 5 21"%3E%3C/polyline%3E%3C/svg%3E';
-                            e.target.style.objectFit = 'contain';
-                            e.target.style.padding = '20px';
-                          }}
-                        />
-                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-                          <span className="text-white text-xs font-medium">🔍 Click to view</span>
-                        </div>
+                  {radiologyResults && radiologyResults.length > 0 ? (
+                    <div className="mt-6">
+                      <h4 className="text-base font-semibold mb-4 flex items-center gap-2">
+                        <span>📷</span> Radiology Results
+                        {radiologyResults.some(r => r.critical) && (
+                          <span className="px-2 py-0.5 bg-red-500 text-white rounded-full text-xs animate-pulse">Contains Critical Findings</span>
+                        )}
+                      </h4>
+                      <div className="grid gap-3">
+                        {radiologyResults.map((result, index) => {
+                          const uniqueKey = result.id || result.unique_key || `rad_${result.request_id || index}`;
+                          return (
+                            <div key={uniqueKey} className={`border rounded-lg p-4 ${result.critical ? 'border-red-500 bg-red-50' : 'border-gray-200 bg-white'}`}>
+                              <div className="flex justify-between items-start mb-2">
+                                <div>
+                                  <p className="font-semibold m-0">{result.exam_type || result.examType || 'Radiology Exam'}</p>
+                                  <p className="text-sm text-gray-600 m-0">Body Part: {result.body_part || result.bodyPart || 'Not specified'}</p>
+                                </div>
+                                {result.critical && <span className="bg-red-600 text-white px-3 py-1 rounded-full text-xs font-semibold animate-pulse">⚠️ CRITICAL</span>}
+                              </div>
+                              <div className="mt-3">
+                                <p className="text-sm font-medium text-gray-700 mb-1">Findings:</p>
+                                <p className="text-sm m-0 mb-2 whitespace-pre-wrap">{result.findings || result.report?.findings || 'No findings recorded'}</p>
+                              </div>
+                              {result.impression && (
+                                <div className="mt-2">
+                                  <p className="text-sm font-medium text-gray-700 mb-1">Impression:</p>
+                                  <p className="text-sm m-0 mb-2">{result.impression}</p>
+                                </div>
+                              )}
+                              {result.recommendations && (
+                                <div className="mt-2">
+                                  <p className="text-sm font-medium text-gray-700 mb-1">Recommendations:</p>
+                                  <p className="text-sm m-0 mb-2">{result.recommendations}</p>
+                                </div>
+                              )}
+                              {result.images && result.images.length > 0 ? (
+                                <div className="mt-3">
+                                  <p className="text-xs font-medium text-gray-600 mb-2">📷 Images ({result.images.length}):</p>
+                                  <div className="flex gap-3 flex-wrap">
+                                    {result.images.map((img, idx) => {
+                                      let imageUrl = img.url || img;
+                                      if (imageUrl && !imageUrl.startsWith('http')) {
+                                        imageUrl = `${API_URL}${imageUrl.startsWith('/') ? imageUrl : '/' + imageUrl}`;
+                                      }
+                                      return (
+                                        <div key={`${uniqueKey}_img_${idx}`} className="relative group cursor-pointer" onClick={() => { setSelectedImage({ url: imageUrl, filename: img.filename || img.originalName || `radiology-image-${idx + 1}`, uploaded_at: img.uploaded_at, original: img }); setShowImageModal(true); }}>
+                                          <img src={imageUrl} alt={`Radiology ${idx + 1}`} className="w-24 h-24 object-cover rounded-lg border-2 border-gray-200 hover:border-pink-500 transition-all hover:shadow-lg" onError={(e) => { e.target.onerror = null; e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="%23ef4444" stroke-width="1.5"%3E%3Crect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"%3E%3C/rect%3E%3Ccircle cx="8.5" cy="8.5" r="1.5"%3E%3C/circle%3E%3Cpolyline points="21 15 16 10 5 21"%3E%3C/polyline%3E%3C/svg%3E'; e.target.style.objectFit = 'contain'; e.target.style.padding = '20px'; }} />
+                                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center"><span className="text-white text-xs font-medium">🔍 Click to view</span></div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="mt-3 p-3 bg-gray-50 rounded-lg text-center"><p className="text-xs text-gray-500">No images attached to this report</p></div>
+                              )}
+                              <p className="text-[11px] text-gray-400 mt-3">Reported by: {result.reported_by || 'Unknown'} at {result.reported_at ? new Date(result.reported_at).toLocaleString() : 'N/A'}</p>
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              <div className="mt-3 p-3 bg-gray-50 rounded-lg text-center">
-                <p className="text-xs text-gray-500">No images attached to this report</p>
-              </div>
-            )}
-            
-            <p className="text-[11px] text-gray-400 mt-3">
-              Reported by: {result.reported_by || 'Unknown'} at {result.reported_at ? new Date(result.reported_at).toLocaleString() : 'N/A'}
-            </p>
-          </div>
-        );
-      })}
-    </div>
-  </div>
-) : (
-  <div className="mt-6 p-8 bg-gray-50 rounded-lg text-center border-2 border-dashed border-gray-200">
-    <span className="text-4xl block mb-3">📷</span>
-    <p className="text-gray-500">No radiology results available yet</p>
-    <p className="text-xs text-gray-400 mt-1">
-      Results will appear here when radiology department completes the exam
-    </p>
-  </div>
-)}
-                  
+                    </div>
+                  ) : (
+                    <div className="mt-6 p-8 bg-gray-50 rounded-lg text-center border-2 border-dashed border-gray-200">
+                      <span className="text-4xl block mb-3">📷</span>
+                      <p className="text-gray-500">No radiology results available yet</p>
+                      <p className="text-xs text-gray-400 mt-1">Results will appear here when radiology department completes the exam</p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -4453,92 +4100,27 @@ const fetchDischargedPatients = async () => {
                   <h3 className="text-lg font-semibold mb-5">Patient Disposition</h3>
                   
                   <div className="mb-6">
-                    <label className="block text-sm font-medium mb-3 text-gray-600">
-                      Digital Signature <span className="text-red-500">*</span>
-                    </label>
+                    <label className="block text-sm font-medium mb-3 text-gray-600">Digital Signature <span className="text-red-500">*</span></label>
                     <div className={`border-2 ${dischargeValidation.signature ? 'border-red-500' : 'border-gray-200'} rounded-xl p-1 bg-white`}>
-                      <SignaturePad
-                        ref={signaturePad}
-                        canvasProps={{
-                          width: 500,
-                          height: 200,
-                          className: "w-full h-[200px] rounded-lg"
-                        }}
-                      />
+                      <SignaturePad ref={signaturePad} canvasProps={{ width: 500, height: 200, className: "w-full h-[200px] rounded-lg" }} />
                     </div>
-                    {dischargeValidation.signature && (
-                      <p className="text-red-500 text-xs mt-1">{dischargeValidation.signature}</p>
-                    )}
-                    <button
-                      onClick={() => signaturePad.current?.clear()}
-                      className="mt-3 py-2 px-5 bg-gray-500 text-white border-none rounded cursor-pointer text-sm hover:bg-gray-600"
-                      disabled={loading}
-                    >
-                      Clear Signature
-                    </button>
+                    {dischargeValidation.signature && <p className="text-red-500 text-xs mt-1">{dischargeValidation.signature}</p>}
+                    <button onClick={() => signaturePad.current?.clear()} className="mt-3 py-2 px-5 bg-gray-500 text-white border-none rounded cursor-pointer text-sm hover:bg-gray-600" disabled={loading}>Clear Signature</button>
                   </div>
 
                   <div className="grid grid-cols-3 gap-4 mb-6">
-                    <button
-                      onClick={openDischargeLocationModal}
-                      className="py-5 bg-green-500 text-white border-none rounded-xl cursor-pointer text-base font-semibold transition-all hover:bg-green-600"
-                      disabled={loading}
-                    >
-                      🏠 Discharge Patient
-                    </button>
-                    
-                    <button
-                      onClick={async () => {
-                        const beds = await fetchAvailableBeds();
-                        if (beds.length > 0) {
-                          setAvailableBedsList(beds);
-                          setShowBedListNotification(true);
-                        } else {
-                          alert(`❌ No beds available in ${user?.ward} ward. Please check other wards.`);
-                        }
-                      }}
-                      className="py-5 bg-amber-500 text-white border-none rounded-xl cursor-pointer text-base font-semibold transition-all hover:bg-amber-600"
-                      disabled={loading}
-                    >
-                      🏥 Admit to Ward
-                    </button>
-                    
-                    <button
-                      onClick={openReferralModal}
-                      className="py-5 bg-violet-500 text-white border-none rounded-xl cursor-pointer text-base font-semibold transition-all hover:bg-violet-600"
-                      disabled={loading}
-                    >
-                      🔄 Refer Patient
-                    </button>
+                    <button onClick={openDischargeLocationModal} className="py-5 bg-green-500 text-white border-none rounded-xl cursor-pointer text-base font-semibold transition-all hover:bg-green-600" disabled={loading}>🏠 Discharge Patient</button>
+                    <button onClick={async () => { const beds = await fetchAvailableBeds(); if (beds.length > 0) { setAvailableBedsList(beds); setShowBedListNotification(true); } else { alert(`❌ No beds available in ${user?.ward} ward. Please check other wards.`); } }} className="py-5 bg-amber-500 text-white border-none rounded-xl cursor-pointer text-base font-semibold transition-all hover:bg-amber-600" disabled={loading}>🏥 Admit to Ward</button>
+                    <button onClick={openReferralModal} className="py-5 bg-violet-500 text-white border-none rounded-xl cursor-pointer text-base font-semibold transition-all hover:bg-violet-600" disabled={loading}>🔄 Refer Patient</button>
                   </div>
 
                   <div className="bg-gray-50 p-5 rounded-xl mt-6">
                     <h4 className="text-base font-semibold mb-3">Discharge Summary Preview</h4>
                     <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <p className="text-xs text-gray-500 m-0 mb-1">Diagnosis</p>
-                        <p className="text-sm font-medium m-0">
-                          {diagnosis.primary || 'Not set'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 m-0 mb-1">ICD-10</p>
-                        <p className="text-sm font-medium m-0">
-                          {diagnosis.icd10 || 'Not set'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 m-0 mb-1">Prescriptions</p>
-                        <p className="text-sm font-medium m-0">
-                          {prescriptions.length} medications
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 m-0 mb-1">Lab Tests</p>
-                        <p className="text-sm font-medium m-0">
-                          {labRequests.length} requested
-                        </p>
-                      </div>
+                      <div><p className="text-xs text-gray-500 m-0 mb-1">Diagnosis</p><p className="text-sm font-medium m-0">{diagnosis.primary || 'Not set'}</p></div>
+                      <div><p className="text-xs text-gray-500 m-0 mb-1">ICD-10</p><p className="text-sm font-medium m-0">{diagnosis.icd10 || 'Not set'}</p></div>
+                      <div><p className="text-xs text-gray-500 m-0 mb-1">Prescriptions</p><p className="text-sm font-medium m-0">{prescriptions.length} medications</p></div>
+                      <div><p className="text-xs text-gray-500 m-0 mb-1">Lab Tests</p><p className="text-sm font-medium m-0">{labRequests.length} requested</p></div>
                     </div>
                   </div>
                 </div>
@@ -4546,342 +4128,120 @@ const fetchDischargedPatients = async () => {
               
               {/* Modal Footer */}
               <div className="mt-8 flex justify-end gap-3 border-t-2 border-gray-200 pt-5">
-                <button
-                  onClick={() => setShowPatientModal(false)}
-                  className="py-2.5 px-6 bg-gray-100 text-gray-600 border-none rounded-full cursor-pointer text-sm font-medium hover:bg-gray-200"
-                  disabled={loading}
-                >
-                  Close
-                </button>
+                <button onClick={() => setShowPatientModal(false)} className="py-2.5 px-6 bg-gray-100 text-gray-600 border-none rounded-full cursor-pointer text-sm font-medium hover:bg-gray-200" disabled={loading}>Close</button>
                 {activeTab !== 'disposition' && (
-                  <button
-                    onClick={handleSaveDiagnosis}
-                    className="py-2.5 px-6 text-white border-none rounded-full cursor-pointer text-sm font-semibold"
-                    style={{ backgroundColor: currentWard.primaryColor }}
-                    disabled={loading}
-                  >
-                    Save Progress
-                  </button>
+                  <button onClick={handleSaveDiagnosis} className="py-2.5 px-6 text-white border-none rounded-full cursor-pointer text-sm font-semibold" style={{ backgroundColor: currentWard.primaryColor }} disabled={loading}>Save Progress</button>
                 )}
               </div>
             </div>
           </div>
         )}
 
-        {/* Discharge Location Modal - Keep existing */}
+        {/* Discharge Location Modal */}
         {showDischargeLocationModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2100] backdrop-blur-sm">
             <div className="bg-white rounded-3xl p-8 max-w-md w-[90%]">
-              <h3 className="text-xl font-semibold mb-6">
-                Select Discharge Location
-              </h3>
-
+              <h3 className="text-xl font-semibold mb-6">Select Discharge Location</h3>
               <div className="mb-6">
-                <label className="text-sm font-medium mb-2 block">
-                  Discharge Location <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={dischargeLocation}
-                  onChange={(e) => {
-                    setDischargeLocation(e.target.value);
-                    setDischargeValidation(prev => ({ ...prev, dischargeLocation: '' }));
-                  }}
-                  className={`w-full p-3 border ${dischargeValidation.dischargeLocation ? 'border-red-500' : 'border-gray-200'} rounded-lg text-sm`}
-                >
+                <label className="text-sm font-medium mb-2 block">Discharge Location <span className="text-red-500">*</span></label>
+                <select value={dischargeLocation} onChange={(e) => { setDischargeLocation(e.target.value); setDischargeValidation(prev => ({ ...prev, dischargeLocation: '' })); }} className={`w-full p-3 border ${dischargeValidation.dischargeLocation ? 'border-red-500' : 'border-gray-200'} rounded-lg text-sm`}>
                   <option value="">Choose location...</option>
-                  {dischargeLocations.map(location => (
-                    <option key={location} value={location}>
-                      {location}
-                    </option>
-                  ))}
+                  {dischargeLocations.map(location => <option key={location} value={location}>{location}</option>)}
                 </select>
-                {dischargeValidation.dischargeLocation && (
-                  <p className="text-red-500 text-xs mt-1">{dischargeValidation.dischargeLocation}</p>
-                )}
+                {dischargeValidation.dischargeLocation && <p className="text-red-500 text-xs mt-1">{dischargeValidation.dischargeLocation}</p>}
               </div>
-
               <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setShowDischargeLocationModal(false)}
-                  className="py-2.5 px-6 bg-gray-100 text-gray-600 border-none rounded-full cursor-pointer hover:bg-gray-200"
-                  disabled={loading}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDischargeWithLocation}
-                  disabled={!dischargeLocation || loading}
-                  className={`py-2.5 px-6 text-white border-none rounded-full cursor-pointer ${
-                    !dischargeLocation || loading ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                  style={{ backgroundColor: currentWard.primaryColor }}
-                >
-                  {loading ? 'Processing...' : 'Confirm Discharge'}
-                </button>
+                <button onClick={() => setShowDischargeLocationModal(false)} className="py-2.5 px-6 bg-gray-100 text-gray-600 border-none rounded-full cursor-pointer hover:bg-gray-200" disabled={loading}>Cancel</button>
+                <button onClick={handleDischargeWithLocation} disabled={!dischargeLocation || loading} className={`py-2.5 px-6 text-white border-none rounded-full cursor-pointer ${!dischargeLocation || loading ? 'opacity-50 cursor-not-allowed' : ''}`} style={{ backgroundColor: currentWard.primaryColor }}>{loading ? 'Processing...' : 'Confirm Discharge'}</button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Referral Modal - Keep existing */}
+        {/* Referral Modal */}
         {showReferralModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2100] backdrop-blur-sm">
             <div className="bg-white rounded-3xl p-8 max-w-lg w-[90%] max-h-[80vh] overflow-auto">
-              <h3 className="text-xl font-semibold mb-6">
-                Refer Patient
-              </h3>
-
+              <h3 className="text-xl font-semibold mb-6">Refer Patient</h3>
               <div className="flex gap-4 mb-6">
-                <button
-                  onClick={() => {
-                    setReferralType('internal');
-                    setSelectedInternalWard('');
-                    setDischargeValidation({});
-                  }}
-                  className={`flex-1 py-3 rounded-lg cursor-pointer font-semibold ${
-                    referralType === 'internal' 
-                      ? 'text-white' 
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                  style={{ backgroundColor: referralType === 'internal' ? currentWard.primaryColor : '' }}
-                >
-                  🏥 Internal Referral
-                </button>
+                <button onClick={() => { setReferralType('internal'); setSelectedInternalWard(''); setDischargeValidation({}); }} className={`flex-1 py-3 rounded-lg cursor-pointer font-semibold ${referralType === 'internal' ? 'text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`} style={{ backgroundColor: referralType === 'internal' ? currentWard.primaryColor : '' }}>🏥 Internal Referral</button>
               </div>
-
               {referralType === 'internal' && (
                 <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Select Ward *
-                  </label>
-                  <select
-                    value={selectedInternalWard}
-                    onChange={(e) => {
-                      setSelectedInternalWard(e.target.value);
-                      setDischargeValidation(prev => ({ ...prev, ward: '' }));
-                    }}
-                    className={`w-full p-3 border ${dischargeValidation.ward ? 'border-red-500' : 'border-gray-200'} rounded-lg text-sm mb-4`}
-                  >
+                  <label className="text-sm font-medium mb-2 block">Select Ward *</label>
+                  <select value={selectedInternalWard} onChange={(e) => { setSelectedInternalWard(e.target.value); setDischargeValidation(prev => ({ ...prev, ward: '' })); }} className={`w-full p-3 border ${dischargeValidation.ward ? 'border-red-500' : 'border-gray-200'} rounded-lg text-sm mb-4`}>
                     <option value="">Choose a ward...</option>
-                    {internalWards.map(ward => (
-                      <option key={ward} value={ward}>
-                        {ward} Ward - {wardConfig[ward]?.title}
-                      </option>
-                    ))}
+                    {internalWards.map(ward => <option key={ward} value={ward}>{ward} Ward - {wardConfig[ward]?.title}</option>)}
                   </select>
-                  {dischargeValidation.ward && (
-                    <p className="text-red-500 text-xs mt-1">{dischargeValidation.ward}</p>
-                  )}
-
+                  {dischargeValidation.ward && <p className="text-red-500 text-xs mt-1">{dischargeValidation.ward}</p>}
                   {selectedInternalWard && (
                     <div className="mt-4">
-                      <label className="text-sm font-medium mb-2 block">
-                        Select Bed (Optional - Leave empty to assign later)
-                      </label>
+                      <label className="text-sm font-medium mb-2 block">Select Bed (Optional - Leave empty to assign later)</label>
                       <div className="bg-gray-50 rounded-lg p-3 max-h-48 overflow-y-auto">
-                        <BedSelection
-                          ward={selectedInternalWard}
-                          hospitalId={user?.hospital_id}
-                          onBedSelect={setReferralSelectedBed}
-                          selectedBed={referralSelectedBed}
-                          title="Available Beds"
-                        />
+                        <BedSelection ward={selectedInternalWard} hospitalId={user?.hospital_id} onBedSelect={setReferralSelectedBed} selectedBed={referralSelectedBed} title="Available Beds" />
                       </div>
                     </div>
                   )}
-
                   <div className="flex justify-end gap-3 mt-6">
-                    <button
-                      onClick={() => {
-                        setShowReferralModal(false);
-                        setSelectedInternalWard('');
-                        setSelectedBed('');
-                      }}
-                      className="py-2.5 px-6 bg-gray-100 text-gray-600 border-none rounded-full cursor-pointer hover:bg-gray-200"
-                      disabled={loading}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleInternalRefer}
-                      disabled={!selectedInternalWard || loading}
-                      className={`py-2.5 px-6 text-white border-none rounded-full cursor-pointer ${
-                        !selectedInternalWard || loading ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
-                      style={{ backgroundColor: currentWard.primaryColor }}
-                    >
-                      {loading ? 'Processing...' : 'Send Referral'}
-                    </button>
+                    <button onClick={() => { setShowReferralModal(false); setSelectedInternalWard(''); setReferralSelectedBed(''); }} className="py-2.5 px-6 bg-gray-100 text-gray-600 border-none rounded-full cursor-pointer hover:bg-gray-200" disabled={loading}>Cancel</button>
+                    <button onClick={handleInternalRefer} disabled={!selectedInternalWard || loading} className={`py-2.5 px-6 text-white border-none rounded-full cursor-pointer ${!selectedInternalWard || loading ? 'opacity-50 cursor-not-allowed' : ''}`} style={{ backgroundColor: currentWard.primaryColor }}>{loading ? 'Processing...' : 'Send Referral'}</button>
                   </div>
                 </div>
               )}
-
-              {/* External referral removed */}
             </div>
           </div>
         )}
 
-        {/* Bed Selection Notification Modal - Keep existing */}
+        {/* Bed Selection Notification Modal */}
         {showBedListNotification && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2100] backdrop-blur-sm">
             <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-semibold text-gray-900">Select Bed for Admission</h3>
-                <button
-                  onClick={() => {
-                    setShowBedListNotification(false);
-                    setAvailableBedsList([]);
-                  }}
-                  className="text-gray-400 hover:text-gray-600 text-2xl w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"
-                >
-                  ×
-                </button>
+                <button onClick={() => { setShowBedListNotification(false); setAvailableBedsList([]); }} className="text-gray-400 hover:text-gray-600 text-2xl w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100">×</button>
               </div>
-              
-              <p className="text-sm text-gray-600 mb-3">
-                Available Beds in <span className="font-semibold">{user?.ward}</span> Ward:
-              </p>
-              
+              <p className="text-sm text-gray-600 mb-3">Available Beds in <span className="font-semibold">{user?.ward}</span> Ward:</p>
               {availableBedsList.length === 0 ? (
-                <div className="text-center py-8 bg-yellow-50 rounded-lg">
-                  <span className="text-4xl text-yellow-500 mx-auto mb-2 block">🛏️</span>
-                  <p className="text-gray-600">No beds available</p>
-                </div>
+                <div className="text-center py-8 bg-yellow-50 rounded-lg"><span className="text-4xl text-yellow-500 mx-auto mb-2 block">🛏️</span><p className="text-gray-600">No beds available</p></div>
               ) : (
                 <div className="grid grid-cols-2 gap-3 max-h-80 overflow-y-auto mb-4">
                   {availableBedsList.map(bed => (
-                    <button
-                      key={bed.id}
-                      onClick={() => {
-                        setSelectedBed(bed.id);
-                        setShowBedListNotification(false);
-                        handleAdmit(bed.id);
-                      }}
-                      className="border-2 border-green-200 bg-green-50 hover:bg-green-100 rounded-xl p-4 transition-all hover:shadow-md hover:border-green-500 group"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-bold text-lg text-gray-800">Bed {bed.number}</span>
-                        <span className="text-2xl">🛏️</span>
-                      </div>
-                      <div className="text-xs text-gray-600 mb-1">
-                        {bed.type === 'general' ? 'General Ward' : 
-                         bed.type === 'private' ? 'Private Room' :
-                         bed.type === 'icu' ? 'ICU' :
-                         bed.type === 'isolation' ? 'Isolation' : 'General'}
-                      </div>
-                      <div className="text-xs text-green-600 font-medium mt-2">
-                        ✓ Available - Click to Admit
-                      </div>
-                      {bed.notes && (
-                        <div className="text-xs text-gray-400 mt-1 truncate">
-                          {bed.notes}
-                        </div>
-                      )}
+                    <button key={bed.id} onClick={() => { setSelectedBed(bed.id); setShowBedListNotification(false); handleAdmit(bed.id); }} className="border-2 border-green-200 bg-green-50 hover:bg-green-100 rounded-xl p-4 transition-all hover:shadow-md hover:border-green-500 group">
+                      <div className="flex items-center justify-between mb-2"><span className="font-bold text-lg text-gray-800">Bed {bed.number}</span><span className="text-2xl">🛏️</span></div>
+                      <div className="text-xs text-gray-600 mb-1">{bed.type === 'general' ? 'General Ward' : bed.type === 'private' ? 'Private Room' : bed.type === 'icu' ? 'ICU' : bed.type === 'isolation' ? 'Isolation' : 'General'}</div>
+                      <div className="text-xs text-green-600 font-medium mt-2">✓ Available - Click to Admit</div>
+                      {bed.notes && <div className="text-xs text-gray-400 mt-1 truncate">{bed.notes}</div>}
                     </button>
                   ))}
                 </div>
               )}
-              
               <div className="flex justify-between items-center pt-3 border-t border-gray-200">
-                <div className="text-sm text-gray-500">
-                  {availableBedsList.length} bed(s) available
-                </div>
-                <button
-                  onClick={() => {
-                    setShowBedListNotification(false);
-                    setAvailableBedsList([]);
-                  }}
-                  className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200"
-                >
-                  Cancel
-                </button>
+                <div className="text-sm text-gray-500">{availableBedsList.length} bed(s) available</div>
+                <button onClick={() => { setShowBedListNotification(false); setAvailableBedsList([]); }} className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200">Cancel</button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Image Viewer Modal - Keep existing */}
+        {/* Image Viewer Modal */}
         {showImageModal && selectedImage && (
-          <div 
-            className="fixed inset-0 bg-black/95 flex items-center justify-center z-[9999] backdrop-blur-sm"
-            onClick={() => {
-              setShowImageModal(false);
-              setSelectedImage(null);
-            }}
-          >
+          <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-[9999] backdrop-blur-sm" onClick={() => { setShowImageModal(false); setSelectedImage(null); }}>
             <div className="relative max-w-[90vw] max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
-              <button
-                onClick={() => {
-                  setShowImageModal(false);
-                  setSelectedImage(null);
-                }}
-                className="absolute -top-12 right-0 text-white hover:text-gray-300 text-3xl z-10 transition-colors w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10"
-              >
-                ×
-              </button>
-              
+              <button onClick={() => { setShowImageModal(false); setSelectedImage(null); }} className="absolute -top-12 right-0 text-white hover:text-gray-300 text-3xl z-10 transition-colors w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10">×</button>
               <div className="flex items-center justify-center w-full h-full min-h-[50vh]">
-                <img
-                  src={selectedImage.url}
-                  alt="Radiology Image"
-                  className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
-                  onError={(e) => {
-                    console.error('❌ Failed to load full-size image:', selectedImage.url);
-                    e.target.onerror = null;
-                    e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 24 24" fill="none" stroke="%23ff6b6b" stroke-width="2"%3E%3Crect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"%3E%3C/rect%3E%3Ccircle cx="8.5" cy="8.5" r="1.5"%3E%3C/circle%3E%3Cpolyline points="21 15 16 10 5 21"%3E%3C/polyline%3E%3C/svg%3E';
-                    e.target.style.objectFit = 'contain';
-                    e.target.style.maxWidth = '80%';
-                    e.target.style.maxHeight = '80%';
-                  }}
-                />
+                <img src={selectedImage.url} alt="Radiology Image" className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" onError={(e) => { console.error('❌ Failed to load full-size image:', selectedImage.url); e.target.onerror = null; e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 24 24" fill="none" stroke="%23ff6b6b" stroke-width="2"%3E%3Crect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"%3E%3C/rect%3E%3Ccircle cx="8.5" cy="8.5" r="1.5"%3E%3C/circle%3E%3Cpolyline points="21 15 16 10 5 21"%3E%3C/polyline%3E%3C/svg%3E'; e.target.style.objectFit = 'contain'; e.target.style.maxWidth = '80%'; e.target.style.maxHeight = '80%'; }} />
               </div>
-              
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent text-white p-4 rounded-b-lg">
                 <p className="text-sm font-medium">{selectedImage.filename || 'Radiology Image'}</p>
-                {selectedImage.uploaded_at && (
-                  <p className="text-xs text-gray-300 mt-1">📅 Uploaded: {new Date(selectedImage.uploaded_at).toLocaleString()}</p>
-                )}
+                {selectedImage.uploaded_at && <p className="text-xs text-gray-300 mt-1">📅 Uploaded: {new Date(selectedImage.uploaded_at).toLocaleString()}</p>}
               </div>
-              
-              <button
-                onClick={() => {
-                  const imageUrl = selectedImage.url;
-                  const filename = selectedImage.filename || `radiology-image-${Date.now()}.jpg`;
-                  fetch(imageUrl)
-                    .then(response => response.blob())
-                    .then(blob => {
-                      const url = window.URL.createObjectURL(blob);
-                      const link = document.createElement('a');
-                      link.href = url;
-                      link.download = filename;
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-                      window.URL.revokeObjectURL(url);
-                    })
-                    .catch(error => {
-                      const link = document.createElement('a');
-                      link.href = imageUrl;
-                      link.download = filename;
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-                    });
-                }}
-                className="absolute top-4 right-12 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
-                title="Download Image"
-              >
-                💾
-              </button>
-              
-              <div className="absolute bottom-20 right-4 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
-                Click outside to close
-              </div>
+              <button onClick={() => { const imageUrl = selectedImage.url; const filename = selectedImage.filename || `radiology-image-${Date.now()}.jpg`; fetch(imageUrl).then(response => response.blob()).then(blob => { const url = window.URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = filename; document.body.appendChild(link); link.click(); document.body.removeChild(link); window.URL.revokeObjectURL(url); }).catch(() => { const link = document.createElement('a'); link.href = imageUrl; link.download = filename; document.body.appendChild(link); link.click(); document.body.removeChild(link); }); }} className="absolute top-4 right-12 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors" title="Download Image">💾</button>
+              <div className="absolute bottom-20 right-4 bg-black/50 text-white text-xs px-2 py-1 rounded-full">Click outside to close</div>
             </div>
           </div>
         )}
 
-        {/* Change Password Modal - Keep existing */}
+        {/* Change Password Modal */}
         {showPasswordModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
@@ -4891,34 +4251,12 @@ const fetchDischargedPatients = async () => {
                   <button onClick={() => setShowPasswordModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition">×</button>
                 </div>
                 <div className="space-y-4">
-                  <input
-                    type="password"
-                    placeholder="Current Password"
-                    value={passwordData.current_password}
-                    onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})}
-                    className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                  <input
-                    type="password"
-                    placeholder="New Password"
-                    value={passwordData.new_password}
-                    onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})}
-                    className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                  <input
-                    type="password"
-                    placeholder="Confirm New Password"
-                    value={passwordData.confirm_password}
-                    onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})}
-                    className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
+                  <input type="password" placeholder="Current Password" value={passwordData.current_password} onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})} className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                  <input type="password" placeholder="New Password" value={passwordData.new_password} onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})} className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                  <input type="password" placeholder="Confirm New Password" value={passwordData.confirm_password} onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})} className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500" />
                   <div className="flex gap-3 pt-4">
-                    <button onClick={() => setShowPasswordModal(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition">
-                      Cancel
-                    </button>
-                    <button onClick={changePassword} className="flex-1 px-4 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl hover:shadow-lg transition">
-                      Change Password
-                    </button>
+                    <button onClick={() => setShowPasswordModal(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition">Cancel</button>
+                    <button onClick={changePassword} className="flex-1 px-4 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl hover:shadow-lg transition">Change Password</button>
                   </div>
                 </div>
               </div>

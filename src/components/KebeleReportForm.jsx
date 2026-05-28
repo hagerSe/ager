@@ -158,11 +158,11 @@ const KebeleDashboard = ({ user, onLogout }) => {
       setLoading(true);
       const token = localStorage.getItem('token');
       const [statsRes, inboxRes, outboxRes, hospitalsRes, notifRes] = await Promise.all([
-        axios.get(`${API_URL}/api/kebele/dashboard/stats`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/kebele/reports/inbox?page=${currentPage}&search=${searchTerm}`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/kebele/reports/outbox?page=${currentPage}`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/kebele/hospitals`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/kebele/notifications?limit=5`, { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${API_URL}/kebele/dashboard/stats`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/kebele/reports/inbox?page=${currentPage}&search=${searchTerm}`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/kebele/reports/outbox?page=${currentPage}`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/kebele/hospitals`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/kebele/notifications?limit=5`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
 
       if (statsRes.data.success) setStats(statsRes.data.stats);
@@ -184,7 +184,7 @@ const KebeleDashboard = ({ user, onLogout }) => {
   const fetchAllHospitalReports = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/kebele/reports/inbox?limit=200`, {
+      const res = await axios.get(`${API_URL}/kebele/reports/inbox?limit=200`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -199,7 +199,7 @@ const KebeleDashboard = ({ user, onLogout }) => {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/kebele/profile`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.get(`${API_URL}/kebele/profile`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.data.success) {
         const kebele = res.data.kebele;
         setProfileData({
@@ -216,8 +216,8 @@ const KebeleDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       const [hospitalsRes, woredasRes] = await Promise.all([
-        axios.get(`${API_URL}/api/kebele/hospitals/all`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/kebele/woredas/all`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { success: true, woredas: [] } }))
+        axios.get(`${API_URL}/kebele/hospitals/all`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/kebele/woredas/all`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { success: true, woredas: [] } }))
       ]);
       setRecipients({ 
         hospitals: hospitalsRes.data.hospitals || [],
@@ -242,7 +242,7 @@ const KebeleDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       // CORRECTED API ENDPOINT - Using kebele route
-      const staffRes = await axios.get(`${API_URL}/api/kebele/hospitals/${hospitalId}/staff`, {
+      const staffRes = await axios.get(`${API_URL}/kebele/hospitals/${hospitalId}/staff`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -313,7 +313,7 @@ const KebeleDashboard = ({ user, onLogout }) => {
         
         try {
           const token = localStorage.getItem('token');
-          const res = await axios.post(`${API_URL}/api/upload`, formData, {
+          const res = await axios.post(`${API_URL}/upload`, formData, {
             headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
           });
           if (res.data.success) {
@@ -339,7 +339,7 @@ const KebeleDashboard = ({ user, onLogout }) => {
         
         try {
           const token = localStorage.getItem('token');
-          const res = await axios.post(`${API_URL}/api/upload`, formData, {
+          const res = await axios.post(`${API_URL}/upload`, formData, {
             headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
           });
           if (res.data.success) {
@@ -376,7 +376,7 @@ const KebeleDashboard = ({ user, onLogout }) => {
   const downloadAttachment = async (attachment) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/api/download/${attachment.filename}`, {
+      const response = await axios.get(`${API_URL}/download/${attachment.filename}`, {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob'
       });
@@ -399,7 +399,7 @@ const KebeleDashboard = ({ user, onLogout }) => {
   const fetchConversationThread = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/kebele/reports/thread/${reportId}`, {
+      const res = await axios.get(`${API_URL}/kebele/reports/thread/${reportId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -430,7 +430,7 @@ const KebeleDashboard = ({ user, onLogout }) => {
         formData.append('attachments', JSON.stringify(attachment));
       });
       
-      const res = await axios.post(`${API_URL}/api/kebele/reports/${currentConversationId}/reply`, 
+      const res = await axios.post(`${API_URL}/kebele/reports/${currentConversationId}/reply`, 
         formData,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -451,7 +451,7 @@ const KebeleDashboard = ({ user, onLogout }) => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/api/kebele/hospitals`, hospitalFormData, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.post(`${API_URL}/kebele/hospitals`, hospitalFormData, { headers: { Authorization: `Bearer ${token}` } });
       if (res.data.success) {
         setHospitalFormData({ hospital_name: '', first_name: '', middle_name: '', last_name: '', gender: 'Male', age: '', email: '', password: '', phone: '' });
         setShowHospitalModal(false);
@@ -486,7 +486,7 @@ const KebeleDashboard = ({ user, onLogout }) => {
         formData.append('attachments', JSON.stringify(attachment));
       });
       
-      const res = await axios.post(`${API_URL}/api/kebele/reports/send`, formData, {
+      const res = await axios.post(`${API_URL}/kebele/reports/send`, formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -505,7 +505,7 @@ const KebeleDashboard = ({ user, onLogout }) => {
   const updateProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/kebele/profile`, profileData, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.put(`${API_URL}/kebele/profile`, profileData, { headers: { Authorization: `Bearer ${token}` } });
       if (res.data.success) { setIsEditingProfile(false); alert('Profile updated successfully!'); fetchProfile(); }
     } catch (error) { alert(error.response?.data?.message || 'Error updating profile'); }
   };
@@ -514,7 +514,7 @@ const KebeleDashboard = ({ user, onLogout }) => {
     if (passwordData.new_password !== passwordData.confirm_password) { alert('Passwords do not match'); return; }
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/kebele/change-password`, { current_password: passwordData.current_password, new_password: passwordData.new_password }, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.put(`${API_URL}/kebele/change-password`, { current_password: passwordData.current_password, new_password: passwordData.new_password }, { headers: { Authorization: `Bearer ${token}` } });
       if (res.data.success) { setShowPasswordModal(false); setPasswordData({ current_password: '', new_password: '', confirm_password: '' }); alert('Password changed successfully!'); }
     } catch (error) { alert(error.response?.data?.message || 'Error changing password'); }
   };
@@ -523,7 +523,7 @@ const KebeleDashboard = ({ user, onLogout }) => {
   const markNotificationAsRead = async (id) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/kebele/notifications/${id}/read`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.put(`${API_URL}/kebele/notifications/${id}/read`, {}, { headers: { Authorization: `Bearer ${token}` } });
       fetchDashboardData();
     } catch (error) { console.error('Error marking notification:', error); }
   };
@@ -531,7 +531,7 @@ const KebeleDashboard = ({ user, onLogout }) => {
   const markAllAsRead = async () => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/kebele/notifications/read-all`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.put(`${API_URL}/kebele/notifications/read-all`, {}, { headers: { Authorization: `Bearer ${token}` } });
       fetchDashboardData();
     } catch (error) { console.error('Error marking all as read:', error); }
   };
@@ -539,7 +539,7 @@ const KebeleDashboard = ({ user, onLogout }) => {
   const markReportAsRead = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/kebele/reports/${reportId}/read`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.put(`${API_URL}/kebele/reports/${reportId}/read`, {}, { headers: { Authorization: `Bearer ${token}` } });
       fetchDashboardData();
     } catch (error) { console.error('Error marking report as read:', error); }
   };

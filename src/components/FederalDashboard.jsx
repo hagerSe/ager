@@ -246,11 +246,11 @@ const FederalDashboard = ({ user, onLogout }) => {
       setLoading(true);
       const token = localStorage.getItem('token');
       const [statsRes, inboxRes, outboxRes, regionsRes, notifRes] = await Promise.all([
-        axios.get(`${API_URL}/api/federal/dashboard/stats`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/federal/reports/inbox?page=${currentPage}&search=${searchTerm}`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/federal/reports/outbox?page=${currentPage}`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/federal/regions`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/federal/notifications?limit=5`, { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${API_URL}/federal/dashboard/stats`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/federal/reports/inbox?page=${currentPage}&search=${searchTerm}`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/federal/reports/outbox?page=${currentPage}`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/federal/regions`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/federal/notifications?limit=5`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
 
       if (statsRes.data.success) setStats(statsRes.data.stats);
@@ -272,7 +272,7 @@ const FederalDashboard = ({ user, onLogout }) => {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/federal/profile`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.get(`${API_URL}/federal/profile`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.data.success) {
         const federal = res.data.federal;
         setProfileData({
@@ -287,7 +287,7 @@ const FederalDashboard = ({ user, onLogout }) => {
   const fetchRecipients = async () => {
     try {
       const token = localStorage.getItem('token');
-      const regionsRes = await axios.get(`${API_URL}/api/federal/regions-list`, { 
+      const regionsRes = await axios.get(`${API_URL}/federal/regions-list`, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       setRecipients({ regions: regionsRes.data.regions || [] });
@@ -306,7 +306,7 @@ const FederalDashboard = ({ user, onLogout }) => {
     setLoadingZones(prev => ({ ...prev, [regionId]: true }));
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/federal/regions/${regionId}/zones`, {
+      const res = await axios.get(`${API_URL}/federal/regions/${regionId}/zones`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -349,7 +349,7 @@ const FederalDashboard = ({ user, onLogout }) => {
       
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.post(`${API_URL}/api/upload`, formData, {
+        const res = await axios.post(`${API_URL}/upload`, formData, {
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
         });
         
@@ -417,7 +417,7 @@ const FederalDashboard = ({ user, onLogout }) => {
       
       const token = localStorage.getItem('token');
       
-      const response = await axios.get(`${API_URL}/api/download/${encodeURIComponent(fileKey)}`, {
+      const response = await axios.get(`${API_URL}/download/${encodeURIComponent(fileKey)}`, {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob'
       });
@@ -441,7 +441,7 @@ const FederalDashboard = ({ user, onLogout }) => {
   const fetchConversationThread = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/federal/reports/thread/${reportId}`, {
+      const res = await axios.get(`${API_URL}/federal/reports/thread/${reportId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -475,7 +475,7 @@ const FederalDashboard = ({ user, onLogout }) => {
         }
       });
       
-      const res = await axios.post(`${API_URL}/api/federal/reports/${currentConversationId}/reply`, 
+      const res = await axios.post(`${API_URL}/federal/reports/${currentConversationId}/reply`, 
         formData,
         { 
           headers: { 
@@ -508,7 +508,7 @@ const FederalDashboard = ({ user, onLogout }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/api/federal/regions`, regionFormData, { 
+      const res = await axios.post(`${API_URL}/federal/regions`, regionFormData, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       if (res.data.success) {
@@ -550,7 +550,7 @@ const FederalDashboard = ({ user, onLogout }) => {
         }
       });
       
-      const res = await axios.post(`${API_URL}/api/federal/reports/send`, formData, {
+      const res = await axios.post(`${API_URL}/federal/reports/send`, formData, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
@@ -573,7 +573,7 @@ const FederalDashboard = ({ user, onLogout }) => {
   const updateProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/federal/profile`, profileData, { 
+      const res = await axios.put(`${API_URL}/federal/profile`, profileData, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       if (res.data.success) { 
@@ -597,7 +597,7 @@ const FederalDashboard = ({ user, onLogout }) => {
     }
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/federal/change-password`, 
+      const res = await axios.put(`${API_URL}/federal/change-password`, 
         { current_password: passwordData.current_password, new_password: passwordData.new_password }, 
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -615,7 +615,7 @@ const FederalDashboard = ({ user, onLogout }) => {
   const markNotificationAsRead = async (id) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/federal/notifications/${id}/read`, {}, { 
+      await axios.put(`${API_URL}/federal/notifications/${id}/read`, {}, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       fetchDashboardData();
@@ -625,7 +625,7 @@ const FederalDashboard = ({ user, onLogout }) => {
   const markAllAsRead = async () => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/federal/notifications/read-all`, {}, { 
+      await axios.put(`${API_URL}/federal/notifications/read-all`, {}, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       fetchDashboardData();
@@ -635,7 +635,7 @@ const FederalDashboard = ({ user, onLogout }) => {
   const markReportAsRead = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/federal/reports/${reportId}/read`, {}, { 
+      await axios.put(`${API_URL}/federal/reports/${reportId}/read`, {}, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       fetchDashboardData();

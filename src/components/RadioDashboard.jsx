@@ -272,7 +272,7 @@ const RadiologyDashboard = ({ user, onLogout }) => {
       const params = { hospital_id: user?.hospital_id };
       if (selectedWard !== 'all') params.ward = selectedWard;
       
-      const res = await axios.get(`${API_URL}/api/radiology/pending`, {
+      const res = await axios.get(`${API_URL}/radiology/pending`, {
         params,
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -293,7 +293,7 @@ const RadiologyDashboard = ({ user, onLogout }) => {
       const params = { hospital_id: user?.hospital_id };
       if (selectedWard !== 'all') params.ward = selectedWard;
       
-      const res = await axios.get(`${API_URL}/api/radiology/in-progress`, {
+      const res = await axios.get(`${API_URL}/radiology/in-progress`, {
         params,
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -314,7 +314,7 @@ const RadiologyDashboard = ({ user, onLogout }) => {
       const params = { hospital_id: user?.hospital_id };
       if (selectedWard !== 'all') params.ward = selectedWard;
       
-      const res = await axios.get(`${API_URL}/api/radiology/completed`, {
+      const res = await axios.get(`${API_URL}/radiology/completed`, {
         params,
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -345,7 +345,7 @@ const RadiologyDashboard = ({ user, onLogout }) => {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      const res = await axios.put(`${API_URL}/api/radiology/requests/${request.id}/start`, {}, {
+      const res = await axios.put(`${API_URL}/radiology/requests/${request.id}/start`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -385,7 +385,7 @@ const RadiologyDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       
-      const res = await axios.post(`${API_URL}/api/radiology/upload/${selectedRequest.id}`, formData, {
+      const res = await axios.post(`${API_URL}/radiology/upload/${selectedRequest.id}`, formData, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
@@ -443,7 +443,7 @@ const handleSubmitReport = async () => {
     const token = localStorage.getItem('token');
     
     const response = await axios.put(
-      `${API_URL}/api/radiology/report/${requestId}`,
+      `${API_URL}/radiology/report/${requestId}`,
       formData,
       {
         headers: { 
@@ -470,7 +470,7 @@ const handleSubmitReport = async () => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/radiology/reports/inbox`, {
+      const res = await axios.get(`${API_URL}/radiology/reports/inbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -488,7 +488,7 @@ const handleSubmitReport = async () => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/radiology/reports/outbox`, {
+      const res = await axios.get(`${API_URL}/radiology/reports/outbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -504,7 +504,7 @@ const handleSubmitReport = async () => {
   const fetchHospitalAdmins = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/radiology/hospital-admins`, {
+      const res = await axios.get(`${API_URL}/radiology/hospital-admins`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -536,7 +536,7 @@ const handleSubmitReport = async () => {
       formData.append('recipient_id', sendReportForm.recipient_id);
       sendReportForm.attachments.forEach((file) => formData.append('attachments', file));
       
-      const res = await axios.post(`${API_URL}/api/radiology/reports/send`, formData, {
+      const res = await axios.post(`${API_URL}/radiology/reports/send`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
 
@@ -572,7 +572,7 @@ const handleSubmitReport = async () => {
   const markReportAsRead = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/radiology/reports/${reportId}/read`, {}, {
+      await axios.put(`${API_URL}/radiology/reports/${reportId}/read`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchReportsInbox();
@@ -595,7 +595,7 @@ const handleSubmitReport = async () => {
       formData.append('body', replyText);
       if (replyAttachment) formData.append('attachment', replyAttachment);
       
-      const res = await axios.post(`${API_URL}/api/radiology/reports/${selectedReport.id}/reply`, formData, {
+      const res = await axios.post(`${API_URL}/radiology/reports/${selectedReport.id}/reply`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
 
@@ -635,7 +635,7 @@ const handleSubmitReport = async () => {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/radiology/profile`, {
+      const res = await axios.get(`${API_URL}/radiology/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -659,7 +659,7 @@ const handleSubmitReport = async () => {
   const updateProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/radiology/profile`, profileData, {
+      const res = await axios.put(`${API_URL}/radiology/profile`, profileData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -681,7 +681,7 @@ const handleSubmitReport = async () => {
     }
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/radiology/change-password`, {
+      const res = await axios.put(`${API_URL}/radiology/change-password`, {
         current_password: passwordData.current_password,
         new_password: passwordData.new_password
       }, { headers: { Authorization: `Bearer ${token}` } });

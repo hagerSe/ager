@@ -279,11 +279,11 @@ const RegionalDashboard = ({ user, onLogout }) => {
       setLoading(true);
       const token = localStorage.getItem('token');
       const [statsRes, inboxRes, outboxRes, zonesRes, notifRes] = await Promise.all([
-        axios.get(`${API_URL}/api/regional/dashboard/stats`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/regional/reports/inbox?page=${currentPage}&search=${searchTerm}`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/regional/reports/outbox?page=${currentPage}`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/regional/zones`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/regional/notifications?limit=5`, { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${API_URL}/regional/dashboard/stats`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/regional/reports/inbox?page=${currentPage}&search=${searchTerm}`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/regional/reports/outbox?page=${currentPage}`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/regional/zones`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/regional/notifications?limit=5`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
 
       if (statsRes.data.success) setStats(statsRes.data.stats);
@@ -305,7 +305,7 @@ const RegionalDashboard = ({ user, onLogout }) => {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/regional/profile`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.get(`${API_URL}/regional/profile`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.data.success) {
         const regional = res.data.regional;
         setProfileData({
@@ -321,8 +321,8 @@ const RegionalDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       const [federalRes, zonesRes] = await Promise.all([
-        axios.get(`${API_URL}/api/regional/federal-info`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { success: true, federal: null } })),
-        axios.get(`${API_URL}/api/regional/zones-list`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { success: true, zones: [] } }))
+        axios.get(`${API_URL}/regional/federal-info`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { success: true, federal: null } })),
+        axios.get(`${API_URL}/regional/zones-list`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { success: true, zones: [] } }))
       ]);
       setRecipients({ 
         federal: federalRes.data.federal || null,
@@ -344,7 +344,7 @@ const RegionalDashboard = ({ user, onLogout }) => {
     setLoadingWoredas(prev => ({ ...prev, [zoneId]: true }));
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/regional/zones/${zoneId}/woredas`, {
+      const res = await axios.get(`${API_URL}/regional/zones/${zoneId}/woredas`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -385,7 +385,7 @@ const RegionalDashboard = ({ user, onLogout }) => {
     setLoadingKebeles(prev => ({ ...prev, [woredaId]: true }));
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/regional/woredas/${woredaId}/kebeles`, {
+      const res = await axios.get(`${API_URL}/regional/woredas/${woredaId}/kebeles`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -429,7 +429,7 @@ const RegionalDashboard = ({ user, onLogout }) => {
       
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.post(`${API_URL}/api/upload`, formData, {
+        const res = await axios.post(`${API_URL}/upload`, formData, {
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
         });
         
@@ -497,7 +497,7 @@ const RegionalDashboard = ({ user, onLogout }) => {
       }
       
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/api/download/${encodeURIComponent(fileKey)}`, {
+      const response = await axios.get(`${API_URL}/download/${encodeURIComponent(fileKey)}`, {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob'
       });
@@ -521,7 +521,7 @@ const RegionalDashboard = ({ user, onLogout }) => {
   const fetchConversationThread = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/regional/reports/thread/${reportId}`, {
+      const res = await axios.get(`${API_URL}/regional/reports/thread/${reportId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -556,7 +556,7 @@ const RegionalDashboard = ({ user, onLogout }) => {
         }
       });
       
-      const res = await axios.post(`${API_URL}/api/regional/reports/${currentConversationId}/reply`, 
+      const res = await axios.post(`${API_URL}/regional/reports/${currentConversationId}/reply`, 
         formData,
         { 
           headers: { 
@@ -591,7 +591,7 @@ const RegionalDashboard = ({ user, onLogout }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/api/regional/zones`, zoneFormData, { 
+      const res = await axios.post(`${API_URL}/regional/zones`, zoneFormData, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       if (res.data.success) {
@@ -633,7 +633,7 @@ const RegionalDashboard = ({ user, onLogout }) => {
         }
       });
       
-      const res = await axios.post(`${API_URL}/api/regional/reports/send`, formData, {
+      const res = await axios.post(`${API_URL}/regional/reports/send`, formData, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
@@ -661,7 +661,7 @@ const RegionalDashboard = ({ user, onLogout }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/regional/profile`, profileData, { 
+      const res = await axios.put(`${API_URL}/regional/profile`, profileData, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       if (res.data.success) { 
@@ -687,7 +687,7 @@ const RegionalDashboard = ({ user, onLogout }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/regional/change-password`, 
+      const res = await axios.put(`${API_URL}/regional/change-password`, 
         { current_password: passwordData.current_password, new_password: passwordData.new_password }, 
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -706,7 +706,7 @@ const RegionalDashboard = ({ user, onLogout }) => {
   const markNotificationAsRead = async (id) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/regional/notifications/${id}/read`, {}, { 
+      await axios.put(`${API_URL}/regional/notifications/${id}/read`, {}, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       fetchDashboardData();
@@ -716,7 +716,7 @@ const RegionalDashboard = ({ user, onLogout }) => {
   const markAllAsRead = async () => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/regional/notifications/read-all`, {}, { 
+      await axios.put(`${API_URL}/regional/notifications/read-all`, {}, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       fetchDashboardData();
@@ -726,7 +726,7 @@ const RegionalDashboard = ({ user, onLogout }) => {
   const markReportAsRead = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/regional/reports/${reportId}/read`, {}, { 
+      await axios.put(`${API_URL}/regional/reports/${reportId}/read`, {}, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       fetchDashboardData();

@@ -330,7 +330,7 @@ const BedManagementDashboard = ({
       const token = localStorage.getItem('token');
       if (!user?.hospital_id) return;
       
-      const res = await axios.get(`${API_URL}/api/beds/stats/ward`, {
+      const res = await axios.get(`${API_URL}/beds/stats/ward`, {
         params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -362,7 +362,7 @@ const BedManagementDashboard = ({
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      const res = await axios.get(`${API_URL}/api/beds/all`, {
+      const res = await axios.get(`${API_URL}/beds/all`, {
         params: { 
           hospital_id: user?.hospital_id,
           ward: selectedWard
@@ -392,7 +392,7 @@ const BedManagementDashboard = ({
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/beds/reports/inbox`, {
+      const res = await axios.get(`${API_URL}/beds/reports/inbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -410,7 +410,7 @@ const BedManagementDashboard = ({
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/beds/reports/outbox`, {
+      const res = await axios.get(`${API_URL}/beds/reports/outbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -426,7 +426,7 @@ const BedManagementDashboard = ({
   const fetchHospitalAdmins = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/beds/hospital-admins`, {
+      const res = await axios.get(`${API_URL}/beds/hospital-admins`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -460,7 +460,7 @@ const BedManagementDashboard = ({
       formData.append('recipient_id', sendReportForm.recipient_id);
       sendReportForm.attachments.forEach((file) => formData.append('attachments', file));
       
-      const res = await axios.post(`${API_URL}/api/beds/reports/send`, formData, {
+      const res = await axios.post(`${API_URL}/beds/reports/send`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
 
@@ -496,7 +496,7 @@ const BedManagementDashboard = ({
   const markReportAsRead = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/beds/reports/${reportId}/read`, {}, {
+      await axios.put(`${API_URL}/beds/reports/${reportId}/read`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchReportsInbox();
@@ -519,7 +519,7 @@ const BedManagementDashboard = ({
       formData.append('body', replyText);
       if (replyAttachment) formData.append('attachment', replyAttachment);
       
-      const res = await axios.post(`${API_URL}/api/beds/reports/${selectedReport.id}/reply`, formData, {
+      const res = await axios.post(`${API_URL}/beds/reports/${selectedReport.id}/reply`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
 
@@ -559,7 +559,7 @@ const BedManagementDashboard = ({
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/beds/profile`, {
+      const res = await axios.get(`${API_URL}/beds/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -583,7 +583,7 @@ const BedManagementDashboard = ({
   const updateProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/beds/profile`, profileData, {
+      const res = await axios.put(`${API_URL}/beds/profile`, profileData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -605,7 +605,7 @@ const BedManagementDashboard = ({
     }
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/beds/change-password`, {
+      const res = await axios.put(`${API_URL}/beds/change-password`, {
         current_password: passwordData.current_password,
         new_password: passwordData.new_password
       }, { headers: { Authorization: `Bearer ${token}` } });
@@ -634,7 +634,7 @@ const BedManagementDashboard = ({
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/beds/${bedId}/status`, {
+      const res = await axios.put(`${API_URL}/beds/${bedId}/status`, {
         status,
         notes
       }, {
@@ -678,7 +678,7 @@ const BedManagementDashboard = ({
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/api/beds/register`, {
+      const res = await axios.post(`${API_URL}//beds/register`, {
         number: newBed.number,
         ward: selectedWard,
         type: newBed.type,

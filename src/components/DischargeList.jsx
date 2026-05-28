@@ -27,7 +27,7 @@ const DischargeList = ({ hospitalId, ward, dischargedPatients = [], onRefresh })
     try {
       const token = localStorage.getItem('token');
       const res = await axios.get(
-        `${API_URL}/api/doctor/discharged-patients`,
+        `${API_URL}/doctor/discharged-patients`,
         { 
           params: {
             hospital_id: hospitalId,

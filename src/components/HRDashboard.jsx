@@ -307,7 +307,7 @@ const HRSchedulingDashboard = ({ user, onLogout }) => {
   const fetchStaff = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/hr/staff`, {
+      const res = await axios.get(`${API_URL}/hr/staff`, {
         params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -330,7 +330,7 @@ const HRSchedulingDashboard = ({ user, onLogout }) => {
       const endDate = new Date();
       endDate.setDate(endDate.getDate() + 60);
       
-      const res = await axios.get(`${API_URL}/api/hr/schedules`, {
+      const res = await axios.get(`${API_URL}/hr/schedules`, {
         params: { 
           hospital_id: user?.hospital_id,
           start_date: startDate.toISOString().split('T')[0],
@@ -349,7 +349,7 @@ const HRSchedulingDashboard = ({ user, onLogout }) => {
   const fetchShiftTypes = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/hr/shifts`, {
+      const res = await axios.get(`${API_URL}/hr/shifts`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -363,7 +363,7 @@ const HRSchedulingDashboard = ({ user, onLogout }) => {
   const fetchLeaveRequests = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/hr/leave-requests`, {
+      const res = await axios.get(`${API_URL}/hr/leave-requests`, {
         params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -378,7 +378,7 @@ const HRSchedulingDashboard = ({ user, onLogout }) => {
   const fetchStats = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/hr/stats`, {
+      const res = await axios.get(`${API_URL}/hr/stats`, {
         params: { hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -395,7 +395,7 @@ const HRSchedulingDashboard = ({ user, onLogout }) => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/hr/reports/inbox`, {
+      const res = await axios.get(`${API_URL}/hr/reports/inbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -413,7 +413,7 @@ const HRSchedulingDashboard = ({ user, onLogout }) => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/hr/reports/outbox`, {
+      const res = await axios.get(`${API_URL}/hr/reports/outbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -429,7 +429,7 @@ const HRSchedulingDashboard = ({ user, onLogout }) => {
   const fetchHospitalAdmins = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/hr/hospital-admins`, {
+      const res = await axios.get(`${API_URL}/hr/hospital-admins`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -463,7 +463,7 @@ const HRSchedulingDashboard = ({ user, onLogout }) => {
       formData.append('recipient_id', sendReportForm.recipient_id);
       sendReportForm.attachments.forEach((file) => formData.append('attachments', file));
       
-      const res = await axios.post(`${API_URL}/api/hr/reports/send`, formData, {
+      const res = await axios.post(`${API_URL}/hr/reports/send`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
 
@@ -498,7 +498,7 @@ const HRSchedulingDashboard = ({ user, onLogout }) => {
   const markReportAsRead = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/hr/reports/${reportId}/read`, {}, {
+      await axios.put(`${API_URL}/hr/reports/${reportId}/read`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchReportsInbox();
@@ -521,7 +521,7 @@ const HRSchedulingDashboard = ({ user, onLogout }) => {
       formData.append('body', replyText);
       if (replyAttachment) formData.append('attachment', replyAttachment);
       
-      const res = await axios.post(`${API_URL}/api/hr/reports/${selectedReport.id}/reply`, formData, {
+      const res = await axios.post(`${API_URL}/hr/reports/${selectedReport.id}/reply`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
 
@@ -546,7 +546,7 @@ const HRSchedulingDashboard = ({ user, onLogout }) => {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/hr/profile`, {
+      const res = await axios.get(`${API_URL}/hr/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -570,7 +570,7 @@ const HRSchedulingDashboard = ({ user, onLogout }) => {
   const updateProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/hr/profile`, profileData, {
+      const res = await axios.put(`${API_URL}/hr/profile`, profileData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -592,7 +592,7 @@ const HRSchedulingDashboard = ({ user, onLogout }) => {
     }
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/hr/change-password`, {
+      const res = await axios.put(`${API_URL}/hr/change-password`, {
         current_password: passwordData.current_password,
         new_password: passwordData.new_password
       }, { headers: { Authorization: `Bearer ${token}` } });
@@ -617,7 +617,7 @@ const HRSchedulingDashboard = ({ user, onLogout }) => {
       const startDate = weekRange.start.toISOString().split('T')[0];
       const endDate = weekRange.end.toISOString().split('T')[0];
       
-      const res = await axios.post(`${API_URL}/api/hr/schedule/auto-generate`, {
+      const res = await axios.post(`${API_URL}/hr/schedule/auto-generate`, {
         hospital_id: user?.hospital_id,
         start_date: startDate,
         end_date: endDate,
@@ -650,7 +650,7 @@ const HRSchedulingDashboard = ({ user, onLogout }) => {
       const endDate = new Date();
       endDate.setDate(endDate.getDate() + 60);
       
-      const res = await axios.get(`${API_URL}/api/hr/schedules`, {
+      const res = await axios.get(`${API_URL}/hr/schedules`, {
         params: {
           hospital_id: user?.hospital_id,
           staff_id: staffMember.id,
@@ -692,7 +692,7 @@ const HRSchedulingDashboard = ({ user, onLogout }) => {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/api/hr/staff`, {
+      const res = await axios.post(`${API_URL}/hr/staff`, {
         ...newStaff,
         hospital_id: user?.hospital_id
       }, { headers: { Authorization: `Bearer ${token}` } });
@@ -723,7 +723,7 @@ const HRSchedulingDashboard = ({ user, onLogout }) => {
   const approveLeaveRequest = async (requestId, status) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/hr/leave-request/${requestId}`, { status }, {
+      const res = await axios.put(`${API_URL}/hr/leave-request/${requestId}`, { status }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       

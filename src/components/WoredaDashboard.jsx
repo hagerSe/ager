@@ -267,11 +267,11 @@ const WoredaDashboard = ({ user, onLogout }) => {
       setLoading(true);
       const token = localStorage.getItem('token');
       const [statsRes, inboxRes, outboxRes, kebelesRes, notifRes] = await Promise.all([
-        axios.get(`${API_URL}/api/woreda/dashboard/stats`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/woreda/reports/inbox?page=${currentPage}&search=${searchTerm}`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/woreda/reports/outbox?page=${currentPage}`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/woreda/kebeles`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/woreda/notifications?limit=5`, { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${API_URL}/woreda/dashboard/stats`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/woreda/reports/inbox?page=${currentPage}&search=${searchTerm}`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/woreda/reports/outbox?page=${currentPage}`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/woreda/kebeles`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/woreda/notifications?limit=5`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
 
       if (statsRes.data.success) setStats(statsRes.data.stats);
@@ -293,7 +293,7 @@ const WoredaDashboard = ({ user, onLogout }) => {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/woreda/profile`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.get(`${API_URL}/woreda/profile`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.data.success) {
         const woreda = res.data.woreda;
         setProfileData({
@@ -309,8 +309,8 @@ const WoredaDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       const [zoneRes, kebelesRes] = await Promise.all([
-        axios.get(`${API_URL}/api/woreda/zone-info`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/woreda/kebeles-list`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { success: true, kebeles: [] } }))
+        axios.get(`${API_URL}/woreda/zone-info`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/woreda/kebeles-list`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { success: true, kebeles: [] } }))
       ]);
       setRecipients({ 
         zones: zoneRes.data.zone ? [zoneRes.data.zone] : [],
@@ -331,7 +331,7 @@ const WoredaDashboard = ({ user, onLogout }) => {
     setLoadingHospitals(prev => ({ ...prev, [kebeleId]: true }));
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/woreda/kebeles/${kebeleId}/hospitals`, {
+      const res = await axios.get(`${API_URL}/woreda/kebeles/${kebeleId}/hospitals`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -375,7 +375,7 @@ const WoredaDashboard = ({ user, onLogout }) => {
       
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.post(`${API_URL}/api/upload`, formData, {
+        const res = await axios.post(`${API_URL}/upload`, formData, {
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
         });
         
@@ -443,7 +443,7 @@ const WoredaDashboard = ({ user, onLogout }) => {
       }
       
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/api/download/${encodeURIComponent(fileKey)}`, {
+      const response = await axios.get(`${API_URL}/download/${encodeURIComponent(fileKey)}`, {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob'
       });
@@ -467,7 +467,7 @@ const WoredaDashboard = ({ user, onLogout }) => {
   const fetchConversationThread = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/woreda/reports/thread/${reportId}`, {
+      const res = await axios.get(`${API_URL}/woreda/reports/thread/${reportId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -502,7 +502,7 @@ const WoredaDashboard = ({ user, onLogout }) => {
         }
       });
       
-      const res = await axios.post(`${API_URL}/api/woreda/reports/${currentConversationId}/reply`, 
+      const res = await axios.post(`${API_URL}/woreda/reports/${currentConversationId}/reply`, 
         formData,
         { 
           headers: { 
@@ -537,7 +537,7 @@ const WoredaDashboard = ({ user, onLogout }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/api/woreda/kebeles`, kebeleFormData, { 
+      const res = await axios.post(`${API_URL}/woreda/kebeles`, kebeleFormData, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       if (res.data.success) {
@@ -579,7 +579,7 @@ const WoredaDashboard = ({ user, onLogout }) => {
         }
       });
       
-      const res = await axios.post(`${API_URL}/api/woreda/reports/send`, formData, {
+      const res = await axios.post(`${API_URL}/woreda/reports/send`, formData, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
@@ -607,7 +607,7 @@ const WoredaDashboard = ({ user, onLogout }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/woreda/profile`, profileData, { 
+      const res = await axios.put(`${API_URL}/woreda/profile`, profileData, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       if (res.data.success) { 
@@ -633,7 +633,7 @@ const WoredaDashboard = ({ user, onLogout }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/woreda/change-password`, 
+      const res = await axios.put(`${API_URL}/woreda/change-password`, 
         { current_password: passwordData.current_password, new_password: passwordData.new_password }, 
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -652,7 +652,7 @@ const WoredaDashboard = ({ user, onLogout }) => {
   const markNotificationAsRead = async (id) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/woreda/notifications/${id}/read`, {}, { 
+      await axios.put(`${API_URL}/woreda/notifications/${id}/read`, {}, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       fetchDashboardData();
@@ -662,7 +662,7 @@ const WoredaDashboard = ({ user, onLogout }) => {
   const markAllAsRead = async () => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/woreda/notifications/read-all`, {}, { 
+      await axios.put(`${API_URL}/woreda/notifications/read-all`, {}, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       fetchDashboardData();
@@ -672,7 +672,7 @@ const WoredaDashboard = ({ user, onLogout }) => {
   const markReportAsRead = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/woreda/reports/${reportId}/read`, {}, { 
+      await axios.put(`${API_URL}/woreda/reports/${reportId}/read`, {}, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       fetchDashboardData();

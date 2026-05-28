@@ -276,11 +276,11 @@ const ZoneDashboard = ({ user, onLogout }) => {
       setLoading(true);
       const token = localStorage.getItem('token');
       const [statsRes, inboxRes, outboxRes, woredasRes, notifRes] = await Promise.all([
-        axios.get(`${API_URL}/api/zone/dashboard/stats`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/zone/reports/inbox?page=${currentPage}&search=${searchTerm}`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/zone/reports/outbox?page=${currentPage}`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/zone/woredas`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/zone/notifications?limit=5`, { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${API_URL}/zone/dashboard/stats`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/zone/reports/inbox?page=${currentPage}&search=${searchTerm}`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/zone/reports/outbox?page=${currentPage}`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/zone/woredas`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/zone/notifications?limit=5`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
 
       if (statsRes.data.success) setStats(statsRes.data.stats);
@@ -302,7 +302,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/zone/profile`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.get(`${API_URL}/zone/profile`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.data.success) {
         const zone = res.data.zone;
         setProfileData({
@@ -318,8 +318,8 @@ const ZoneDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       const [regionalRes, woredasRes] = await Promise.all([
-        axios.get(`${API_URL}/api/zone/regional-info`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/zone/woredas-list`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { success: true, woredas: [] } }))
+        axios.get(`${API_URL}/zone/regional-info`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/zone/woredas-list`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { success: true, woredas: [] } }))
       ]);
       setRecipients({ 
         regional: regionalRes.data.regional || null,
@@ -340,7 +340,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
     setLoadingKebeles(prev => ({ ...prev, [woredaId]: true }));
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/zone/woredas/${woredaId}/kebeles`, {
+      const res = await axios.get(`${API_URL}/zone/woredas/${woredaId}/kebeles`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -384,7 +384,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
       
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.post(`${API_URL}/api/upload`, formData, {
+        const res = await axios.post(`${API_URL}/upload`, formData, {
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
         });
         
@@ -452,7 +452,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
       }
       
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/api/download/${encodeURIComponent(fileKey)}`, {
+      const response = await axios.get(`${API_URL}/download/${encodeURIComponent(fileKey)}`, {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob'
       });
@@ -476,7 +476,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
   const fetchConversationThread = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/zone/reports/thread/${reportId}`, {
+      const res = await axios.get(`${API_URL}/zone/reports/thread/${reportId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -511,7 +511,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
         }
       });
       
-      const res = await axios.post(`${API_URL}/api/zone/reports/${currentConversationId}/reply`, 
+      const res = await axios.post(`${API_URL}/zone/reports/${currentConversationId}/reply`, 
         formData,
         { 
           headers: { 
@@ -546,7 +546,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/api/zone/woredas`, woredaFormData, { 
+      const res = await axios.post(`${API_URL}/zone/woredas`, woredaFormData, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       if (res.data.success) {
@@ -588,7 +588,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
         }
       });
       
-      const res = await axios.post(`${API_URL}/api/zone/reports/send`, formData, {
+      const res = await axios.post(`${API_URL}/zone/reports/send`, formData, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
@@ -616,7 +616,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/zone/profile`, profileData, { 
+      const res = await axios.put(`${API_URL}/zone/profile`, profileData, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       if (res.data.success) { 
@@ -642,7 +642,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/zone/change-password`, 
+      const res = await axios.put(`${API_URL}/zone/change-password`, 
         { current_password: passwordData.current_password, new_password: passwordData.new_password }, 
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -661,7 +661,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
   const markNotificationAsRead = async (id) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/zone/notifications/${id}/read`, {}, { 
+      await axios.put(`${API_URL}/zone/notifications/${id}/read`, {}, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       fetchDashboardData();
@@ -671,7 +671,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
   const markAllAsRead = async () => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/zone/notifications/read-all`, {}, { 
+      await axios.put(`${API_URL}/zone/notifications/read-all`, {}, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       fetchDashboardData();
@@ -681,7 +681,7 @@ const ZoneDashboard = ({ user, onLogout }) => {
   const markReportAsRead = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/zone/reports/${reportId}/read`, {}, { 
+      await axios.put(`${API_URL}/zone/reports/${reportId}/read`, {}, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       fetchDashboardData();
