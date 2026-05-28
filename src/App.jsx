@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import axios from 'axios';
 import Home from './pages/Home';
 import Contact from './pages/Contact';
 import Login from './pages/Login';
@@ -23,33 +24,55 @@ import CardOfficeStaffDashboard from './components/CardOfficeStaffDashboard';
 import BedManagementDashboard from './components/BedManagementDashboard';
 import HRDashboard from './components/HRDashboard';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+
 const App = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Fetch user from API using token
   useEffect(() => {
-    // Check for stored user on app load
-    const storedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('token');
-    
-    if (storedUser && token) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        console.log('🔄 Loaded user from storage:', parsedUser);
-        setUser(parsedUser);
-      } catch (error) {
-        console.error('Error parsing stored user:', error);
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
+    const fetchUser = async () => {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        setLoading(false);
+        return;
       }
-    }
-    setLoading(false);
+      
+      try {
+        // Set authorization header
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        
+        // Fetch user from backend
+        const response = await axios.get(`${API_URL}/api/auth/me`);
+        
+        if (response.data.success) {
+          const userData = response.data.user;
+          console.log('✅ User fetched from API:', userData);
+          console.log('✅ Hospital ID:', userData.hospital_id);
+          setUser(userData);
+        } else {
+          // Token invalid
+          localStorage.removeItem('token');
+          delete axios.defaults.headers.common['Authorization'];
+        }
+      } catch (error) {
+        console.error('Error fetching user:', error);
+        localStorage.removeItem('token');
+        delete axios.defaults.headers.common['Authorization'];
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchUser();
   }, []);
 
   const handleLogout = () => {
     setUser(null);
-    localStorage.removeItem('user');
     localStorage.removeItem('token');
+    delete axios.defaults.headers.common['Authorization'];
   };
 
   if (loading) {
@@ -65,9 +88,10 @@ const App = () => {
       <Routes>
         {/* Public Routes */}
         <Route path='/' element={<Home />} />
-        <Route path='/login' element={<Login setAdmin={setUser} />} />
-        <Route path='/contact' element={<Contact setAdmin={setUser} />} />
-        <Route path='/about' element={<About setAdmin={setUser} />} />
+        <Route path='/login' element={<Login />} />
+        <Route path='/contact' element={<Contact />} />
+        <Route path='/about' element={<About />} />
+        <Route path="/verify-email/:token" element={<VerifyEmail />} />
         
         {/* Protected Routes - Admin Levels */}
         <Route 
@@ -124,8 +148,7 @@ const App = () => {
           } 
         />
 
-        {/* Staff Department Routes - FIXED to match database ENUM values */}
-        
+        {/* Staff Department Routes */}
         <Route 
           path='/doctor-dashboard' 
           element={
@@ -180,6 +203,7 @@ const App = () => {
           } 
         />
 
+        {/* ✅ TRIAGE ROUTE */}
         <Route 
           path='/triage-dashboard' 
           element={
@@ -189,7 +213,6 @@ const App = () => {
           } 
         />
 
-        {/* ✅ FIXED: Card_Office - matches database ENUM */}
         <Route 
           path='/card-office-dashboard' 
           element={
@@ -199,7 +222,6 @@ const App = () => {
           } 
         />
 
-        {/* ✅ FIXED: Bed_Management - matches database ENUM */}
         <Route 
           path='/bed-management-dashboard' 
           element={
@@ -209,7 +231,6 @@ const App = () => {
           } 
         />
 
-        {/* ✅ FIXED: Human_Resource - matches database ENUM */}
         <Route 
           path='/hr-dashboard' 
           element={
@@ -219,7 +240,7 @@ const App = () => {
           } 
         />
         
-        {/* Fallback staff dashboard - for any unmatched department */}
+        {/* Fallback staff dashboard */}
         <Route 
           path='/staff-dashboard' 
           element={
@@ -241,7 +262,7 @@ const App = () => {
             <Navigate to="/login" />
           } 
         />
-        <Route path="/verify-email/:token" element={<VerifyEmail />} />
+        
         {/* Catch all - redirect to home */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
