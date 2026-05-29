@@ -663,50 +663,62 @@ const BedManagementDashboard = ({
     }
   };
 
-  const addNewBed = async () => {
-    if (!newBed.number) {
-      setMessage({ type: 'error', text: 'Please enter bed number' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      return;
-    }
+const addNewBed = async () => {
+  if (!newBed.number) {
+    setMessage({ type: 'error', text: 'Please enter bed number' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    return;
+  }
 
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/beds/register`, {
-        number: newBed.number,
-        ward: selectedWard,
-        type: newBed.type,
-        notes: newBed.notes,
-        hospital_id: user?.hospital_id
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+  try {
+    setLoading(true);
+    const token = localStorage.getItem('token');
+    
+    // ✅ Map frontend types to backend types
+    const typeMapping = {
+      'OPD': 'general',
+      'EME': 'icu',
+      'ANC': 'private'
+    };
+    
+    const backendType = typeMapping[newBed.type] || 'general';
+    
+    const res = await axios.post(`${API_URL}/beds/register`, {
+      number: newBed.number,
+      ward: selectedWard,
+      type: backendType,  // ← Send mapped type (general/icu/private)
+      notes: newBed.notes,
+      hospital_id: user?.hospital_id
+    }, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
 
-      if (res.data.success) {
-        setMessage({ type: 'success', text: `Bed ${newBed.number} added to ${selectedWard} ward` });
-        setShowAddBedModal(false);
-        setNewBed({ number: '', type: 'OPD', notes: '' });
-        fetchBeds();
-        fetchWardStats();
-        
-        if (socketRef.current) {
-          socketRef.current.emit('new_bed_added', {
-            bed_number: newBed.number,
-            ward: selectedWard,
-            hospital_id: user?.hospital_id
-          });
-        }
-        
-        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    if (res.data.success) {
+      setMessage({ type: 'success', text: `Bed ${newBed.number} added to ${selectedWard} ward` });
+      setShowAddBedModal(false);
+      setNewBed({ number: '', type: 'OPD', notes: '' });
+      fetchBeds();
+      fetchWardStats();
+      
+      if (socketRef.current) {
+        socketRef.current.emit('new_bed_added', {
+          bed_number: newBed.number,
+          ward: selectedWard,
+          hospital_id: user?.hospital_id
+        });
       }
-    } catch (error) {
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Error adding bed' });
+      
       setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (error) {
+    console.error('❌ Full error:', error);
+    console.error('❌ Response data:', error.response?.data);
+    setMessage({ type: 'error', text: error.response?.data?.message || 'Error adding bed' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleBedClick = (bed) => {
     if (isSelectionMode && bed.status === 'available') {
