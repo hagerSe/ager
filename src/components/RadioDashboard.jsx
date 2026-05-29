@@ -25,6 +25,7 @@ const RadiologyDashboard = ({ user, onLogout }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
+  const [uploadedImageFiles, setUploadedImageFiles] = useState([]); 
   const [message, setMessage] = useState({ type: '', text: '' });
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [showScheduleView, setShowScheduleView] = useState(false);
@@ -368,60 +369,59 @@ const RadiologyDashboard = ({ user, onLogout }) => {
     }
   };
 
-  const handleImageUpload = async (files) => {
-    if (!files || files.length === 0) return;
-    if (!selectedRequest) {
-      setMessage({ type: 'error', text: 'No active exam selected' });
-      return;
-    }
 
-    setUploadingImages(true);
+const handleImageUpload = async (files) => {
+  if (!files || files.length === 0) return;
+  if (!selectedRequest) {
+    setMessage({ type: 'error', text: 'No active exam selected' });
+    return;
+  }
+
+  setUploadingImages(true);
+  
+  try {
+    const token = localStorage.getItem('token');
     const formData = new FormData();
     
     for (let i = 0; i < files.length; i++) {
       formData.append('images', files[i]);
     }
 
-    try {
-      const token = localStorage.getItem('token');
-      
-      const res = await axios.post(`${API_URL}/radiology/upload/${selectedRequest.id}`, formData, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+    const res = await axios.post(`${API_URL}/radiology/upload/${selectedRequest.id}`, formData, {
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+    });
 
-      if (res.data.success) {
-        const uploadedFileUrls = res.data.images.map(img => ({
-          url: img.url,
-          key: img.key || img.filename,
-          originalName: img.originalName || img.originalname,
-          size: img.size,
-          uploadedAt: img.uploaded_at || new Date().toISOString()
-        }));
-        
-        setUploadedImages(prev => [...prev, ...uploadedFileUrls]);
-        setMessage({ type: 'success', text: `✅ ${uploadedFileUrls.length} image(s) uploaded successfully` });
-        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      }
-    } catch (error) {
-      console.error('Error uploading images:', error);
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Error uploading images' });
+    if (res.data.success) {
+      // ✅ Store both the URL preview AND the actual File objects
+      const newImages = res.data.images.map((img, idx) => ({
+        ...img,
+        file: files[idx],  // Store the actual File object for later upload
+        isNew: true
+      }));
+      
+      setUploadedImages(prev => [...prev, ...newImages]);
+      setUploadedImageFiles(prev => [...prev, ...files]);  // Store files for final submission
+      setMessage({ type: 'success', text: `✅ ${newImages.length} image(s) uploaded` });
       setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } finally {
-      setUploadingImages(false);
-      if (imageInputRef.current) {
-        imageInputRef.current.value = '';
-      }
     }
-  };
+  } catch (error) {
+    console.error('Error uploading images:', error);
+    setMessage({ type: 'error', text: error.response?.data?.message || 'Error uploading images' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+  } finally {
+    setUploadingImages(false);
+    if (imageInputRef.current) {
+      imageInputRef.current.value = '';
+    }
+  }
+};
 
   const handleRemoveImage = (indexToRemove) => {
     setUploadedImages(prev => prev.filter((_, index) => index !== indexToRemove));
   };
 // In RadioDashboard.jsx - handleSubmitReport function
 
+// RadiologyDashboard.jsx - FIX handleSubmitReport
 const handleSubmitReport = async () => {
   if (!selectedRequest) return;
   
@@ -434,15 +434,11 @@ const handleSubmitReport = async () => {
     formData.append('impression', reportData.impression || '');
     formData.append('critical', reportData.critical ? 'true' : 'false');
     
-    // Add uploaded images
-    if (uploadedImages.length > 0) {
-      // Note: This assumes you have the actual File objects stored
-      // You may need to modify your image upload logic to keep File objects
-      uploadedImages.forEach((img, index) => {
-        if (img.file) {
-          formData.append('images', img.file);
-        }
-      });
+    // ✅ Add all uploaded images to formData
+    if (uploadedImageFiles && uploadedImageFiles.length > 0) {
+      for (let i = 0; i < uploadedImageFiles.length; i++) {
+        formData.append('images', uploadedImageFiles[i]);
+      }
     }
     
     const response = await axios.put(
@@ -461,6 +457,8 @@ const handleSubmitReport = async () => {
       setMessage({ type: 'success', text: 'Report submitted successfully!' });
       setTimeout(() => setMessage({ type: '', text: '' }), 3000);
       setShowReportModal(false);
+      setUploadedImages([]);
+      setUploadedImageFiles([]);
       fetchAllData();
     }
   } catch (error) {
