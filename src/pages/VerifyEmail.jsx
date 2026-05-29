@@ -3,8 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 // ==================== USE SAME BACKEND URL AS LOGIN ====================
-const BACKEND_URL = 'https://health-backend-2-gqv6.onrender.com';
-const API_URL = `${BACKEND_URL}/api`;
+import { API_URL, BACKEND_URL } from '../config/api.js';
 
 const VerifyEmail = () => {
   const { token } = useParams();

@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { API_URL } from '../config/api.js';
 import { 
   FaEnvelope, FaLock, FaEye, FaEyeSlash, 
   FaHospitalUser, FaShieldAlt, FaKey, 
   FaPaperPlane, FaCheckCircle, FaTimesCircle
 } from 'react-icons/fa';
-
-// ==================== BACKEND URL ====================
-const BACKEND_URL = 'https://health-backend-2-gqv6.onrender.com';
-const API_URL = `${BACKEND_URL}/api`;
 
 // Route mappings
 const ROLE_ROUTES = {
@@ -159,7 +156,7 @@ const Login = () => {
       console.error("Login error:", err);
       
       if (err.code === 'ECONNABORTED') {
-        setError("Connection timeout. Please check your internet connection.");
+        setError("Connection timeout. Is the backend running at " + API_URL + "?");
       } else if (err.response) {
         switch (err.response.status) {
           case 401:

@@ -24,7 +24,7 @@ import BedManagementDashboard from './components/BedManagementDashboard';
 import HRDashboard from './components/HRDashboard';
 
 // API URL configuration
-const API_URL = import.meta.env.VITE_API_URL || 'https://health-backend-2-gqv6.onrender.com/api';
+import { API_URL } from './config/api.js';
 
 const App = () => {
   const [user, setUser] = useState(null);
