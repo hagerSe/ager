@@ -14,7 +14,7 @@ import {
   FaChartLine, FaEdit, FaSave, FaKey, FaCamera,
   FaReply, FaEye, FaPaperclip, FaTrash, FaDownload,
   FaFileAlt, FaFilter, FaSearch, FaArrowLeft, FaComment,
-  FaMars, FaVenus, FaGlobe, FaCity, FaMapMarkerAlt
+  FaGlobe, FaCity, FaMapMarkerAlt, FaFileImage, FaFilePdf
 } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -39,6 +39,9 @@ const HospitalDashboard = ({ user, onLogout }) => {
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [recipients, setRecipients] = useState([]);
+  const [sendReportAttachments, setSendReportAttachments] = useState([]);
+  const [sendReportAttachmentPreview, setSendReportAttachmentPreview] = useState([]);
+  const sendReportFileInputRef = useRef(null);
   const [kebeleAdmin, setKebeleAdmin] = useState(null);
   const [socketConnectionStatus, setSocketConnectionStatus] = useState('connecting');
   const [realTimeNotification, setRealTimeNotification] = useState(null);
@@ -101,7 +104,6 @@ const HospitalDashboard = ({ user, onLogout }) => {
 
   // ==================== VALIDATION FUNCTIONS ====================
   
-  // 1. Validate Email - ONLY GMAIL allowed
   const validateEmail = (email) => {
     if (!email) return 'Email is required';
     if (email.includes(' ')) return 'Email cannot contain spaces';
@@ -126,7 +128,6 @@ const HospitalDashboard = ({ user, onLogout }) => {
     return null;
   };
 
-  // 2. Validate Name (letters only)
   const validateName = (name, fieldName) => {
     if (!name || name.trim() === '') return `${fieldName} is required`;
     const nameRegex = /^[A-Za-z\s\-']+$/;
@@ -136,7 +137,6 @@ const HospitalDashboard = ({ user, onLogout }) => {
     return null;
   };
 
-  // 3. Validate Phone (10-14 digits)
   const validatePhone = (phone) => {
     if (!phone) return null;
     const cleanedPhone = phone.replace(/[\s\-\(\)\+]/g, '');
@@ -146,7 +146,6 @@ const HospitalDashboard = ({ user, onLogout }) => {
     return null;
   };
 
-  // 4. Validate Age (18-100)
   const validateAge = (age) => {
     if (!age) return 'Age is required';
     const ageNum = parseInt(age);
@@ -156,7 +155,6 @@ const HospitalDashboard = ({ user, onLogout }) => {
     return null;
   };
 
-  // 5. Validate Password
   const validatePassword = (password) => {
     if (!password) return 'Password is required';
     if (password.length < 6) return 'Password must be at least 6 characters';
@@ -164,7 +162,6 @@ const HospitalDashboard = ({ user, onLogout }) => {
     return null;
   };
 
-  // Validate Staff Form
   const validateStaffForm = () => {
     const errors = {};
     errors.first_name = validateName(staffFormData.first_name, 'First name');
@@ -181,7 +178,6 @@ const HospitalDashboard = ({ user, onLogout }) => {
     return Object.keys(errors).filter(key => errors[key] !== null).length === 0;
   };
 
-  // Validate Profile
   const validateProfile = () => {
     const errors = {};
     errors.first_name = validateName(profileData.first_name, 'First name');
@@ -197,7 +193,6 @@ const HospitalDashboard = ({ user, onLogout }) => {
     return Object.keys(errors).filter(key => errors[key] !== null).length === 0;
   };
 
-  // Handle Staff form input change with validation
   const handleStaffInputChange = (e) => {
     const { name, value } = e.target;
     let processedValue = value;
@@ -329,10 +324,7 @@ const HospitalDashboard = ({ user, onLogout }) => {
     if (isReply) {
       setConversationAttachments(prev => [...prev, ...uploadedFiles]);
     } else {
-      setReportFormData(prev => ({
-        ...prev,
-        attachments: [...prev.attachments, ...uploadedFiles]
-      }));
+      setSendReportAttachments(prev => [...prev, ...uploadedFiles]);
     }
     
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -343,11 +335,26 @@ const HospitalDashboard = ({ user, onLogout }) => {
     if (isReply) {
       setConversationAttachments(prev => prev.filter((_, i) => i !== index));
     } else {
-      setReportFormData(prev => ({
-        ...prev,
-        attachments: prev.attachments.filter((_, i) => i !== index)
-      }));
+      setSendReportAttachments(prev => prev.filter((_, i) => i !== index));
+      setSendReportAttachmentPreview(prev => prev.filter((_, i) => i !== index));
     }
+  };
+
+  const handleSendReportAttachmentChange = (e) => {
+    const files = Array.from(e.target.files);
+    setSendReportAttachments(prev => [...prev, ...files]);
+    
+    const previews = files.map(file => ({
+      name: file.name,
+      size: (file.size / 1024).toFixed(2) + ' KB',
+      type: file.type
+    }));
+    setSendReportAttachmentPreview(prev => [...prev, ...previews]);
+  };
+
+  const removeSendReportAttachment = (index) => {
+    setSendReportAttachments(prev => prev.filter((_, i) => i !== index));
+    setSendReportAttachmentPreview(prev => prev.filter((_, i) => i !== index));
   };
 
   const downloadAttachment = async (attachment) => {
@@ -619,18 +626,38 @@ const HospitalDashboard = ({ user, onLogout }) => {
       alert('Please select a recipient');
       return;
     }
+    
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/hospital/reports/send`, reportFormData, { 
-        headers: { Authorization: `Bearer ${token}` } 
+      const formData = new FormData();
+      formData.append('title', reportFormData.title);
+      formData.append('body', reportFormData.body);
+      formData.append('priority', reportFormData.priority);
+      formData.append('recipient_type', reportFormData.recipient_type);
+      formData.append('recipient_id', reportFormData.recipient_id);
+      
+      // ✅ Add attachments to form data
+      sendReportAttachments.forEach(file => {
+        formData.append('attachments', file);
       });
+      
+      const res = await axios.post(`${API_URL}/hospital/reports/send`, formData, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
       if (res.data.success) {
+        alert('Report sent successfully!');
         setShowReportModal(false);
         setReportFormData({ title: '', body: '', priority: 'medium', recipient_type: '', recipient_id: '' });
-        alert('Report sent successfully!');
+        setSendReportAttachments([]);
+        setSendReportAttachmentPreview([]);
         fetchDashboardData();
       }
     } catch (error) { 
+      console.error('Error sending report:', error);
       alert(error.response?.data?.message || 'Error sending report'); 
     }
   };
@@ -959,7 +986,6 @@ const HospitalDashboard = ({ user, onLogout }) => {
           <div className="px-6 py-4">
             <div className="flex justify-between items-center">
               <div>
-                {/* Back Icon Button */}
                 {showConversationView && (
                   <motion.button
                     initial={{ opacity: 0, x: -20 }}
@@ -2148,6 +2174,50 @@ const HospitalDashboard = ({ user, onLogout }) => {
                 className="w-full px-4 py-3 border rounded-xl text-sm resize-none focus:ring-2 focus:ring-blue-500" 
                 required 
               />
+
+              {/* ✅ File Upload Section */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <FaPaperclip className="inline mr-1" /> Attachments
+                </label>
+                <input
+                  type="file"
+                  ref={sendReportFileInputRef}
+                  onChange={handleSendReportAttachmentChange}
+                  multiple
+                  accept="image/*,.pdf,.doc,.docx"
+                  className="w-full p-2 border border-gray-300 rounded-xl text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+                
+                {/* Attachment previews */}
+                {sendReportAttachmentPreview.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-xs text-gray-500">Selected files ({sendReportAttachmentPreview.length}):</p>
+                    {sendReportAttachmentPreview.map((file, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          {file.type?.startsWith('image/') ? (
+                            <span className="text-blue-500">🖼️</span>
+                          ) : file.type === 'application/pdf' ? (
+                            <span className="text-red-500">📄</span>
+                          ) : (
+                            <span className="text-gray-500">📎</span>
+                          )}
+                          <span className="text-sm text-gray-600 truncate max-w-[200px]">{file.name}</span>
+                          <span className="text-xs text-gray-400">({file.size})</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeSendReportAttachment(idx)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <FaTimes />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               
               <div className="flex justify-end gap-3 pt-4 border-t">
                 <button type="button" onClick={() => setShowReportModal(false)} className="px-5 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition">
@@ -2239,6 +2309,157 @@ const HospitalDashboard = ({ user, onLogout }) => {
                 <button onClick={() => setShowPasswordModal(false)} className="px-5 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition">Cancel</button>
                 <button onClick={changePassword} className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:shadow-lg transition">Change Password</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Report Detail Modal with Attachment Display */}
+      {showReportDetailModal && selectedReport && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6">
+            <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-200">
+              <div className="flex items-center gap-2">
+                {!selectedReport.is_opened ? <FaEnvelope className="text-blue-500" /> : <FaEnvelopeOpen className="text-gray-400" />}
+                <h2 className="text-xl font-bold text-gray-800">{selectedReport.title}</h2>
+              </div>
+              <button onClick={() => setShowReportDetailModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">From</p>
+                  <p className="font-semibold text-gray-800">{selectedReport.sender_full_name}</p>
+                  {selectedReport.sender_department && (
+                    <p className="text-xs text-gray-400">{selectedReport.sender_department}</p>
+                  )}
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-500">Priority</p>
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getPriorityBadge(selectedReport.priority)}`}>
+                    {getPriorityIcon(selectedReport.priority)} {selectedReport.priority}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm text-gray-500">Date Received</p>
+                <p className="text-sm text-gray-700">{new Date(selectedReport.sent_at).toLocaleString()}</p>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-xl">
+                <p className="text-sm text-gray-500 mb-2">Message</p>
+                <p className="whitespace-pre-wrap text-gray-800">{selectedReport.body}</p>
+              </div>
+
+              {/* ✅ Attachment Display Section */}
+              {selectedReport.attachments && selectedReport.attachments.length > 0 && (
+                <div className="mt-4 border-t pt-4">
+                  <p className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                    <FaPaperclip className="text-gray-500" /> 
+                    Attachments ({selectedReport.attachments.length})
+                  </p>
+                  <div className="space-y-2">
+                    {selectedReport.attachments.map((att, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg hover:shadow-sm transition">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          {att.mimeType?.startsWith('image/') ? (
+                            <img 
+                              src={att.url} 
+                              alt={att.name} 
+                              className="w-10 h-10 object-cover rounded border border-gray-200" 
+                            />
+                          ) : att.mimeType === 'application/pdf' ? (
+                            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                              <FaFilePdf className="text-red-600 text-xl" />
+                            </div>
+                          ) : (
+                            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                              <FaFileAlt className="text-gray-600 text-xl" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-800 truncate">{att.name}</p>
+                            <p className="text-xs text-gray-400">
+                              {att.size ? `${(att.size / 1024).toFixed(1)} KB` : 'Size unknown'}
+                            </p>
+                          </div>
+                        </div>
+                        <a
+                          href={att.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="ml-3 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition flex items-center gap-1 text-sm"
+                          download={att.name}
+                        >
+                          <FaDownload size={12} /> Download
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-4 border-t border-gray-200">
+                <button 
+                  onClick={() => { setShowReportDetailModal(false); fetchConversationThread(selectedReport.id); }} 
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition flex items-center justify-center gap-2"
+                >
+                  <FaComment /> Open Chat
+                </button>
+                <button 
+                  onClick={() => { setShowReportDetailModal(false); setShowReplyModal(true); }} 
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:shadow-lg transition flex items-center justify-center gap-2"
+                >
+                  <FaReply /> Reply
+                </button>
+                <button 
+                  onClick={() => setShowReportDetailModal(false)} 
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reply Modal */}
+      {showReplyModal && selectedReport && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <FaReply className="text-blue-500" /> Reply to Report
+              </h2>
+              <button onClick={() => { setShowReplyModal(false); setReplyText(''); }} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
+            </div>
+            <div className="mb-4 p-4 bg-gray-50 rounded-xl">
+              <p className="text-xs text-gray-500 mb-1">Original Report</p>
+              <p className="text-sm font-medium text-gray-800">{selectedReport.title}</p>
+              <p className="text-xs text-gray-400 mt-1">From: {selectedReport.sender_full_name}</p>
+            </div>
+            <textarea 
+              value={replyText} 
+              onChange={(e) => setReplyText(e.target.value)} 
+              rows="5" 
+              placeholder="Type your reply here..." 
+              className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 resize-none" 
+            />
+            <div className="flex gap-3 pt-4 mt-2">
+              <button onClick={() => { setShowReplyModal(false); setReplyText(''); }} className="flex-1 px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition">
+                Cancel
+              </button>
+              <button 
+                onClick={handleSendReply} 
+                disabled={loading} 
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:shadow-lg transition disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {loading ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}
+                {loading ? 'Sending...' : 'Send Reply'}
+              </button>
             </div>
           </div>
         </div>
