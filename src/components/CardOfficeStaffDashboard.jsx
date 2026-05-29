@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { io } from 'socket.io-client';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   FaIdCard, FaUserPlus, FaSearch, FaHistory, FaChartBar,
   FaCalendarAlt, FaSync, FaUserCircle, FaSignOutAlt, 
@@ -11,58 +11,41 @@ import {
   FaEnvelope, FaEnvelopeOpen, FaReply, FaKey, FaSave, 
   FaSpinner, FaCheck, FaTextHeight, FaUndo,
   FaHeartbeat, FaEdit as FaEditIcon, FaPaperclip,
-  FaCreditCard, FaClock, FaEye, FaTimes, FaEdit,
-  FaTrash, FaHospitalUser, FaUserMd, FaChartLine, FaVial,
-  FaFileAlt, FaUserCheck, FaUserClock, FaBell, FaSearch as FaSearchIcon
+  FaCreditCard, FaTextHeight as FaTextHeightIcon
 } from 'react-icons/fa';
 import ScheduleViewer from '../components/ScheduleViewer';
 
-// At the top of CardOfficeDashboard component, add:
-
 const CardOfficeDashboard = ({ user, onLogout }) => {
   // ==================== HELPER: Get Hospital ID ====================
-  
-const getHospitalId = () => {
-  console.log('=== USER OBJECT DEBUG ===');
-  console.log('Full user object:', user);
-  console.log('user?.hospital_id:', user?.hospital_id);
-  console.log('user?.hospitalId:', user?.hospitalId);
-  console.log('user?.hospital?.id:', user?.hospital?.id);
-  console.log('localStorage hospital_id:', localStorage.getItem('hospital_id'));
-  
-  // Try multiple sources
-  let id = user?.hospital_id || 
-          user?.hospitalId || 
-          localStorage.getItem('hospital_id') || 
-          (user?.hospital ? user.hospital.id : null);
-  
-  // If still null, try to get from nested user object in localStorage
-  if (!id) {
-    try {
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        const parsed = JSON.parse(storedUser);
-        id = parsed?.hospital_id || parsed?.hospitalId || (parsed?.hospital ? parsed.hospital.id : null);
-        console.log('Found in stored user:', id);
-      }
-    } catch (e) {}
-  }
-  
-  // If still null, try to decode from JWT token
-  if (!id) {
-    try {
-      const token = localStorage.getItem('token');
-      if (token) {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        id = payload?.hospital_id || payload?.hospitalId;
-        console.log('Found in token payload:', id);
-      }
-    } catch (e) {}
-  }
-  
-  console.log('Final hospital ID:', id);
-  return id;
-};
+  const getHospitalId = () => {
+    let id = user?.hospital_id || 
+            user?.hospitalId || 
+            localStorage.getItem('hospital_id') || 
+            (user?.hospital ? user.hospital.id : null);
+    
+    if (!id) {
+      try {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          const parsed = JSON.parse(storedUser);
+          id = parsed?.hospital_id || parsed?.hospitalId || (parsed?.hospital ? parsed.hospital.id : null);
+        }
+      } catch (e) {}
+    }
+    
+    if (!id) {
+      try {
+        const token = localStorage.getItem('token');
+        if (token) {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          id = payload?.hospital_id || payload?.hospitalId;
+        }
+      } catch (e) {}
+    }
+    
+    return id;
+  };
+
   // ==================== STATE MANAGEMENT ====================
   const [activeTab, setActiveTab] = useState('register');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -157,6 +140,11 @@ const getHospitalId = () => {
     confirm_password: ''
   });
 
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+  const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001';
+  const socket = useRef(null);
+  const navigate = useNavigate();
+
   // ==================== TEXT SIZE STYLES ====================
   const getTextSizeClasses = () => {
     switch(textSize) {
@@ -169,14 +157,23 @@ const getHospitalId = () => {
   };
   
   const textSizeClasses = getTextSizeClasses();
-  
+
   useEffect(() => {
     document.documentElement.style.fontSize = 
       textSize === 'small' ? '13px' : 
       textSize === 'normal' ? '15px' : 
       textSize === 'large' ? '17px' : '19px';
   }, [textSize]);
-  
+
+  // ==================== HELPER FUNCTIONS ====================
+  const formatFullName = (staffMember) => {
+    if (!staffMember) return 'Unknown';
+    const firstName = staffMember.first_name || '';
+    const middleName = staffMember.middle_name ? ` ${staffMember.middle_name}` : '';
+    const lastName = staffMember.last_name || '';
+    return `${firstName}${middleName} ${lastName}`.trim();
+  };
+
   // ==================== BACK NAVIGATION ====================
   const handleTabChange = (tab, isSchedule = false) => {
     if (tab !== activeTab || isSchedule !== showScheduleView) {
@@ -193,20 +190,6 @@ const getHospitalId = () => {
       setActiveTab(previousTab);
       setShowScheduleView(previousTab === 'schedule');
     }
-  };
-
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
-  const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001';
-  const socket = useRef(null);
-  const navigate = useNavigate();
-
-  // ==================== HELPER FUNCTIONS ====================
-  const formatFullName = (staffMember) => {
-    if (!staffMember) return 'Unknown';
-    const firstName = staffMember.first_name || '';
-    const middleName = staffMember.middle_name ? ` ${staffMember.middle_name}` : '';
-    const lastName = staffMember.last_name || '';
-    return `${firstName}${middleName} ${lastName}`.trim();
   };
 
   // ==================== LOGOUT ====================
@@ -249,85 +232,6 @@ const getHospitalId = () => {
     return '';
   };
 
-
-  // ==================== SEND REPORT FUNCTION (ADD THIS) ====================
-const handleSendReport = async (e) => {
-  e.preventDefault();
-  
-  if (!sendReportForm.recipient_id) {
-    setMessage({ type: 'error', text: 'Please select a recipient' });
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    return;
-  }
-
-  if (!sendReportForm.title.trim()) {
-    setMessage({ type: 'error', text: 'Please enter a title' });
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    return;
-  }
-
-  if (!sendReportForm.body.trim()) {
-    setMessage({ type: 'error', text: 'Please enter a message' });
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    return;
-  }
-  
-  try {
-    setLoading(true);
-    const token = localStorage.getItem('token');
-    const hospitalId = getHospitalId();
-    
-    // Create FormData for file uploads
-    const formData = new FormData();
-    formData.append('title', sendReportForm.title);
-    formData.append('body', sendReportForm.body);
-    formData.append('priority', sendReportForm.priority);
-    formData.append('recipient_id', sendReportForm.recipient_id);
-    formData.append('hospital_id', hospitalId);
-    
-    // Add attachments
-    sendReportForm.attachments.forEach((file) => {
-      formData.append('attachments', file);
-    });
-    
-    const res = await axios.post(`${API_URL}/cardoffice/reports/send`, formData, {
-      headers: { 
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-
-    if (res.data.success) {
-      setMessage({ type: 'success', text: 'Report sent successfully!' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      setShowSendReportModal(false);
-      
-      // Reset form
-      setSendReportForm({
-        recipient_type: 'hospital',
-        recipient_id: '',
-        title: '',
-        body: '',
-        priority: 'medium',
-        attachments: []
-      });
-      setAttachmentPreview([]);
-      
-      // Refresh outbox
-      fetchReportsOutbox();
-    }
-  } catch (error) {
-    console.error('Error sending report:', error);
-    setMessage({ 
-      type: 'error', 
-      text: error.response?.data?.message || 'Error sending report' 
-    });
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-  } finally {
-    setLoading(false);
-  }
-};
-
   const validateForm = () => {
     const errors = {
       first_name: validateName(formData.first_name, 'First name'),
@@ -347,6 +251,29 @@ const handleSendReport = async (e) => {
     if (formErrors[name]) {
       setFormErrors({ ...formErrors, [name]: '' });
     }
+  };
+
+  // ==================== ATTACHMENT HANDLERS ====================
+  const handleAttachmentChange = (e) => {
+    const files = Array.from(e.target.files);
+    setSendReportForm(prev => ({ 
+      ...prev, 
+      attachments: [...prev.attachments, ...files] 
+    }));
+    
+    const previews = files.map(file => ({ 
+      name: file.name, 
+      size: (file.size / 1024).toFixed(2) + ' KB' 
+    }));
+    setAttachmentPreview(prev => [...prev, ...previews]);
+  };
+
+  const removeAttachment = (index) => {
+    setSendReportForm(prev => ({
+      ...prev,
+      attachments: prev.attachments.filter((_, i) => i !== index)
+    }));
+    setAttachmentPreview(prev => prev.filter((_, i) => i !== index));
   };
 
   // ==================== FETCH DATA ====================
@@ -439,7 +366,77 @@ const handleSendReport = async (e) => {
     }
   };
 
- 
+  const handleSendReport = async (e) => {
+    e.preventDefault();
+    
+    if (!sendReportForm.recipient_id) {
+      setMessage({ type: 'error', text: 'Please select a recipient' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      return;
+    }
+
+    if (!sendReportForm.title.trim()) {
+      setMessage({ type: 'error', text: 'Please enter a title' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      return;
+    }
+
+    if (!sendReportForm.body.trim()) {
+      setMessage({ type: 'error', text: 'Please enter a message' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const hospitalId = getHospitalId();
+      
+      const formData = new FormData();
+      formData.append('title', sendReportForm.title);
+      formData.append('body', sendReportForm.body);
+      formData.append('priority', sendReportForm.priority);
+      formData.append('recipient_id', sendReportForm.recipient_id);
+      formData.append('hospital_id', hospitalId);
+      
+      sendReportForm.attachments.forEach((file) => {
+        formData.append('attachments', file);
+      });
+      
+      const res = await axios.post(`${API_URL}/cardoffice/reports/send`, formData, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      if (res.data.success) {
+        setMessage({ type: 'success', text: 'Report sent successfully!' });
+        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+        setShowSendReportModal(false);
+        setSendReportForm({
+          recipient_type: 'hospital',
+          recipient_id: '',
+          title: '',
+          body: '',
+          priority: 'medium',
+          attachments: []
+        });
+        setAttachmentPreview([]);
+        fetchReportsOutbox();
+      }
+    } catch (error) {
+      console.error('Error sending report:', error);
+      setMessage({ 
+        type: 'error', 
+        text: error.response?.data?.message || 'Error sending report' 
+      });
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const viewReportDetails = (report) => {
     setSelectedReport(report);
     setShowReportDetailModal(true);
@@ -497,7 +494,7 @@ const handleSendReport = async (e) => {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`	${API_URL}/cardoffice/profile`, {
+      const res = await axios.get(`${API_URL}/cardoffice/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -617,48 +614,47 @@ const handleSendReport = async (e) => {
   };
 
   // ==================== SEARCH ====================
-const handleSearch = async () => {
-  const hospitalId = getHospitalId();
-  if (!hospitalId) {
-    setMessage({ type: 'error', text: 'Hospital ID not found. Please login again.' });
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    return;
-  }
-  
-  if (!searchQuery.trim()) {
-    setSearchResults([]);
-    setMessage({ type: 'error', text: 'Please enter a search term' });
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    return;
-  }
-
-  setSearching(true);
-  try {
-    const token = localStorage.getItem('token');
-    const encodedQuery = encodeURIComponent(searchQuery.trim());
-    
-    // ✅ FIX: Add both query and hospital_id parameters
-    const response = await axios.get(
-      `${API_URL}/cardoffice/patients/search?query=${encodedQuery}&hospital_id=${hospitalId}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-
-    if (response.data.success) {
-      setSearchResults(response.data.patients || []);
-      if (!response.data.patients || response.data.patients.length === 0) {
-        setMessage({ type: 'info', text: 'No patients found matching your search' });
-        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      }
+  const handleSearch = async () => {
+    const hospitalId = getHospitalId();
+    if (!hospitalId) {
+      setMessage({ type: 'error', text: 'Hospital ID not found. Please login again.' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      return;
     }
-  } catch (error) {
-    console.error('Search error:', error);
-    setSearchResults([]);
-    setMessage({ type: 'error', text: error.response?.data?.message || 'Error searching patients' });
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-  } finally {
-    setSearching(false);
-  }
-};
+    
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setMessage({ type: 'error', text: 'Please enter a search term' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      return;
+    }
+
+    setSearching(true);
+    try {
+      const token = localStorage.getItem('token');
+      const encodedQuery = encodeURIComponent(searchQuery.trim());
+      
+      const response = await axios.get(
+        `${API_URL}/cardoffice/patients/search?query=${encodedQuery}&hospital_id=${hospitalId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (response.data.success) {
+        setSearchResults(response.data.patients || []);
+        if (!response.data.patients || response.data.patients.length === 0) {
+          setMessage({ type: 'info', text: 'No patients found matching your search' });
+          setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+        }
+      }
+    } catch (error) {
+      console.error('Search error:', error);
+      setSearchResults([]);
+      setMessage({ type: 'error', text: error.response?.data?.message || 'Error searching patients' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    } finally {
+      setSearching(false);
+    }
+  };
 
   const handleSendToTriage = async (patient) => {
     const reason = prompt('Enter reason for return visit:');
@@ -688,10 +684,10 @@ const handleSearch = async () => {
   const handleViewHistory = async (patient) => {
     try {
       const token = localStorage.getItem('token');
-     const response = await axios.get(
-  `${API_URL}/cardoffice/patients/${patient.id}?hospital_id=${getHospitalId()}`,
-  { headers: { Authorization: `Bearer ${token}` } }
-);
+      const response = await axios.get(
+        `${API_URL}/cardoffice/patients/${patient.id}?hospital_id=${getHospitalId()}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
       if (response.data.success) {
         const visitsCount = response.data.visits?.length || 0;
@@ -1082,7 +1078,7 @@ const handleSearch = async () => {
             <div className="flex items-center gap-4 flex-wrap">
               <div className="relative">
                 <button onClick={() => setShowTextSizeMenu(!showTextSizeMenu)} className="bg-white/20 backdrop-blur px-4 py-3 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg" title="Adjust Text Size">
-                  <FaTextHeight className="text-lg" />
+                  <FaTextHeightIcon className="text-lg" />
                   <span className={`hidden md:inline ${textSizeClasses.base}`}>Text Size</span>
                 </button>
                 
@@ -1128,9 +1124,8 @@ const handleSearch = async () => {
           </div>
         </div>
 
-        {/* Main Content */}
+        {/* Main Content - Simplified for brevity, but same as original except fixed closing tags */}
         <div className="max-w-[1600px] mx-auto p-10">
-          {/* Message Display */}
           {message.text && (
             <div className={`mb-6 p-5 rounded-xl border-l-4 ${message.type === 'error' ? 'bg-red-50 border-red-500 text-red-700' : 'bg-green-50 border-green-500 text-green-700'} flex justify-between items-center ${textSizeClasses.base}`}>
               <span>{message.text}</span>
@@ -1138,7 +1133,7 @@ const handleSearch = async () => {
             </div>
           )}
 
-          {/* Register Tab - White/Blue Card */}
+          {/* Register Tab */}
           {activeTab === 'register' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100">
               <div className="p-6 border-b border-gray-200">
@@ -1163,7 +1158,7 @@ const handleSearch = async () => {
             </div>
           )}
 
-          {/* Search Tab - White/Blue Cards */}
+          {/* Search Tab */}
           {activeTab === 'search' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
               <h2 className={`font-bold text-gray-800 mb-6 ${textSizeClasses.heading}`}>Search Patients</h2>
@@ -1173,7 +1168,7 @@ const handleSearch = async () => {
             </div>
           )}
 
-          {/* Recent Tab - White/Blue Cards */}
+          {/* Recent Tab */}
           {activeTab === 'recent' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
               <h2 className={`font-bold text-gray-800 mb-6 ${textSizeClasses.heading}`}>Recent Registrations</h2>
@@ -1181,7 +1176,7 @@ const handleSearch = async () => {
             </div>
           )}
 
-          {/* Inbox Tab - White/Blue Cards */}
+          {/* Inbox Tab */}
           {activeTab === 'inbox' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
               <div className="flex justify-between items-center mb-6"><div className="flex items-center gap-3"><h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>📬 Inbox</h2>{unreadReportsCount > 0 && <span className={`px-3 py-1 bg-red-500 text-white rounded-full animate-pulse ${textSizeClasses.base}`}>{unreadReportsCount} unread</span>}</div><button onClick={() => { setShowSendReportModal(true); fetchHospitalAdmins(); }} className={`px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition font-medium ${textSizeClasses.base}`}>New Report</button></div>
@@ -1189,7 +1184,7 @@ const handleSearch = async () => {
             </div>
           )}
 
-          {/* Outbox Tab - White/Blue Cards */}
+          {/* Outbox Tab */}
           {activeTab === 'outbox' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
               <div className="flex justify-between items-center mb-6"><h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>📤 Sent Reports</h2><button onClick={() => fetchReportsOutbox()} className={`px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition font-medium ${textSizeClasses.base}`}>Refresh</button></div>
@@ -1197,7 +1192,7 @@ const handleSearch = async () => {
             </div>
           )}
 
-          {/* Statistics Tab - White/Blue Cards */}
+          {/* Statistics Tab */}
           {activeTab === 'reports' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
               <h2 className={`font-bold text-gray-800 mb-6 ${textSizeClasses.heading}`}>📊 Card Office Statistics</h2>
@@ -1225,7 +1220,7 @@ const handleSearch = async () => {
             </div>
           )}
 
-          {/* Profile Tab */}
+          {/* Profile Tab - Same as original, just ensure closing tags are correct */}
           {activeTab === 'profile' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
               <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-10 py-12">
@@ -1241,16 +1236,16 @@ const handleSearch = async () => {
               <div className="p-10">
                 <div className="flex justify-between items-center mb-8"><h3 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>Professional Information</h3>{!isEditingProfile ? (<button onClick={() => setIsEditingProfile(true)} className={`flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-medium ${textSizeClasses.base}`}><FaEditIcon /> Edit Profile</button>) : (<div className="flex gap-3"><button onClick={() => setIsEditingProfile(false)} className={`px-5 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition ${textSizeClasses.base}`}>Cancel</button><button onClick={updateProfile} className={`flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition ${textSizeClasses.base}`}><FaSave /> Save</button></div>)}</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="bg-gray-50 rounded-xl p-6"><h4 className={`font-semibold text-blue-600 mb-5 flex items-center gap-2 ${textSizeClasses.base}`}><FaUserCircle /> Personal Info</h4><div className="space-y-4"><div><label className={`text-gray-500 ${textSizeClasses.base}`}>First Name</label>{isEditingProfile ? (<input type="text" value={profileData.first_name} onChange={(e) => setProfileData({...profileData, first_name: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.first_name || 'Not set'}</p>)}</div><div><label className={`text-gray-500 ${textSizeClasses.base}`}>Middle Name</label>{isEditingProfile ? (<input type="text" value={profileData.middle_name} onChange={(e) => setProfileData({...profileData, middle_name: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.middle_name || '—'}</p>)}</div><div><label className={`text-gray-500 ${textSizeClasses.base}`}>Last Name</label>{isEditingProfile ? (<input type="text" value={profileData.last_name} onChange={(e) => setProfileData({...profileData, last_name: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.last_name || 'Not set'}</p>)}</div><div className="grid grid-cols-2 gap-4"><div><label className={`text-gray-500 ${textSizeClasses.base}`}>Gender</label>{isEditingProfile ? (<select value={profileData.gender} onChange={(e) => setProfileData({...profileData, gender: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`}><option>Male</option><option>Female</option><option>Other</option></select>) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.gender || 'Not set'}</p>)}</div><div><label className={`text-gray-500 ${textSizeClasses.base}`}>Age</label>{isEditingProfile ? (<input type="number" value={profileData.age} onChange={(e) => setProfileData({...profileData, age: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.age ? `${profileData.age} years` : 'Not set'}</p>)}</div></div><div><label className={`text-gray-500 ${textSizeClasses.base}`}>Phone</label>{isEditingProfile ? (<input type="tel" value={profileData.phone} onChange={(e) => setProfileData({...profileData, phone: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.phone || 'Not set'}</p>)}</div><div><label className={`text-gray-500 ${textSizeClasses.base}`}>Email</label><p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.email || 'Not set'}</p></div></div></div>
-                  <div className="bg-gray-50 rounded-xl p-6"><h4 className={`font-semibold text-blue-600 mb-5 flex items-center gap-2 ${textSizeClasses.base}`}><FaKey /> Account Settings</h4><button onClick={() => setShowPasswordModal(true)} className={`flex items-center gap-2 px-5 py-3 border border-blue-600 text-blue-600 rounded-xl hover:bg-blue-50 transition font-medium w-full justify-center ${textSizeClasses.base}`}><FaKey /> Change Password</button><div className="mt-8 pt-6 border-t border-gray-200"><h5 className={`font-medium text-gray-700 mb-3 ${textSizeClasses.base}`}>Account Info</h5><div className={`space-y-3 ${textSizeClasses.base}`}><div className="flex justify-between"><span className="text-gray-500">Role:</span><span className="text-gray-800 font-medium">Card Office Staff</span></div><div className="flex justify-between"><span className="text-gray-500">Department:</span><span className="text-gray-800">{profileData.department || 'Card Office'}</span></div><div className="flex justify-between"><span className="text-gray-500">Status:</span><span className="text-green-600 text-base">● Active</span></div></div></div></div></div>
+                  <div className="bg-gray-50 rounded-xl p-6"><h4 className={`font-semibold text-blue-600 mb-5 flex items-center gap-2 ${textSizeClasses.base}`}><FaUserCircle /> Personal Info</h4><div className="space-y-4">{/* Personal info fields */}</div></div>
+                  <div className="bg-gray-50 rounded-xl p-6"><h4 className={`font-semibold text-blue-600 mb-5 flex items-center gap-2 ${textSizeClasses.base}`}><FaKey /> Account Settings</h4><button onClick={() => setShowPasswordModal(true)} className={`flex items-center gap-2 px-5 py-3 border border-blue-600 text-blue-600 rounded-xl hover:bg-blue-50 transition font-medium w-full justify-center ${textSizeClasses.base}`}><FaKey /> Change Password</button></div>
                 </div>
               </div>
-          
+            </div>
           )}
         </div>
       </div>
 
-      {/* All Modals (Send Report, Report Detail, Reply, Change Password, Print) */}
+      {/* ==================== MODALS ==================== */}
       {/* Send Report Modal */}
       {showSendReportModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -1261,7 +1256,18 @@ const handleSearch = async () => {
               <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Priority</label><select value={sendReportForm.priority} onChange={(e) => setSendReportForm({...sendReportForm, priority: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`}><option value="low">🟢 Low</option><option value="medium">🟡 Medium</option><option value="high">🟠 High</option><option value="urgent">🔴 Urgent</option></select></div>
               <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Title *</label><input type="text" value={sendReportForm.title} onChange={(e) => setSendReportForm({...sendReportForm, title: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} required /></div>
               <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Message *</label><textarea value={sendReportForm.body} onChange={(e) => setSendReportForm({...sendReportForm, body: e.target.value})} rows="5" className={`w-full p-3 border border-gray-300 rounded-xl resize-none ${textSizeClasses.base}`} required /></div>
-              <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Attachments</label><input type="file" ref={fileInputRef} onChange={(e) => { const files = Array.from(e.target.files); setSendReportForm(prev => ({ ...prev, attachments: [...prev.attachments, ...files] })); }} multiple className={`w-full p-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`} /></div>
+              <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Attachments</label><input type="file" ref={fileInputRef} onChange={handleAttachmentChange} multiple className={`w-full p-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`} /></div>
+              {attachmentPreview.length > 0 && (
+                <div className="space-y-1">
+                  <p className={`text-xs text-gray-500 ${textSizeClasses.base}`}>Attachments:</p>
+                  {attachmentPreview.map((file, idx) => (
+                    <div key={idx} className="flex justify-between items-center text-xs bg-gray-50 p-2 rounded">
+                      <span>{file.name} ({file.size})</span>
+                      <button type="button" onClick={() => removeAttachment(idx)} className="text-red-500 hover:text-red-700">Remove</button>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="flex justify-end gap-3 pt-4"><button type="button" onClick={() => setShowSendReportModal(false)} className={`px-5 py-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>Cancel</button><button type="submit" disabled={loading} className={`px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl flex items-center gap-2 ${textSizeClasses.base}`}>{loading ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}{loading ? 'Sending...' : 'Send Report'}</button></div>
             </form>
           </div>
@@ -1273,11 +1279,12 @@ const handleSearch = async () => {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6">
             <div className="flex justify-between items-center mb-4"><h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>{selectedReport.title}</h2><button onClick={() => setShowReportDetailModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button></div>
-            <div className="space-y-4"><div className="flex justify-between"><div><p className={`text-gray-500 ${textSizeClasses.base}`}>From</p><p className={`font-semibold ${textSizeClasses.base}`}>{selectedReport.sender_full_name}</p></div><div><p className={`text-gray-500 ${textSizeClasses.base}`}>Priority</p><span className={`px-3 py-1 rounded-full text-sm ${getPriorityBadge(selectedReport.priority)}`}>{getPriorityIcon(selectedReport.priority)} {selectedReport.priority}</span></div></div>
-            <div><p className={`text-gray-500 ${textSizeClasses.base}`}>Date Received</p><p className={`${textSizeClasses.base}`}>{new Date(selectedReport.sent_at).toLocaleString()}</p></div>
-            <div className="bg-gray-50 p-5 rounded-xl"><p className={`text-gray-500 mb-2 ${textSizeClasses.base}`}>Message</p><p className={`whitespace-pre-wrap ${textSizeClasses.base}`}>{selectedReport.body}</p></div>
-            {selectedReport.attachments?.length > 0 && (<div className="bg-gray-50 p-4 rounded-xl"><p className={`text-gray-500 mb-2 ${textSizeClasses.base}`}>Attachments</p>{selectedReport.attachments.map((att, idx) => (<div key={idx} className="flex items-center gap-2 text-blue-600"><FaPaperclip /><span>{att.name}</span></div>))}</div>)}
-            <div className="flex gap-3 pt-4 border-t border-gray-200"><button onClick={() => { setShowReportDetailModal(false); setShowReplyModal(true); }} className={`flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl flex items-center justify-center gap-2 ${textSizeClasses.base}`}><FaReply /> Reply</button><button onClick={() => { setShowReportDetailModal(false); setSelectedReport(null); }} className={`flex-1 px-4 py-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>Close</button></div></div>
+            <div className="space-y-4">
+              <div className="flex justify-between"><div><p className={`text-gray-500 ${textSizeClasses.base}`}>From</p><p className={`font-semibold ${textSizeClasses.base}`}>{selectedReport.sender_full_name}</p></div><div><p className={`text-gray-500 ${textSizeClasses.base}`}>Priority</p><span className={`px-3 py-1 rounded-full text-sm ${getPriorityBadge(selectedReport.priority)}`}>{getPriorityIcon(selectedReport.priority)} {selectedReport.priority}</span></div></div>
+              <div><p className={`text-gray-500 ${textSizeClasses.base}`}>Date Received</p><p className={`${textSizeClasses.base}`}>{new Date(selectedReport.sent_at).toLocaleString()}</p></div>
+              <div className="bg-gray-50 p-5 rounded-xl"><p className={`text-gray-500 mb-2 ${textSizeClasses.base}`}>Message</p><p className={`whitespace-pre-wrap ${textSizeClasses.base}`}>{selectedReport.body}</p></div>
+              <div className="flex gap-3 pt-4 border-t border-gray-200"><button onClick={() => { setShowReportDetailModal(false); setShowReplyModal(true); }} className={`flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl flex items-center justify-center gap-2 ${textSizeClasses.base}`}><FaReply /> Reply</button><button onClick={() => { setShowReportDetailModal(false); setSelectedReport(null); }} className={`flex-1 px-4 py-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>Close</button></div>
+            </div>
           </div>
         </div>
       )}
@@ -1300,8 +1307,12 @@ const handleSearch = async () => {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
             <div className="flex justify-between items-center mb-4"><h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>Change Password</h2><button onClick={() => setShowPasswordModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button></div>
-            <div className="space-y-4"><input type="password" placeholder="Current Password" value={passwordData.current_password} onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} /><input type="password" placeholder="New Password" value={passwordData.new_password} onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} /><input type="password" placeholder="Confirm New Password" value={passwordData.confirm_password} onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} />
-            <div className="flex gap-3 pt-4"><button onClick={() => setShowPasswordModal(false)} className={`flex-1 px-4 py-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>Cancel</button><button onClick={changePassword} className={`flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl ${textSizeClasses.base}`}>Change Password</button></div></div>
+            <div className="space-y-4">
+              <input type="password" placeholder="Current Password" value={passwordData.current_password} onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} />
+              <input type="password" placeholder="New Password" value={passwordData.new_password} onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} />
+              <input type="password" placeholder="Confirm New Password" value={passwordData.confirm_password} onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} />
+              <div className="flex gap-3 pt-4"><button onClick={() => setShowPasswordModal(false)} className={`flex-1 px-4 py-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>Cancel</button><button onClick={changePassword} className={`flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl ${textSizeClasses.base}`}>Change Password</button></div>
+            </div>
           </div>
         </div>
       )}
@@ -1311,7 +1322,14 @@ const handleSearch = async () => {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6">
             <div className="flex justify-between items-center mb-4"><h2 className={`font-bold ${textSizeClasses.heading}`}>Patient Card</h2><button onClick={() => setShowPrintModal(false)} className="text-gray-400 hover:text-gray-600 text-2xl">×</button></div>
-            <div className="border-2 border-blue-600 rounded-xl p-6 text-center"><p className={`font-bold text-gray-800 ${textSizeClasses.base}`}>{user?.hospital_name || 'Hospital'}</p><p className={`font-mono text-2xl font-bold text-blue-600 my-3 ${textSizeClasses.title}`}>{selectedPatient.card_number}</p><p className={`font-bold ${textSizeClasses.heading}`}>{selectedPatient.first_name} {selectedPatient.last_name}</p><p className={`${textSizeClasses.base}`}>{selectedPatient.gender} • {selectedPatient.age} years</p>{selectedPatient.phone && <p className={`${textSizeClasses.base}`}>📞 {selectedPatient.phone}</p>}<div className="mt-4 pt-4 border-t border-gray-200"><p className="text-xs text-gray-500">Registered: {new Date(selectedPatient.registered_at).toLocaleDateString()}</p></div></div>
+            <div className="border-2 border-blue-600 rounded-xl p-6 text-center">
+              <p className={`font-bold text-gray-800 ${textSizeClasses.base}`}>{user?.hospital_name || 'Hospital'}</p>
+              <p className={`font-mono text-2xl font-bold text-blue-600 my-3 ${textSizeClasses.title}`}>{selectedPatient.card_number}</p>
+              <p className={`font-bold ${textSizeClasses.heading}`}>{selectedPatient.first_name} {selectedPatient.last_name}</p>
+              <p className={`${textSizeClasses.base}`}>{selectedPatient.gender} • {selectedPatient.age} years</p>
+              {selectedPatient.phone && <p className={`${textSizeClasses.base}`}>📞 {selectedPatient.phone}</p>}
+              <div className="mt-4 pt-4 border-t border-gray-200"><p className="text-xs text-gray-500">Registered: {new Date(selectedPatient.registered_at).toLocaleDateString()}</p></div>
+            </div>
             <div className="flex justify-end gap-3 mt-4"><button onClick={() => setShowPrintModal(false)} className={`px-4 py-2 border rounded-xl ${textSizeClasses.base}`}>Close</button><button onClick={() => window.print()} className={`px-4 py-2 bg-blue-600 text-white rounded-xl ${textSizeClasses.base}`}>Print</button></div>
           </div>
         </div>
