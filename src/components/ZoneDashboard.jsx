@@ -567,45 +567,74 @@ const ZoneDashboard = ({ user, onLogout }) => {
   };
 
   // ==================== REPORT MANAGEMENT ====================
-  const handleSendReport = async (e) => {
-    e.preventDefault();
-    if (!reportFormData.recipient_id) {
-      alert('Please select a recipient');
-      return;
-    }
-    try {
-      const token = localStorage.getItem('token');
-      const formData = new FormData();
-      formData.append('title', reportFormData.title);
-      formData.append('body', reportFormData.body);
-      formData.append('priority', reportFormData.priority);
-      formData.append('recipient_type', reportFormData.recipient_type);
-      formData.append('recipient_id', reportFormData.recipient_id);
-      
-      reportFormData.attachments.forEach(attachment => {
-        if (attachment.file) {
-          formData.append('attachments', attachment.file);
-        }
-      });
-      
-      const res = await axios.post(`${API_URL}/zone/reports/send`, formData, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-      
-      if (res.data.success) {
-        setShowReportModal(false);
-        setReportFormData({ title: '', body: '', priority: 'medium', recipient_type: '', recipient_id: '', attachments: [] });
-        alert('Report sent successfully!');
-        fetchDashboardData();
+const handleSendReport = async (e) => {
+  e.preventDefault();
+  
+  // ✅ Enhanced validation
+  if (!reportFormData.recipient_type) {
+    alert('Please select a recipient type (Regional or Woreda)');
+    return;
+  }
+  
+  if (!reportFormData.recipient_id) {
+    alert('Please select a recipient from the list');
+    return;
+  }
+  
+  if (!reportFormData.title || reportFormData.title.trim() === '') {
+    alert('Please enter a title for the report');
+    return;
+  }
+  
+  if (!reportFormData.body || reportFormData.body.trim() === '') {
+    alert('Please enter the report content');
+    return;
+  }
+  
+  setUploadingAttachment(true);
+  try {
+    const token = localStorage.getItem('token');
+    const formData = new FormData();
+    formData.append('title', reportFormData.title.trim());
+    formData.append('body', reportFormData.body.trim());
+    formData.append('priority', reportFormData.priority);
+    formData.append('recipient_type', reportFormData.recipient_type);
+    formData.append('recipient_id', reportFormData.recipient_id);
+    
+    reportFormData.attachments.forEach(attachment => {
+      if (attachment.file) {
+        formData.append('attachments', attachment.file);
       }
-    } catch (error) { 
-      console.error('Send report error:', error);
-      alert(error.response?.data?.message || 'Error sending report'); 
+    });
+    
+    const res = await axios.post(`${API_URL}/zone/reports/send`, formData, {
+      headers: { 
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    
+    if (res.data.success) {
+      setShowReportModal(false);
+      setReportFormData({ 
+        title: '', 
+        body: '', 
+        priority: 'medium', 
+        recipient_type: '', 
+        recipient_id: '', 
+        attachments: [] 
+      });
+      alert('Report sent successfully!');
+      fetchDashboardData();
     }
-  };
+  } catch (error) { 
+    console.error('Send report error:', error);
+    const errorMsg = error.response?.data?.message || 'Error sending report';
+    alert(errorMsg);
+  } finally {
+    setUploadingAttachment(false);
+  }
+};
 
   // ==================== PROFILE MANAGEMENT ====================
   const updateProfile = async () => {
@@ -1817,92 +1846,231 @@ const ZoneDashboard = ({ user, onLogout }) => {
       </AnimatePresence>
 
       {/* Send Report Modal */}
-      {showReportModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-800"><FaPaperPlane className="inline mr-2 text-blue-500" /> Send New Report</h2>
-              <button onClick={() => setShowReportModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
-            </div>
-            <form onSubmit={handleSendReport} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Recipient Type</label>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2">
-                    <input type="radio" value="regional" checked={reportFormData.recipient_type === 'regional'} onChange={(e) => setReportFormData({...reportFormData, recipient_type: e.target.value, recipient_id: ''})} />
-                    <FaGlobe className="text-red-500" /> Regional Admin
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input type="radio" value="woreda" checked={reportFormData.recipient_type === 'woreda'} onChange={(e) => setReportFormData({...reportFormData, recipient_type: e.target.value, recipient_id: ''})} />
-                    <FaMapMarkerAlt className="text-blue-500" /> Woreda Admin
-                  </label>
-                </div>
-              </div>
-              
-              {reportFormData.recipient_type === 'regional' && recipients.regional && (
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm font-medium">Regional Admin: {recipients.regional.full_name}</p>
-                  <p className="text-xs text-gray-500">Region: {recipients.regional.region_name}</p>
-                  <input type="hidden" value={recipients.regional.id} />
-                </div>
-              )}
-              
-              {reportFormData.recipient_type === 'woreda' && (
-                <select value={reportFormData.recipient_id} onChange={(e) => setReportFormData({...reportFormData, recipient_id: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500" required>
-                  <option value="">Select Woreda Admin</option>
-                  {recipients.woredas.map(w => <option key={w.id} value={w.id}>{w.woreda_name} - {w.full_name}</option>)}
-                </select>
-              )}
-              
-              <select value={reportFormData.priority} onChange={(e) => setReportFormData({...reportFormData, priority: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-sm">
-                <option value="low">🟢 Low</option>
-                <option value="medium">🟡 Medium</option>
-                <option value="high">🟠 High</option>
-                <option value="urgent">🔴 Urgent</option>
-              </select>
-              
-              <input type="text" placeholder="Title" value={reportFormData.title} onChange={(e) => setReportFormData({...reportFormData, title: e.target.value})} className="w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500" required />
-              
-              <textarea placeholder="Message" value={reportFormData.body} onChange={(e) => setReportFormData({...reportFormData, body: e.target.value})} rows="5" className="w-full px-4 py-3 border rounded-xl text-sm resize-none focus:ring-2 focus:ring-blue-500" required />
-              
-              <div className="border rounded-xl p-4">
-                <div className="flex justify-between items-center mb-3">
-                  <label className="text-sm font-medium text-gray-700">Attachments</label>
-                  <button type="button" onClick={() => document.getElementById('reportFileInput').click()} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
-                    <FaPaperclip /> Add Files
-                  </button>
-                </div>
-                <input id="reportFileInput" type="file" ref={fileInputRef} multiple onChange={(e) => handleAttachmentSelect(e, false)} className="hidden" />
-                {reportFormData.attachments.length > 0 && (
-                  <div className="space-y-2 mt-3">
-                    {reportFormData.attachments.map((att, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                        <div className="flex items-center gap-2">
-                          {getFileIcon(att.mimeType)}
-                          <span className="text-sm truncate max-w-[200px]">{att.originalName}</span>
-                          <span className="text-xs text-gray-400">{formatFileSize(att.size)}</span>
-                        </div>
-                        <button type="button" onClick={() => removeAttachment(idx, false)} className="text-red-400 hover:text-red-600">
-                          <FaTrash />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <button type="button" onClick={() => setShowReportModal(false)} className="px-5 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition">
-                  Cancel
-                </button>
-                <button type="submit" className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:shadow-lg transition">
-                  Send Report
-                </button>
-              </div>
-            </form>
+   {showReportModal && (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+        <h2 className="text-xl font-bold text-gray-800">
+          <FaPaperPlane className="inline mr-2 text-blue-500" /> Send New Report
+        </h2>
+        <button onClick={() => setShowReportModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
+      </div>
+      
+      <form onSubmit={handleSendReport} className="p-6 space-y-4">
+        {/* Recipient Type Selection */}
+        <div>
+          <label className="block text-sm font-medium mb-2">Recipient Type</label>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2">
+              <input 
+                type="radio" 
+                value="regional" 
+                checked={reportFormData.recipient_type === 'regional'} 
+                onChange={(e) => {
+                  // ✅ FIX: Auto-set recipient_id when regional is selected
+                  const regionalId = recipients.regional?.id || '';
+                  setReportFormData({
+                    ...reportFormData, 
+                    recipient_type: e.target.value, 
+                    recipient_id: regionalId  // ← Auto-set regional ID
+                  });
+                }} 
+              />
+              <FaGlobe className="text-red-500" /> Regional Admin
+            </label>
+            <label className="flex items-center gap-2">
+              <input 
+                type="radio" 
+                value="woreda" 
+                checked={reportFormData.recipient_type === 'woreda'} 
+                onChange={(e) => {
+                  setReportFormData({
+                    ...reportFormData, 
+                    recipient_type: e.target.value, 
+                    recipient_id: ''  // ← Clear for woreda selection
+                  });
+                }} 
+              />
+              <FaMapMarkerAlt className="text-blue-500" /> Woreda Admin
+            </label>
           </div>
         </div>
-      )}
+        
+        {/* Regional Admin Display - FIXED */}
+        {reportFormData.recipient_type === 'regional' && recipients.regional && (
+          <div className="p-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-200">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <FaGlobe className="text-blue-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-gray-800">{recipients.regional.full_name}</p>
+                <p className="text-xs text-gray-500">Regional Admin - {recipients.regional.region_name}</p>
+                <p className="text-xs text-green-600 mt-1">✓ Selected as recipient</p>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Regional Admin Not Found */}
+        {reportFormData.recipient_type === 'regional' && !recipients.regional && (
+          <div className="p-4 bg-red-50 rounded-xl border border-red-200 text-center">
+            <p className="text-sm text-red-600">
+              ⚠️ No regional admin assigned to this zone. Please contact your regional administrator.
+            </p>
+          </div>
+        )}
+        
+        {/* Woreda Selection */}
+        {reportFormData.recipient_type === 'woreda' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Select Woreda Admin</label>
+            <select 
+              value={reportFormData.recipient_id} 
+              onChange={(e) => setReportFormData({...reportFormData, recipient_id: e.target.value})} 
+              className="w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500" 
+              required
+            >
+              <option value="">-- Select Woreda Admin --</option>
+              {recipients.woredas && recipients.woredas.length > 0 ? (
+                recipients.woredas.map(w => (
+                  <option key={w.id} value={w.id}>
+                    {w.woreda_name} - {w.full_name}
+                  </option>
+                ))
+              ) : (
+                <option disabled>No woredas available</option>
+              )}
+            </select>
+            {recipients.woredas && recipients.woredas.length === 0 && (
+              <p className="text-xs text-amber-600 mt-1">
+                ⚠️ No woredas found. Please add woredas first.
+              </p>
+            )}
+          </div>
+        )}
+        
+        {/* Priority Selection */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+          <select 
+            value={reportFormData.priority} 
+            onChange={(e) => setReportFormData({...reportFormData, priority: e.target.value})} 
+            className="w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="low">🟢 Low - Routine information</option>
+            <option value="medium">🟡 Medium - Normal priority</option>
+            <option value="high">🟠 High - Important</option>
+            <option value="urgent">🔴 Urgent - Immediate attention needed</option>
+          </select>
+        </div>
+        
+        {/* Title */}
+        <div>
+          <input 
+            type="text" 
+            placeholder="Report Title *" 
+            value={reportFormData.title} 
+            onChange={(e) => setReportFormData({...reportFormData, title: e.target.value})} 
+            className="w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500" 
+            required 
+          />
+        </div>
+        
+        {/* Body */}
+        <div>
+          <textarea 
+            placeholder="Report Content *" 
+            value={reportFormData.body} 
+            onChange={(e) => setReportFormData({...reportFormData, body: e.target.value})} 
+            rows="5" 
+            className="w-full px-4 py-3 border rounded-xl text-sm resize-none focus:ring-2 focus:ring-blue-500" 
+            required 
+          />
+        </div>
+        
+        {/* Attachments */}
+        <div className="border rounded-xl p-4">
+          <div className="flex justify-between items-center mb-3">
+            <label className="text-sm font-medium text-gray-700">Attachments</label>
+            <button 
+              type="button" 
+              onClick={() => document.getElementById('reportFileInput').click()} 
+              className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+            >
+              <FaPaperclip /> Add Files
+            </button>
+          </div>
+          <input 
+            id="reportFileInput" 
+            type="file" 
+            ref={fileInputRef} 
+            multiple 
+            onChange={(e) => handleAttachmentSelect(e, false)} 
+            className="hidden" 
+          />
+          {reportFormData.attachments.length > 0 && (
+            <div className="space-y-2 mt-3">
+              {reportFormData.attachments.map((att, idx) => (
+                <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    {getFileIcon(att.mimeType)}
+                    <span className="text-sm truncate max-w-[200px]">{att.originalName}</span>
+                    <span className="text-xs text-gray-400">{formatFileSize(att.size)}</span>
+                  </div>
+                  <button type="button" onClick={() => removeAttachment(idx, false)} className="text-red-400 hover:text-red-600">
+                    <FaTrash />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        
+        {/* Form Actions */}
+        <div className="flex justify-between items-center gap-3 pt-4 border-t">
+          <div>
+            {reportFormData.recipient_type && !reportFormData.recipient_id && (
+              <p className="text-xs text-red-500">
+                ⚠️ Please select a recipient
+              </p>
+            )}
+          </div>
+          <div className="flex gap-3">
+            <button 
+              type="button" 
+              onClick={() => {
+                setShowReportModal(false);
+                setReportFormData({ 
+                  title: '', 
+                  body: '', 
+                  priority: 'medium', 
+                  recipient_type: '', 
+                  recipient_id: '', 
+                  attachments: [] 
+                });
+              }} 
+              className="px-5 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              disabled={!reportFormData.recipient_id || !reportFormData.title || !reportFormData.body}
+              className={`px-5 py-2.5 rounded-xl transition flex items-center gap-2 ${
+                reportFormData.recipient_id && reportFormData.title && reportFormData.body
+                  ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white hover:shadow-lg'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              <FaPaperPlane /> Send Report
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
 
       {/* Woreda Details Modal */}
       {showWoredaDetailModal && selectedWoreda && (
