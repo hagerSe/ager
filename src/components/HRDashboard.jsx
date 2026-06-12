@@ -496,7 +496,23 @@ const HRSchedulingDashboard = ({ user, onLogout }) => {
       setReportsLoading(false);
     }
   };
-
+const fetchHospitalAdmins = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    const res = await axios.get(`${API_URL}/hr/hospital-admins`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.data.success) {
+      setHospitalAdmins(res.data.admins);
+      console.log('✅ Hospital admins loaded:', res.data.admins);
+    } else {
+      setHospitalAdmins([]);
+    }
+  } catch (error) {
+    console.error('❌ Error fetching hospital admins:', error);
+    setHospitalAdmins([]);
+  }
+};
 
 const handleSendReport = async (e) => {
   e.preventDefault();
