@@ -482,7 +482,7 @@ const MidwifeDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       
-      const res = await axios.get(`${API_URL}/api/midwife/patients`, {
+      const res = await axios.get(`${API_URL}/midwife/patients`, {
         params: {
           hospital_id: user?.hospital_id,
           ward: 'ANC',
@@ -526,7 +526,7 @@ const MidwifeDashboard = ({ user, onLogout }) => {
     try {
       const token = localStorage.getItem('token');
       
-      const res = await axios.get(`${API_URL}/api/midwife/stats`, {
+      const res = await axios.get(`${API_URL}/midwife/stats`, {
         params: {
           hospital_id: user?.hospital_id,
           midwife_id: user?.id
@@ -546,7 +546,7 @@ const MidwifeDashboard = ({ user, onLogout }) => {
     if (!patientId) return;
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/midwife/antenatal-visits/${patientId}`, {
+      const res = await axios.get(`${API_URL}/midwife/antenatal-visits/${patientId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {

@@ -497,7 +497,8 @@ const Login = () => {
                     </button>
                   </form>
 
-                 f <div className="mt-5 text-center">
+                  {/* FIXED: Removed the stray 'f' character */}
+                  <div className="mt-5 text-center">
                     <button
                       type="button"
                       onClick={() => setShowResendVerification(true)}
