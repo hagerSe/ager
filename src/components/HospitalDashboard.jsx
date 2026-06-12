@@ -775,11 +775,56 @@ const HospitalDashboard = ({ user, onLogout }) => {
   };
 
   // ==================== UTILITIES ====================
-  const viewReportDetails = (report) => { 
-    setSelectedReport(report); 
-    setShowReportDetailModal(true); 
-    if (!report.is_opened) markReportAsRead(report.id); 
-  };
+const viewReportDetails = async (report) => {
+  try {
+    console.log("📄 Opening report:", report.id);
+    
+    const token = localStorage.getItem('token');
+    const response = await axios.get(`${API_URL}/regional/reports/${report.id}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    if (response.data.success) {
+      const fullReport = response.data.report;
+      
+      let attachments = fullReport.attachments || [];
+      if (typeof attachments === 'string') {
+        try {
+          attachments = JSON.parse(attachments);
+          console.log("📎 Parsed attachments:", attachments.length);
+        } catch(e) {
+          attachments = [];
+        }
+      }
+      
+      const formattedAttachments = attachments.map(att => ({
+        filename: att.filename || att.key?.split('/').pop() || 'file',
+        originalName: att.originalName || att.filename || 'Unknown',
+        mimeType: att.mimeType || att.mimetype || 'application/octet-stream',
+        size: att.size || 0,
+        url: att.url || null,
+        key: att.key || att.filename,
+        expiresAt: att.expiresAt || null
+      }));
+      
+      setSelectedReport({ 
+        ...fullReport, 
+        attachments: formattedAttachments,
+        attachments_count: formattedAttachments.length 
+      });
+      setShowReportDetailModal(true);
+      
+      if (!report.is_opened) {
+        await markReportAsRead(report.id);
+      }
+    } else {
+      alert("Could not load report details");
+    }
+  } catch (error) {
+    console.error("Error fetching report details:", error);
+    alert("Error loading report details");
+  }
+};
 
   const getPriorityBadge = (priority) => {
     const colors = { 
