@@ -560,7 +560,7 @@ const MidwifeDashboard = ({ user, onLogout }) => {
   const fetchLabResults = async (patientId) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/midwife/lab-results/${patientId}`, {
+      const res = await axios.get(`${API_URL}/midwife/lab-results/${patientId}`, {
         params: { midwife_id: user?.id, hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -578,7 +578,7 @@ const MidwifeDashboard = ({ user, onLogout }) => {
   const fetchDischargedPatients = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/midwife/discharged-patients`, {
+      const res = await axios.get(`${API_URL}/midwife/discharged-patients`, {
         params: { hospital_id: user?.hospital_id, ward: 'ANC' },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -596,7 +596,7 @@ const MidwifeDashboard = ({ user, onLogout }) => {
   const fetchAvailableBeds = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/midwife/available-beds`, {
+      const res = await axios.get(`${API_URL}/midwife/available-beds`, {
         params: { ward: 'ANC', hospital_id: user?.hospital_id },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -615,7 +615,7 @@ const MidwifeDashboard = ({ user, onLogout }) => {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/midwife/profile`, {
+      const res = await axios.get(`${API_URL}/midwife/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -639,7 +639,7 @@ const MidwifeDashboard = ({ user, onLogout }) => {
   const updateProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/midwife/profile`, profileData, {
+      const res = await axios.put(`${API_URL}/midwife/profile`, profileData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -661,7 +661,7 @@ const MidwifeDashboard = ({ user, onLogout }) => {
     }
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/midwife/change-password`, {
+      const res = await axios.put(`${API_URL}/midwife/change-password`, {
         current_password: passwordData.current_password,
         new_password: passwordData.new_password
       }, { headers: { Authorization: `Bearer ${token}` } });
@@ -682,7 +682,7 @@ const MidwifeDashboard = ({ user, onLogout }) => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/midwife/reports/inbox`, {
+      const res = await axios.get(`${API_URL}/midwife/reports/inbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -700,7 +700,7 @@ const MidwifeDashboard = ({ user, onLogout }) => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/midwife/reports/outbox`, {
+      const res = await axios.get(`${API_URL}/midwife/reports/outbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -716,7 +716,7 @@ const MidwifeDashboard = ({ user, onLogout }) => {
   const fetchHospitalAdmins = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/midwife/hospital-admins`, {
+      const res = await axios.get(`${API_URL}/midwife/hospital-admins`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -750,7 +750,7 @@ const handleSendReport = async (e) => {
     
     console.log('Sending report payload:', payload);
     
-    const res = await axios.post(`${API_URL}/api/midwife/reports/send`, payload, {
+    const res = await axios.post(`${API_URL}/midwife/reports/send`, payload, {
       headers: { 
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -789,7 +789,7 @@ const handleSendReport = async (e) => {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      const res = await axios.post(`${API_URL}/api/midwife/assign-patient`, {
+      const res = await axios.post(`${API_URL}/midwife/assign-patient`, {
         patient_id: patient.id,
         midwife_id: user?.id,
         midwife_name: user?.full_name,
@@ -852,7 +852,7 @@ const handleSendReport = async (e) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/api/midwife/save-diagnosis`, {
+      const res = await axios.post(`${API_URL}/midwife/save-diagnosis`, {
         patient_id: selectedPatient.id,
         diagnosis: diagnosis,
         midwife_id: user?.id,
@@ -920,7 +920,7 @@ const handleSendReport = async (e) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/api/midwife/save-prescriptions`, {
+      const res = await axios.post(`${API_URL}/midwife/save-prescriptions`, {
         patient_id: selectedPatient.id,
         patient_name: `${selectedPatient.first_name} ${selectedPatient.last_name}`,
         prescriptions: prescriptions.map(p => ({ ...p, status: 'sent', sent_at: new Date().toISOString() })),
@@ -973,7 +973,7 @@ const handleSendReport = async (e) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/api/midwife/request-lab`, {
+      const res = await axios.post(`${API_URL}/midwife/request-lab`, {
         patient_id: selectedPatient.id,
         patient_name: `${selectedPatient.first_name} ${selectedPatient.last_name}`,
         midwife_id: user?.id,
@@ -1041,7 +1041,7 @@ const handleSendReport = async (e) => {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      const res = await axios.post(`${API_URL}/api/midwife/save-antenatal`, {
+      const res = await axios.post(`${API_URL}/midwife/save-antenatal`, {
         patient_id: selectedPatient.id,
         antenatal_data: antenatalData,
         vitals: vitalSigns,
@@ -1109,7 +1109,7 @@ const handleSendReport = async (e) => {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      const res = await axios.post(`${API_URL}/api/midwife/discharge-patient`, {
+      const res = await axios.post(`${API_URL}/midwife/discharge-patient`, {
         patient_id: selectedPatient.id,
         midwife_id: user?.id,
         midwife_name: user?.full_name,
@@ -1181,7 +1181,7 @@ const handleSendReport = async (e) => {
         signature: signature
       };
       
-      const res = await axios.post(`${API_URL}/api/midwife/record-delivery`, deliveryData, {
+      const res = await axios.post(`${API_URL}/midwife/record-delivery`, deliveryData, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -1221,7 +1221,7 @@ const handleSendReport = async (e) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/api/midwife/admit-patient`, {
+      const res = await axios.post(`${API_URL}/midwife/admit-patient`, {
         patient_id: selectedPatient.id,
         midwife_id: user?.id,
         midwife_name: user?.full_name,
@@ -1294,7 +1294,7 @@ const handleSendReport = async (e) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/api/midwife/refer-patient`, {
+      const res = await axios.post(`${API_URL}/midwife/refer-patient`, {
         patient_id: selectedPatient.id,
         midwife_id: user?.id,
         midwife_name: user?.full_name,
@@ -1363,7 +1363,7 @@ const handleSendReport = async (e) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/api/midwife/refer-patient`, {
+      const res = await axios.post(`${API_URL}/midwife/refer-patient`, {
         patient_id: selectedPatient.id,
         midwife_id: user?.id,
         midwife_name: user?.full_name,
@@ -1444,7 +1444,7 @@ const markReportAsRead = async (reportId) => {
   try {
     console.log('Calling mark as read for report:', reportId);
     const token = localStorage.getItem('token');
-    const response = await axios.put(`${API_URL}/api/midwife/reports/${reportId}/read`, {}, {
+    const response = await axios.put(`${API_URL}/midwife/reports/${reportId}/read`, {}, {
       headers: { Authorization: `Bearer ${token}` }
     });
     console.log('Response:', response.data);
@@ -1472,7 +1472,7 @@ const handleSendReply = async () => {
     
     console.log('Sending reply payload:', payload);
     
-    const res = await axios.post(`${API_URL}/api/midwife/reports/${selectedReport.id}/reply`, payload, {
+    const res = await axios.post(`${API_URL}/midwife/reports/${selectedReport.id}/reply`, payload, {
       headers: { 
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'

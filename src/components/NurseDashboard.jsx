@@ -319,7 +319,7 @@ const NurseDashboard = ({ user, onLogout }) => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/nurse/reports/inbox`, {
+      const res = await axios.get(`${API_URL}/nurse/reports/inbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -337,7 +337,7 @@ const NurseDashboard = ({ user, onLogout }) => {
     try {
       setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/nurse/reports/outbox`, {
+      const res = await axios.get(`${API_URL}/nurse/reports/outbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -354,7 +354,7 @@ const NurseDashboard = ({ user, onLogout }) => {
   const fetchHospitalAdmins = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/nurse/hospital-admins`, {
+      const res = await axios.get(`${API_URL}/nurse/hospital-admins`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -368,7 +368,7 @@ const NurseDashboard = ({ user, onLogout }) => {
   const fetchDoctors = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/nurse/doctors`, {
+      const res = await axios.get(`${API_URL}/nurse/doctors`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -382,7 +382,7 @@ const NurseDashboard = ({ user, onLogout }) => {
   const fetchPharmacyStaff = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/nurse/pharmacy-staff`, {
+      const res = await axios.get(`${API_URL}/nurse/pharmacy-staff`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -396,7 +396,7 @@ const NurseDashboard = ({ user, onLogout }) => {
   const fetchLabStaff = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/nurse/lab-staff`, {
+      const res = await axios.get(`${API_URL}/nurse/lab-staff`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -410,7 +410,7 @@ const NurseDashboard = ({ user, onLogout }) => {
   const fetchAllStaff = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/nurse/all-staff`, {
+      const res = await axios.get(`${API_URL}/nurse/all-staff`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -492,7 +492,7 @@ const NurseDashboard = ({ user, onLogout }) => {
         formData.append('attachments', file);
       });
       
-      const res = await axios.post(`${API_URL}/api/nurse/reports/send`, formData, {
+      const res = await axios.post(`${API_URL}/nurse/reports/send`, formData, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
@@ -528,7 +528,7 @@ const NurseDashboard = ({ user, onLogout }) => {
   const markReportAsRead = async (reportId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/nurse/reports/${reportId}/read`, {}, {
+      await axios.put(`${API_URL}/nurse/reports/${reportId}/read`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchReportsInbox();
@@ -562,7 +562,7 @@ const NurseDashboard = ({ user, onLogout }) => {
         formData.append('attachment', replyAttachment);
       }
       
-      const res = await axios.post(`${API_URL}/api/nurse/reports/${selectedReport.id}/reply`, formData, {
+      const res = await axios.post(`${API_URL}/nurse/reports/${selectedReport.id}/reply`, formData, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
@@ -596,7 +596,7 @@ const NurseDashboard = ({ user, onLogout }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/api/nurse/reports/${reminderData.report_id}/reminder`, {
+      const res = await axios.post(`${API_URL}/nurse/reports/${reminderData.report_id}/reminder`, {
         reminder_date: reminderData.reminder_date,
         reminder_time: reminderData.reminder_time,
         frequency: reminderData.frequency,
@@ -627,7 +627,7 @@ const NurseDashboard = ({ user, onLogout }) => {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/nurse/profile`, {
+      const res = await axios.get(`${API_URL}/nurse/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -658,7 +658,7 @@ const NurseDashboard = ({ user, onLogout }) => {
   const updateProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/nurse/profile`, {
+      const res = await axios.put(`${API_URL}/nurse/profile`, {
         first_name: profileData.first_name,
         middle_name: profileData.middle_name,
         last_name: profileData.last_name,
@@ -695,7 +695,7 @@ const NurseDashboard = ({ user, onLogout }) => {
     }
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(`${API_URL}/api/nurse/change-password`, {
+      const res = await axios.put(`${API_URL}/nurse/change-password`, {
         current_password: passwordData.current_password,
         new_password: passwordData.new_password
       }, { headers: { Authorization: `Bearer ${token}` } });
@@ -790,7 +790,7 @@ const NurseDashboard = ({ user, onLogout }) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/api/nurse/save-vitals`, {
+      const res = await axios.post(`${API_URL}/nurse/save-vitals`, {
         patient_id: selectedPatient.id,
         vitals: {
           temperature: vitalsData.temperature,
@@ -842,7 +842,7 @@ const NurseDashboard = ({ user, onLogout }) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/api/nurse/save-notes`, {
+      const res = await axios.post(`${API_URL}/nurse/save-notes`, {
         patient_id: selectedPatient.id,
         notes: nursingNotes,
         nurse_id: user?.id,
@@ -917,7 +917,7 @@ const NurseDashboard = ({ user, onLogout }) => {
   const completeCareTask = async (taskId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/nurse/complete-task/${taskId}`, {
+      await axios.put(`${API_URL}/nurse/complete-task/${taskId}`, {
         patient_id: selectedPatient.id,
         nurse_id: user?.id
       }, { headers: { Authorization: `Bearer ${token}` } });
@@ -936,7 +936,7 @@ const NurseDashboard = ({ user, onLogout }) => {
   const fetchVitalsHistory = async (patientId) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/nurse/vitals-history/${patientId}`, {
+      const res = await axios.get(`${API_URL}/nurse/vitals-history/${patientId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -950,7 +950,7 @@ const NurseDashboard = ({ user, onLogout }) => {
   const fetchAssignedPatients = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/nurse/assigned-patients`, {
+      const res = await axios.get(`${API_URL}/nurse/assigned-patients`, {
         params: {
           nurse_id: user?.id,
           hospital_id: user?.hospital_id,
@@ -972,7 +972,7 @@ const NurseDashboard = ({ user, onLogout }) => {
       const token = localStorage.getItem('token');
       if (!token || !user?.hospital_id || !user?.ward) return;
 
-      const res = await axios.get(`${API_URL}/api/nurse/queue`, {
+      const res = await axios.get(`${API_URL}/nurse/queue`, {
         params: {
           ward: user.ward,
           hospital_id: user.hospital_id,
@@ -997,7 +997,7 @@ const NurseDashboard = ({ user, onLogout }) => {
       const token = localStorage.getItem('token');
       if (!token || !user?.hospital_id || !user?.ward) return;
 
-      const res = await axios.get(`${API_URL}/api/nurse/stats`, {
+      const res = await axios.get(`${API_URL}/nurse/stats`, {
         params: { ward: user.ward, hospital_id: user.hospital_id, nurse_id: user.id },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -1015,7 +1015,7 @@ const NurseDashboard = ({ user, onLogout }) => {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      const res = await axios.post(`${API_URL}/api/nurse/assign-patient`, {
+      const res = await axios.post(`${API_URL}/nurse/assign-patient`, {
         patient_id: patient.id,
         nurse_id: user?.id,
         nurse_name: getNurseFullName(),
@@ -1063,7 +1063,7 @@ const NurseDashboard = ({ user, onLogout }) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/api/nurse/complete-care`, {
+      const res = await axios.post(`${API_URL}/nurse/complete-care`, {
         patient_id: selectedPatient.id,
         nurse_id: user?.id,
         nurse_name: getNurseFullName(),
