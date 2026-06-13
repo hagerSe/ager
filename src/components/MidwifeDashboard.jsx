@@ -14,10 +14,10 @@ import {
   FaSyringe, FaNotesMedical, FaUserMd, FaPlus, FaEye, FaCheck, FaTimes, FaSync, 
   FaSearch, FaFileAlt, FaBabyCarriage, FaPrescription, FaDiagnoses, FaHospitalUser, 
   FaSignOutAlt, FaBed, FaArrowRight, FaArrowLeft, FaPrint, FaDownload, FaHistory,
-  FaFlask, FaMicroscope, FaClock, FaUserCircle, FaChevronLeft, FaChevvronRight,
+  FaFlask, FaMicroscope, FaClock, FaUserCircle, FaChevronLeft, FaChevronRight,
   FaInbox, FaPaperPlane, FaEnvelope, FaEnvelopeOpen, FaReply, FaKey, FaEdit as FaEditIcon,
   FaSave, FaChartLine, FaBell, FaUserCheck, FaUserClock, FaBuilding, FaUsers, FaIdCard,
-  FaTextHeight, FaUndo
+  FaTextHeight, FaUndo, FaTrash, FaPaperclip
 } from 'react-icons/fa';
 
 const MidwifeDashboard = ({ user, onLogout }) => {
@@ -258,33 +258,6 @@ const MidwifeDashboard = ({ user, onLogout }) => {
     'Deceased'
   ];
 
-  // Lab tests options
-  const labTests = {
-    blood: [
-      'CBC (Complete Blood Count)',
-      'Blood Chemistry',
-      'Blood Group & Rh',
-      'Hemoglobin',
-      'Hepatitis B',
-      'HIV Test',
-      'Blood Sugar',
-      'Thyroid Function',
-      'OGTT',
-      'Malaria Test'
-    ],
-    urine: [
-      'Urinalysis',
-      'Urine Culture',
-      'Urine Pregnancy Test',
-      'Urine Microscopy'
-    ],
-    stool: [
-      'Stool Culture',
-      'Stool Ova & Parasites',
-      'Stool Occult Blood'
-    ]
-  };
-
   // Ward configuration for Midwife
   const currentWard = {
     title: 'Antenatal Care Dashboard',
@@ -305,28 +278,6 @@ const MidwifeDashboard = ({ user, onLogout }) => {
     const middleName = staffMember.middle_name ? ` ${staffMember.middle_name}` : '';
     const lastName = staffMember.last_name || '';
     return `${firstName}${middleName} ${lastName}`.trim();
-  };
-
-  const getPriorityColor = (priority) => {
-    const colors = {
-      'stat': { bg: 'bg-red-100', color: 'text-red-800', text: 'STAT', icon: '🔴' },
-      'urgent': { bg: 'bg-orange-100', color: 'text-orange-800', text: 'Urgent', icon: '🟠' },
-      'routine': { bg: 'bg-green-100', color: 'text-green-800', text: 'Routine', icon: '🟢' }
-    };
-    return colors[priority] || colors.routine;
-  };
-
-  const getStatusBadge = (status) => {
-    const badges = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      processing: 'bg-blue-100 text-blue-800',
-      in_progress: 'bg-blue-100 text-blue-800',
-      completed: 'bg-green-100 text-green-800',
-      discharged: 'bg-gray-100 text-gray-800',
-      admitted: 'bg-purple-100 text-purple-800',
-      referred: 'bg-orange-100 text-orange-800'
-    };
-    return badges[status] || badges.pending;
   };
 
   const getRiskLevelColor = (isHighRisk) => {
@@ -497,26 +448,14 @@ const MidwifeDashboard = ({ user, onLogout }) => {
         const patientsList = res.data.patients || [];
         setPatients(patientsList);
         setQueuePatients(patientsList.filter(p => p.status === 'in_anc'));
-        
         setHighRiskPatients(patientsList.filter(p => p.antenatal_data?.high_risk));
         setPostnatalPatients(patientsList.filter(p => p.status === 'postnatal'));
-        
-        const dueThisWeek = patientsList.filter(p => {
-          if (p.antenatal_data?.edd) {
-            const edd = new Date(p.antenatal_data.edd);
-            const today = new Date();
-            const daysDiff = Math.ceil((edd - today) / (1000 * 60 * 60 * 24));
-            return daysDiff <= 7 && daysDiff >= 0;
-          }
-          return false;
-        }).length;
         
         setStats(prev => ({
           ...prev,
           antenatal: patientsList.filter(p => p.status === 'in_anc').length,
           postnatal: patientsList.filter(p => p.status === 'postnatal').length,
-          highRisk: highRiskPatients.length,
-          dueThisWeek
+          highRisk: patientsList.filter(p => p.antenatal_data?.high_risk).length
         }));
       }
     } catch (error) {
@@ -527,20 +466,30 @@ const MidwifeDashboard = ({ user, onLogout }) => {
   const fetchStats = async () => {
     try {
       const token = localStorage.getItem('token');
-      
       const res = await axios.get(`${API_URL}/midwife/stats`, {
-        params: {
-          hospital_id: user?.hospital_id,
-          midwife_id: user?.id
-        },
+        params: { hospital_id: user?.hospital_id, midwife_id: user?.id },
         headers: { Authorization: `Bearer ${token}` }
       });
-      
       if (res.data.success) {
         setStats(prev => ({ ...prev, ...res.data.stats }));
       }
     } catch (error) {
       console.error('Error fetching stats:', error);
+    }
+  };
+
+  const fetchDischargedPatients = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`${API_URL}/midwife/discharged-patients`, {
+        params: { hospital_id: user?.hospital_id, ward: 'ANC' },
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        setDischargedPatients(res.data.patients || []);
+      }
+    } catch (error) {
+      console.error('Error fetching discharged patients:', error);
     }
   };
 
@@ -655,7 +604,7 @@ const MidwifeDashboard = ({ user, onLogout }) => {
       formData.append('recipient_type', sendReportForm.recipient_type);
       formData.append('recipient_id', sendReportForm.recipient_id);
       
-      sendReportForm.attachments.forEach((file, index) => {
+      sendReportForm.attachments.forEach((file) => {
         formData.append('attachments', file);
       });
       
@@ -835,23 +784,6 @@ const MidwifeDashboard = ({ user, onLogout }) => {
         setSelectedPatient(res.data.patient);
         setShowPatientModal(true);
         setActiveTab('antenatal');
-        
-        if (res.data.patient.antenatal_data) {
-          setAntenatalData(res.data.patient.antenatal_data);
-        }
-        
-        if (res.data.patient.vitals) {
-          setVitalSigns(res.data.patient.vitals);
-        }
-        
-        if (res.data.patient.diagnosis) {
-          setDiagnosis(res.data.patient.diagnosis);
-        }
-        
-        if (res.data.patient.prescriptions) {
-          setPrescriptions(res.data.patient.prescriptions);
-        }
-        
         setMessage({ type: 'success', text: 'Patient assigned successfully' });
         setTimeout(() => setMessage({ type: '', text: '' }), 3000);
       }
@@ -894,6 +826,16 @@ const MidwifeDashboard = ({ user, onLogout }) => {
     if (e.key === 'Enter') {
       handleGoogleSearch();
     }
+  };
+
+  // Calculate weeks helper function
+  const calculateWeeks = (lmp) => {
+    if (!lmp) return '';
+    const lmpDate = new Date(lmp);
+    const today = new Date();
+    const diffTime = Math.abs(today - lmpDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.floor(diffDays / 7);
   };
 
   // Filtered patients based on active tab
@@ -971,18 +913,8 @@ const MidwifeDashboard = ({ user, onLogout }) => {
               <h3 className={`font-bold text-gray-800 mb-3 ${textSizeClasses.title}`}>Confirm Logout</h3>
               <p className={`text-gray-600 mb-8 ${textSizeClasses.base}`}>Are you sure you want to logout?</p>
               <div className="flex gap-4">
-                <button
-                  onClick={handleCancelLogout}
-                  className={`flex-1 px-6 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition font-medium ${textSizeClasses.base}`}
-                >
-                  No, Stay
-                </button>
-                <button
-                  onClick={handleConfirmLogout}
-                  className={`flex-1 px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition font-medium ${textSizeClasses.base}`}
-                >
-                  Yes, Logout
-                </button>
+                <button onClick={handleCancelLogout} className={`flex-1 px-6 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition font-medium ${textSizeClasses.base}`}>No, Stay</button>
+                <button onClick={handleConfirmLogout} className={`flex-1 px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition font-medium ${textSizeClasses.base}`}>Yes, Logout</button>
               </div>
             </div>
           </motion.div>
@@ -1016,106 +948,65 @@ const MidwifeDashboard = ({ user, onLogout }) => {
 
         {/* Navigation Menu */}
         <div className={`flex-1 ${sidebarCollapsed ? 'py-4 px-0' : 'p-4'}`}>
-          {/* Antenatal Care */}
           <div onClick={() => { setShowDischargeList(false); handleTabChange('antenatal', false); }} 
                className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 rounded-xl ${reportMainTab === 'antenatal' && !showDischargeList && !showScheduleView ? 'bg-gradient-to-r from-violet-600/70 to-purple-600/70 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all`}>
             <span className="text-xl">🤰</span>
-            {!sidebarCollapsed && (
-              <>
-                <span className={`flex-1 font-medium ${textSizeClasses.base}`}>Antenatal Care</span>
-                <span className="px-2 py-0.5 rounded-full text-xs bg-white/20">{stats.antenatal}</span>
-              </>
-            )}
+            {!sidebarCollapsed && (<><span className={`flex-1 font-medium ${textSizeClasses.base}`}>Antenatal Care</span><span className="px-2 py-0.5 rounded-full text-xs bg-white/20">{stats.antenatal}</span></>)}
           </div>
 
-          {/* Postnatal Care */}
           <div onClick={() => { setShowDischargeList(false); handleTabChange('postnatal', false); }}
                className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${reportMainTab === 'postnatal' && !showDischargeList && !showScheduleView ? 'bg-gradient-to-r from-violet-600/70 to-purple-600/70 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all`}>
             <span className="text-xl">👶</span>
-            {!sidebarCollapsed && (
-              <>
-                <span className={`flex-1 font-medium ${textSizeClasses.base}`}>Postnatal Care</span>
-                <span className="px-2 py-0.5 rounded-full text-xs bg-green-500/80">{stats.postnatal}</span>
-              </>
-            )}
+            {!sidebarCollapsed && (<><span className={`flex-1 font-medium ${textSizeClasses.base}`}>Postnatal Care</span><span className="px-2 py-0.5 rounded-full text-xs bg-green-500/80">{stats.postnatal}</span></>)}
           </div>
 
-          {/* High Risk */}
           <div onClick={() => { setShowDischargeList(false); handleTabChange('high-risk', false); }}
                className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${reportMainTab === 'high-risk' && !showDischargeList && !showScheduleView ? 'bg-gradient-to-r from-violet-600/70 to-purple-600/70 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all`}>
             <span className="text-xl">⚠️</span>
-            {!sidebarCollapsed && (
-              <>
-                <span className={`flex-1 font-medium ${textSizeClasses.base}`}>High Risk</span>
-                <span className="px-2 py-0.5 rounded-full text-xs bg-red-500 animate-pulse">{stats.highRisk}</span>
-              </>
-            )}
+            {!sidebarCollapsed && (<><span className={`flex-1 font-medium ${textSizeClasses.base}`}>High Risk</span><span className="px-2 py-0.5 rounded-full text-xs bg-red-500 animate-pulse">{stats.highRisk}</span></>)}
           </div>
 
-          {/* Deliveries */}
           <div onClick={() => { setShowDischargeList(false); handleTabChange('deliveries', false); }}
                className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${reportMainTab === 'deliveries' && !showDischargeList && !showScheduleView ? 'bg-gradient-to-r from-violet-600/70 to-purple-600/70 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all`}>
             <span className="text-xl">🏥</span>
-            {!sidebarCollapsed && (
-              <>
-                <span className={`flex-1 font-medium ${textSizeClasses.base}`}>Deliveries</span>
-                <span className="px-2 py-0.5 rounded-full text-xs bg-blue-500/80">{stats.deliveries}</span>
-              </>
-            )}
+            {!sidebarCollapsed && (<><span className={`flex-1 font-medium ${textSizeClasses.base}`}>Deliveries</span><span className="px-2 py-0.5 rounded-full text-xs bg-blue-500/80">{stats.deliveries}</span></>)}
           </div>
 
-          {/* Divider */}
           <div className="h-px bg-slate-700/50 my-3 mx-3"></div>
 
-          {/* Discharge List */}
           <div onClick={() => { setShowDischargeList(!showDischargeList); if (!showDischargeList) fetchDischargedPatients(); }} 
                className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${showDischargeList ? 'bg-gradient-to-r from-violet-600/70 to-purple-600/70 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all`}>
             <span className="text-xl">📋</span>
             {!sidebarCollapsed && <span className={`flex-1 font-medium ${textSizeClasses.base}`}>Discharge List</span>}
           </div>
 
-          {/* Divider */}
           <div className="h-px bg-slate-700/50 my-3 mx-3"></div>
 
-          {/* My Schedule */}
           <div onClick={() => { setShowDischargeList(false); handleTabChange('schedule', true); }}
                className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${showScheduleView ? 'bg-gradient-to-r from-violet-600/70 to-purple-600/70 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all`}>
             <span className="text-xl">📅</span>
             {!sidebarCollapsed && <span className={`flex-1 font-medium ${textSizeClasses.base}`}>My Schedule</span>}
           </div>
 
-          {/* Reports Inbox */}
           <div onClick={() => { setShowDischargeList(false); handleTabChange('inbox', false); fetchReportsInbox(); }}
                className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${reportMainTab === 'inbox' && !showDischargeList && !showScheduleView ? 'bg-gradient-to-r from-violet-600/70 to-purple-600/70 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all relative`}>
             <span className="text-xl">📬</span>
-            {!sidebarCollapsed && (
-              <>
-                <span className={`flex-1 font-medium ${textSizeClasses.base}`}>Inbox</span>
-                {unreadReportsCount > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-xs bg-red-500 animate-pulse">{unreadReportsCount}</span>
-                )}
-              </>
-            )}
-            {sidebarCollapsed && unreadReportsCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-[10px] flex items-center justify-center">{unreadReportsCount}</span>
-            )}
+            {!sidebarCollapsed && (<><span className={`flex-1 font-medium ${textSizeClasses.base}`}>Inbox</span>{unreadReportsCount > 0 && (<span className="px-2 py-0.5 rounded-full text-xs bg-red-500 animate-pulse">{unreadReportsCount}</span>)}</>)}
+            {sidebarCollapsed && unreadReportsCount > 0 && (<span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-[10px] flex items-center justify-center">{unreadReportsCount}</span>)}
           </div>
 
-          {/* Sent Reports */}
           <div onClick={() => { setShowDischargeList(false); handleTabChange('outbox', false); fetchReportsOutbox(); }}
                className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${reportMainTab === 'outbox' && !showDischargeList && !showScheduleView ? 'bg-gradient-to-r from-violet-600/70 to-purple-600/70 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all`}>
             <span className="text-xl">📤</span>
             {!sidebarCollapsed && <span className={`flex-1 font-medium ${textSizeClasses.base}`}>Sent Reports</span>}
           </div>
 
-          {/* Statistics */}
           <div onClick={() => { setShowDischargeList(false); handleTabChange('stats', false); }}
                className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${reportMainTab === 'stats' && !showDischargeList && !showScheduleView ? 'bg-gradient-to-r from-violet-600/70 to-purple-600/70 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all`}>
             <span className="text-xl">📊</span>
             {!sidebarCollapsed && <span className={`flex-1 font-medium ${textSizeClasses.base}`}>Statistics</span>}
           </div>
 
-          {/* Profile */}
           <div onClick={() => { setShowDischargeList(false); handleTabChange('profile', false); }}
                className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${reportMainTab === 'profile' && !showDischargeList && !showScheduleView ? 'bg-gradient-to-r from-violet-600/70 to-purple-600/70 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all`}>
             <span className="text-xl">👤</span>
@@ -1134,25 +1025,19 @@ const MidwifeDashboard = ({ user, onLogout }) => {
 
       {/* ==================== MAIN CONTENT ==================== */}
       <div className="flex-1 overflow-y-auto">
-        {/* Header with Stats */}
+        {/* Header */}
         <div className={`bg-gradient-to-r ${currentWard.bgGradient} backdrop-blur-sm py-8 px-10 shadow-xl sticky top-0 z-40`}>
           <div className="max-w-[1600px] mx-auto flex justify-between items-center flex-wrap gap-5">
             <div className="flex items-center gap-5">
-              {/* Back Button */}
               {tabHistory.length > 0 && (
-                <button
-                  onClick={handleGoBack}
-                  className="bg-white/20 backdrop-blur p-3 rounded-xl text-white hover:bg-white/30 transition-all duration-200 shadow-lg flex items-center gap-2 group"
-                  title="Go Back"
-                >
+                <button onClick={handleGoBack} className="bg-white/20 backdrop-blur p-3 rounded-xl text-white hover:bg-white/30 transition-all duration-200 shadow-lg flex items-center gap-2 group">
                   <FaUndo className="text-white text-lg" />
                   <span className={`hidden sm:inline ${textSizeClasses.base}`}>Back</span>
                 </button>
               )}
-              
               <div>
                 <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center text-3xl shadow-lg animate-glow">
+                  <div className="w-14 h-14 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center text-3xl shadow-lg">
                     <span>{currentWard.icon}</span>
                   </div>
                   <div>
@@ -1176,108 +1061,49 @@ const MidwifeDashboard = ({ user, onLogout }) => {
             </div>
             
             <div className="flex items-center gap-4 flex-wrap">
-              {/* Text Size Dropdown */}
               <div className="relative">
-                <button
-                  onClick={() => setShowTextSizeMenu(!showTextSizeMenu)}
-                  className="bg-white/20 backdrop-blur px-4 py-3 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg"
-                  title="Adjust Text Size"
-                >
+                <button onClick={() => setShowTextSizeMenu(!showTextSizeMenu)} className="bg-white/20 backdrop-blur px-4 py-3 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition shadow-lg">
                   <FaTextHeight className="text-lg" />
                   <span className={`hidden md:inline ${textSizeClasses.base}`}>Text Size</span>
                 </button>
-                
                 {showTextSizeMenu && (
                   <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden z-50">
-                    <button onClick={() => { setTextSize('small'); setShowTextSizeMenu(false); }} className={`w-full px-5 py-3 text-left hover:bg-gray-50 transition flex items-center justify-between ${textSize === 'small' ? 'bg-purple-50 text-purple-600' : 'text-gray-700'} ${textSizeClasses.base}`}>
-                      <span>Small</span>
-                      {textSize === 'small' && <FaCheck className="text-purple-500" />}
-                    </button>
-                    <button onClick={() => { setTextSize('normal'); setShowTextSizeMenu(false); }} className={`w-full px-5 py-3 text-left hover:bg-gray-50 transition flex items-center justify-between ${textSize === 'normal' ? 'bg-purple-50 text-purple-600' : 'text-gray-700'} ${textSizeClasses.base}`}>
-                      <span>Normal</span>
-                      {textSize === 'normal' && <FaCheck className="text-purple-500" />}
-                    </button>
-                    <button onClick={() => { setTextSize('large'); setShowTextSizeMenu(false); }} className={`w-full px-5 py-3 text-left hover:bg-gray-50 transition flex items-center justify-between ${textSize === 'large' ? 'bg-purple-50 text-purple-600' : 'text-gray-700'} ${textSizeClasses.base}`}>
-                      <span>Large</span>
-                      {textSize === 'large' && <FaCheck className="text-purple-500" />}
-                    </button>
-                    <button onClick={() => { setTextSize('xlarge'); setShowTextSizeMenu(false); }} className={`w-full px-5 py-3 text-left hover:bg-gray-50 transition flex items-center justify-between ${textSize === 'xlarge' ? 'bg-purple-50 text-purple-600' : 'text-gray-700'} ${textSizeClasses.base}`}>
-                      <span>Extra Large</span>
-                      {textSize === 'xlarge' && <FaCheck className="text-purple-500" />}
-                    </button>
+                    <button onClick={() => { setTextSize('small'); setShowTextSizeMenu(false); }} className={`w-full px-5 py-3 text-left hover:bg-gray-50 transition ${textSize === 'small' ? 'bg-purple-50 text-purple-600' : 'text-gray-700'} ${textSizeClasses.base}`}>Small {textSize === 'small' && <FaCheck className="float-right text-purple-500" />}</button>
+                    <button onClick={() => { setTextSize('normal'); setShowTextSizeMenu(false); }} className={`w-full px-5 py-3 text-left hover:bg-gray-50 transition ${textSize === 'normal' ? 'bg-purple-50 text-purple-600' : 'text-gray-700'} ${textSizeClasses.base}`}>Normal {textSize === 'normal' && <FaCheck className="float-right text-purple-500" />}</button>
+                    <button onClick={() => { setTextSize('large'); setShowTextSizeMenu(false); }} className={`w-full px-5 py-3 text-left hover:bg-gray-50 transition ${textSize === 'large' ? 'bg-purple-50 text-purple-600' : 'text-gray-700'} ${textSizeClasses.base}`}>Large {textSize === 'large' && <FaCheck className="float-right text-purple-500" />}</button>
+                    <button onClick={() => { setTextSize('xlarge'); setShowTextSizeMenu(false); }} className={`w-full px-5 py-3 text-left hover:bg-gray-50 transition ${textSize === 'xlarge' ? 'bg-purple-50 text-purple-600' : 'text-gray-700'} ${textSizeClasses.base}`}>Extra Large {textSize === 'xlarge' && <FaCheck className="float-right text-purple-500" />}</button>
                   </div>
                 )}
               </div>
 
-              {/* Google Search Button */}
-              <button onClick={() => setShowSearchBar(!showSearchBar)}
-                      className="bg-white/20 backdrop-blur px-5 py-3 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition shadow-lg font-medium">
+              <button onClick={() => setShowSearchBar(!showSearchBar)} className="bg-white/20 backdrop-blur px-5 py-3 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition shadow-lg font-medium">
                 <FaSearch /> <span className="hidden sm:inline">Medical Search</span>
               </button>
 
-              {/* Send Report Button */}
-              <button onClick={() => { setShowSendReportModal(true); fetchHospitalAdmins(); fetchDoctors(); fetchPharmacyStaff(); fetchLabStaff(); }}
-                      className="bg-white/20 backdrop-blur px-5 py-3 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition shadow-lg font-medium">
+              <button onClick={() => { setShowSendReportModal(true); fetchHospitalAdmins(); fetchDoctors(); fetchPharmacyStaff(); fetchLabStaff(); }} className="bg-white/20 backdrop-blur px-5 py-3 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition shadow-lg font-medium">
                 <FaPaperPlane /> <span className="hidden sm:inline">Send Report</span>
               </button>
               
-              {/* Socket Status Indicator */}
               <SocketStatusIndicator />
               
-              {/* Stats Display in Header */}
               <div className="flex gap-5 bg-white/10 backdrop-blur py-3 px-6 rounded-full">
-                <div className="text-center">
-                  <div className={`font-bold text-white ${textSizeClasses.title}`}>{stats.antenatal}</div>
-                  <div className="text-xs text-white/70 uppercase tracking-wider mt-1">Antenatal</div>
-                </div>
+                <div className="text-center"><div className={`font-bold text-white ${textSizeClasses.title}`}>{stats.antenatal}</div><div className="text-xs text-white/70 uppercase tracking-wider mt-1">Antenatal</div></div>
                 <div className="w-px h-10 bg-white/30" />
-                <div className="text-center">
-                  <div className={`font-bold text-white ${textSizeClasses.title}`}>{stats.postnatal}</div>
-                  <div className="text-xs text-white/70 uppercase tracking-wider mt-1">Postnatal</div>
-                </div>
+                <div className="text-center"><div className={`font-bold text-white ${textSizeClasses.title}`}>{stats.postnatal}</div><div className="text-xs text-white/70 uppercase tracking-wider mt-1">Postnatal</div></div>
                 <div className="w-px h-10 bg-white/30" />
-                <div className="text-center">
-                  <div className={`font-bold text-white ${textSizeClasses.title}`}>{stats.deliveries}</div>
-                  <div className="text-xs text-white/70 uppercase tracking-wider mt-1">Deliveries</div>
-                </div>
-                {stats.highRisk > 0 && (
-                  <>
-                    <div className="w-px h-10 bg-white/30" />
-                    <div className="text-center">
-                      <div className={`font-bold text-white ${textSizeClasses.title}`}>{stats.highRisk}</div>
-                      <div className="text-xs text-white/70 uppercase tracking-wider mt-1">High Risk</div>
-                    </div>
-                  </>
-                )}
+                <div className="text-center"><div className={`font-bold text-white ${textSizeClasses.title}`}>{stats.deliveries}</div><div className="text-xs text-white/70 uppercase tracking-wider mt-1">Deliveries</div></div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Google Search Bar - Animated */}
+        {/* Search Bar */}
         <AnimatePresence>
           {showSearchBar && (
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="bg-white shadow-xl p-6 border-b border-gray-100"
-            >
+            <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="bg-white shadow-xl p-6 border-b border-gray-100">
               <div className="max-w-2xl mx-auto flex gap-4">
-                <input
-                  type="text"
-                  placeholder="Search midwifery and obstetric medical information on Google..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  className={`flex-1 px-5 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all ${textSizeClasses.base}`}
-                />
-                <button
-                  onClick={handleGoogleSearch}
-                  className="px-6 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 font-medium"
-                >
-                  Search Google
-                </button>
+                <input type="text" placeholder="Search midwifery and obstetric medical information on Google..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyPress={handleKeyPress} className={`flex-1 px-5 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 ${textSizeClasses.base}`} />
+                <button onClick={handleGoogleSearch} className="px-6 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl hover:shadow-lg transition font-medium">Search Google</button>
               </div>
             </motion.div>
           )}
@@ -1285,14 +1111,14 @@ const MidwifeDashboard = ({ user, onLogout }) => {
 
         {/* Message Toast */}
         {message.text && (
-          <div className={`fixed bottom-8 right-8 z-[1000] ${message.type === 'error' ? 'bg-red-100 text-red-800 border-red-400' : 'bg-green-100 text-green-800 border-green-400'} py-3 px-6 rounded-lg shadow-md border-l-4 animate-slide-in ${textSizeClasses.base}`}>
+          <div className={`fixed bottom-8 right-8 z-[1000] ${message.type === 'error' ? 'bg-red-100 text-red-800 border-red-400' : 'bg-green-100 text-green-800 border-green-400'} py-3 px-6 rounded-lg shadow-md border-l-4 ${textSizeClasses.base}`}>
             {message.text}
           </div>
         )}
 
-        {/* Main Content Area */}
+        {/* Main Content */}
         <div className="max-w-[1600px] mx-auto p-10">
-          {/* My Schedule View */}
+          {/* Schedule View */}
           {showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8">
               <div className="flex justify-between items-center mb-6">
@@ -1300,26 +1126,15 @@ const MidwifeDashboard = ({ user, onLogout }) => {
                   <div className="w-12 h-12 bg-gradient-to-r from-violet-500/70 to-purple-500/70 rounded-xl flex items-center justify-center shadow-lg">
                     <FaCalendarAlt className="text-white text-xl" />
                   </div>
-                  <div>
-                    <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>My Work Schedule</h2>
-                    <p className={`text-gray-500 ${textSizeClasses.base}`}>View your upcoming shifts and weekly schedule</p>
-                  </div>
+                  <div><h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>My Work Schedule</h2><p className={`text-gray-500 ${textSizeClasses.base}`}>View your upcoming shifts and weekly schedule</p></div>
                 </div>
-                <button 
-                  onClick={() => {
-                    const event = new CustomEvent('refreshSchedule');
-                    window.dispatchEvent(event);
-                  }}
-                  className={`px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition font-medium flex items-center gap-2 ${textSizeClasses.base}`}
-                >
-                  <FaSync className="text-sm" /> Refresh
-                </button>
+                <button onClick={() => { const event = new CustomEvent('refreshSchedule'); window.dispatchEvent(event); }} className={`px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition font-medium flex items-center gap-2 ${textSizeClasses.base}`}><FaSync className="text-sm" /> Refresh</button>
               </div>
               <ScheduleViewer user={user} compact={false} />
             </div>
           )}
 
-          {/* Discharge List View */}
+          {/* Discharge List */}
           {showDischargeList && !showScheduleView && (
             <DischargeList hospitalId={user?.hospital_id} ward="ANC" dischargedPatients={dischargedPatients} onRefresh={fetchDischargedPatients} />
           )}
@@ -1327,19 +1142,11 @@ const MidwifeDashboard = ({ user, onLogout }) => {
           {/* Patient List Views */}
           {(reportMainTab === 'antenatal' || reportMainTab === 'postnatal' || reportMainTab === 'high-risk' || reportMainTab === 'deliveries') && !showDischargeList && !showScheduleView && (
             <>
-              {/* Search Bar */}
               <div className="mb-6 relative">
                 <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search by patient name or card number..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className={`w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white ${textSizeClasses.base}`}
-                />
+                <input type="text" placeholder="Search by patient name or card number..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white ${textSizeClasses.base}`} />
               </div>
 
-              {/* Patient Cards */}
               <div className="bg-white rounded-2xl p-8 shadow-md border border-gray-100">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>
@@ -1348,17 +1155,10 @@ const MidwifeDashboard = ({ user, onLogout }) => {
                     {reportMainTab === 'high-risk' && '⚠️ High Risk Pregnancies'}
                     {reportMainTab === 'deliveries' && '🏥 Recent Deliveries'}
                   </h2>
-                  <button onClick={() => { fetchPatients(); fetchStats(); }} className={`px-4 py-2 bg-gray-100 rounded-xl hover:bg-gray-200 flex items-center gap-2 ${textSizeClasses.base}`}>
-                    <FaSpinner className={loading ? 'animate-spin' : ''} /> Refresh
-                  </button>
+                  <button onClick={() => { fetchPatients(); fetchStats(); }} className={`px-4 py-2 bg-gray-100 rounded-xl hover:bg-gray-200 flex items-center gap-2 ${textSizeClasses.base}`}><FaSpinner className={loading ? 'animate-spin' : ''} /> Refresh</button>
                 </div>
                 
-                {loading && filteredPatients.length === 0 ? (
-                  <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                    <FaSpinner className="animate-spin text-3xl text-purple-500 mx-auto mb-3" />
-                    <p className={`text-gray-500 ${textSizeClasses.base}`}>Loading patients...</p>
-                  </div>
-                ) : filteredPatients.length === 0 ? (
+                {filteredPatients.length === 0 ? (
                   <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
                     <span className="text-6xl block mb-4">🤰</span>
                     <p className={`text-gray-500 ${textSizeClasses.base}`}>No patients found</p>
@@ -1374,21 +1174,12 @@ const MidwifeDashboard = ({ user, onLogout }) => {
                             <div className="flex items-center gap-3 mb-3 flex-wrap">
                               <span className={`px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 ${textSizeClasses.base}`}>{weeks} weeks</span>
                               <span className={`px-3 py-1 rounded-full text-xs font-medium ${getRiskLevelColor(isHighRisk)} ${textSizeClasses.base}`}>{getRiskLevelText(isHighRisk)}</span>
-                              {patient.antenatal_data?.edd && (
-                                <span className={`px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 ${textSizeClasses.base}`}>
-                                  EDD: {new Date(patient.antenatal_data.edd).toLocaleDateString()}
-                                </span>
-                              )}
+                              {patient.antenatal_data?.edd && (<span className={`px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 ${textSizeClasses.base}`}>EDD: {new Date(patient.antenatal_data.edd).toLocaleDateString()}</span>)}
                             </div>
                             <h3 className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{patient.first_name} {patient.middle_name} {patient.last_name}</h3>
                             <p className={`text-gray-500 mt-1 ${textSizeClasses.base}`}>Card: {patient.card_number} • Age: {patient.age} yrs • G{patient.antenatal_data?.gravida || '?'} P{patient.antenatal_data?.para || '?'}</p>
-                            {patient.antenatal_data?.risk_factors?.length > 0 && (
-                              <p className={`text-red-600 mt-2 ${textSizeClasses.base}`}>⚠️ Risk: {patient.antenatal_data.risk_factors.join(', ')}</p>
-                            )}
                           </div>
-                          <button onClick={() => handleTakePatient(patient)} disabled={loading} className={`py-3 px-8 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl hover:shadow-lg transition font-semibold ml-5 ${textSizeClasses.base}`}>
-                            <FaEye className="inline mr-2" /> View Care
-                          </button>
+                          <button onClick={() => handleTakePatient(patient)} disabled={loading} className={`py-3 px-8 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl hover:shadow-lg transition font-semibold ml-5 ${textSizeClasses.base}`}><FaEye className="inline mr-2" /> View Care</button>
                         </div>
                       );
                     })}
@@ -1398,38 +1189,25 @@ const MidwifeDashboard = ({ user, onLogout }) => {
             </>
           )}
 
-          {/* Reports Inbox View */}
+          {/* Reports Inbox */}
           {reportMainTab === 'inbox' && !showScheduleView && (
             <div className="bg-white rounded-2xl p-8 shadow-md border border-gray-100">
               <div className="flex justify-between items-center mb-6">
                 <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>📬 Reports Inbox</h2>
-                <button onClick={fetchReportsInbox} className={`px-4 py-2 bg-gray-100 rounded-xl hover:bg-gray-200 flex items-center gap-2 ${textSizeClasses.base}`}>
-                  <FaSpinner className={reportsLoading ? 'animate-spin' : ''} /> Refresh
-                </button>
+                <button onClick={fetchReportsInbox} className={`px-4 py-2 bg-gray-100 rounded-xl hover:bg-gray-200 flex items-center gap-2 ${textSizeClasses.base}`}><FaSpinner className={reportsLoading ? 'animate-spin' : ''} /> Refresh</button>
               </div>
               {reportsInbox.length === 0 ? (
-                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                  <span className="text-6xl block mb-4">📭</span>
-                  <p className={`text-gray-500 ${textSizeClasses.base}`}>No reports in inbox</p>
-                </div>
+                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200"><span className="text-6xl block mb-4">📭</span><p className={`text-gray-500 ${textSizeClasses.base}`}>No reports in inbox</p></div>
               ) : (
                 <div className="grid gap-5">
                   {reportsInbox.map(report => (
                     <div key={report.id} className={`border rounded-xl p-6 cursor-pointer hover:shadow-md transition-all ${!report.is_opened ? 'border-purple-300 bg-purple-50' : 'border-gray-200 bg-white'}`} onClick={() => viewReportDetails(report)}>
                       <div className="flex justify-between items-start mb-4">
-                        <div className="flex items-center gap-3">
-                          {!report.is_opened ? <FaEnvelope className="text-purple-500 text-lg" /> : <FaEnvelopeOpen className="text-gray-400 text-lg" />}
-                          <h3 className={`font-semibold text-gray-800 ${textSizeClasses.heading}`}>{report.title}</h3>
-                        </div>
-                        <span className={`px-3 py-1 rounded-full text-sm font-semibold ${report.priority === 'urgent' ? 'bg-red-100 text-red-800' : report.priority === 'high' ? 'bg-orange-100 text-orange-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                          {report.priority}
-                        </span>
+                        <div className="flex items-center gap-3">{!report.is_opened ? <FaEnvelope className="text-purple-500 text-lg" /> : <FaEnvelopeOpen className="text-gray-400 text-lg" />}<h3 className={`font-semibold text-gray-800 ${textSizeClasses.heading}`}>{report.title}</h3></div>
+                        <span className={`px-3 py-1 rounded-full text-sm font-semibold ${report.priority === 'urgent' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>{report.priority}</span>
                       </div>
                       <p className={`text-gray-600 mb-3 line-clamp-2 ${textSizeClasses.base}`}>{report.body}</p>
-                      <div className={`flex justify-between items-center text-gray-500 ${textSizeClasses.base}`}>
-                        <span>From: {report.sender_full_name}</span>
-                        <span>{new Date(report.sent_at).toLocaleString()}</span>
-                      </div>
+                      <div className={`flex justify-between items-center text-gray-500 ${textSizeClasses.base}`}><span>From: {report.sender_full_name}</span><span>{new Date(report.sent_at).toLocaleString()}</span></div>
                     </div>
                   ))}
                 </div>
@@ -1437,31 +1215,19 @@ const MidwifeDashboard = ({ user, onLogout }) => {
             </div>
           )}
 
-          {/* Sent Reports View */}
+          {/* Sent Reports */}
           {reportMainTab === 'outbox' && !showScheduleView && (
             <div className="bg-white rounded-2xl p-8 shadow-md border border-gray-100">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>📤 Sent Reports</h2>
-                <button onClick={fetchReportsOutbox} className={`px-4 py-2 bg-gray-100 rounded-xl hover:bg-gray-200 ${textSizeClasses.base}`}>Refresh</button>
-              </div>
+              <div className="flex justify-between items-center mb-6"><h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>📤 Sent Reports</h2><button onClick={fetchReportsOutbox} className={`px-4 py-2 bg-gray-100 rounded-xl hover:bg-gray-200 ${textSizeClasses.base}`}>Refresh</button></div>
               {reportsOutbox.length === 0 ? (
-                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                  <span className="text-6xl block mb-4">📪</span>
-                  <p className={`text-gray-500 ${textSizeClasses.base}`}>No sent reports</p>
-                </div>
+                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200"><span className="text-6xl block mb-4">📪</span><p className={`text-gray-500 ${textSizeClasses.base}`}>No sent reports</p></div>
               ) : (
                 <div className="grid gap-5">
                   {reportsOutbox.map(report => (
                     <div key={report.id} className="border border-gray-200 rounded-xl p-6 cursor-pointer hover:shadow-md bg-white" onClick={() => viewReportDetails(report)}>
-                      <div className="flex justify-between items-start mb-4">
-                        <h3 className={`font-semibold text-gray-800 ${textSizeClasses.heading}`}>{report.title}</h3>
-                        <span className={`px-3 py-1 rounded-full text-sm font-semibold ${report.priority === 'urgent' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>{report.priority}</span>
-                      </div>
+                      <div className="flex justify-between items-start mb-4"><h3 className={`font-semibold text-gray-800 ${textSizeClasses.heading}`}>{report.title}</h3><span className={`px-3 py-1 rounded-full text-sm font-semibold ${report.priority === 'urgent' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>{report.priority}</span></div>
                       <p className={`text-gray-600 mb-3 line-clamp-2 ${textSizeClasses.base}`}>{report.body}</p>
-                      <div className={`flex justify-between items-center text-gray-500 ${textSizeClasses.base}`}>
-                        <span>To: {report.recipient_full_name}</span>
-                        <span>Sent: {new Date(report.sent_at).toLocaleString()}</span>
-                      </div>
+                      <div className={`flex justify-between items-center text-gray-500 ${textSizeClasses.base}`}><span>To: {report.recipient_full_name}</span><span>Sent: {new Date(report.sent_at).toLocaleString()}</span></div>
                     </div>
                   ))}
                 </div>
@@ -1469,99 +1235,36 @@ const MidwifeDashboard = ({ user, onLogout }) => {
             </div>
           )}
 
-          {/* Statistics View */}
+          {/* Statistics */}
           {reportMainTab === 'stats' && !showScheduleView && (
             <div className="bg-white rounded-2xl p-8 shadow-md border border-gray-100">
               <h2 className={`font-bold text-gray-800 mb-6 ${textSizeClasses.heading}`}>📊 Midwife Statistics</h2>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-6">
-                <div className="bg-gradient-to-br from-violet-500 to-purple-500 rounded-2xl p-5 text-white shadow-lg">
-                  <p className={`text-sm opacity-90 mb-1 ${textSizeClasses.base}`}>Active Patients</p>
-                  <p className={`font-bold ${textSizeClasses.title}`}>{stats.antenatal + stats.postnatal}</p>
-                </div>
-                <div className="bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl p-5 text-white shadow-lg">
-                  <p className={`text-sm opacity-90 mb-1 ${textSizeClasses.base}`}>Total Deliveries</p>
-                  <p className={`font-bold ${textSizeClasses.title}`}>{stats.deliveries}</p>
-                </div>
-                <div className="bg-gradient-to-br from-red-500 to-rose-500 rounded-2xl p-5 text-white shadow-lg">
-                  <p className={`text-sm opacity-90 mb-1 ${textSizeClasses.base}`}>High Risk</p>
-                  <p className={`font-bold ${textSizeClasses.title}`}>{stats.highRisk}</p>
-                </div>
-                <div className="bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl p-5 text-white shadow-lg">
-                  <p className={`text-sm opacity-90 mb-1 ${textSizeClasses.base}`}>Due This Week</p>
-                  <p className={`font-bold ${textSizeClasses.title}`}>{stats.dueThisWeek}</p>
-                </div>
-              </div>
-              <div className="bg-gray-50 rounded-xl p-6 text-center">
-                <p className={`text-gray-500 ${textSizeClasses.base}`}>Today's Summary: {stats.antenatal} antenatal, {stats.postnatal} postnatal patients</p>
-                <p className={`text-xs text-gray-400 mt-2 ${textSizeClasses.base}`}>Pending pharmacy prescriptions: {stats.pendingPharmacy}</p>
+                <div className="bg-gradient-to-br from-violet-500 to-purple-500 rounded-2xl p-5 text-white shadow-lg"><p className={`text-sm opacity-90 mb-1 ${textSizeClasses.base}`}>Active Patients</p><p className={`font-bold ${textSizeClasses.title}`}>{stats.antenatal + stats.postnatal}</p></div>
+                <div className="bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl p-5 text-white shadow-lg"><p className={`text-sm opacity-90 mb-1 ${textSizeClasses.base}`}>Total Deliveries</p><p className={`font-bold ${textSizeClasses.title}`}>{stats.deliveries}</p></div>
+                <div className="bg-gradient-to-br from-red-500 to-rose-500 rounded-2xl p-5 text-white shadow-lg"><p className={`text-sm opacity-90 mb-1 ${textSizeClasses.base}`}>High Risk</p><p className={`font-bold ${textSizeClasses.title}`}>{stats.highRisk}</p></div>
+                <div className="bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl p-5 text-white shadow-lg"><p className={`text-sm opacity-90 mb-1 ${textSizeClasses.base}`}>Due This Week</p><p className={`font-bold ${textSizeClasses.title}`}>{stats.dueThisWeek}</p></div>
               </div>
             </div>
           )}
 
-          {/* Profile View */}
+          {/* Profile */}
           {reportMainTab === 'profile' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
               <div className="bg-gradient-to-r from-violet-600/70 to-purple-600/70 px-10 py-12">
                 <div className="flex items-center gap-8">
-                  <div className="w-28 h-28 bg-white rounded-full flex items-center justify-center shadow-xl">
-                    <FaUserCircle className="text-violet-600 text-7xl" />
-                  </div>
-                  <div className="text-white">
-                    <h2 className={`font-bold mb-2 ${textSizeClasses.title}`}>
-                      {profileData.first_name} {profileData.middle_name ? profileData.middle_name + ' ' : ''}{profileData.last_name}
-                    </h2>
-                    <p className={`text-violet-100 flex items-center gap-3 ${textSizeClasses.base}`}>
-                      <FaBaby className="text-lg" /> {profileData.department || 'Midwife'} • ANC Ward
-                    </p>
-                    <p className={`text-violet-100 mt-2 opacity-80 ${textSizeClasses.base}`}>{user?.hospital_name}</p>
-                  </div>
+                  <div className="w-28 h-28 bg-white rounded-full flex items-center justify-center shadow-xl"><FaUserCircle className="text-violet-600 text-7xl" /></div>
+                  <div className="text-white"><h2 className={`font-bold mb-2 ${textSizeClasses.title}`}>{profileData.first_name} {profileData.middle_name ? profileData.middle_name + ' ' : ''}{profileData.last_name}</h2><p className={`text-violet-100 flex items-center gap-3 ${textSizeClasses.base}`}><FaBaby className="text-lg" /> {profileData.department || 'Midwife'} • ANC Ward</p><p className={`text-violet-100 mt-2 opacity-80 ${textSizeClasses.base}`}>{user?.hospital_name}</p></div>
                 </div>
               </div>
               <div className="p-10">
                 <div className="flex justify-between items-center mb-8">
                   <h3 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>Professional Information</h3>
-                  {!isEditingProfile ? (
-                    <button onClick={() => setIsEditingProfile(true)} 
-                      className={`flex items-center gap-2 px-5 py-2 bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition font-medium ${textSizeClasses.base}`}>
-                      <FaEditIcon /> Edit Profile
-                    </button>
-                  ) : (
-                    <div className="flex gap-3">
-                      <button onClick={() => setIsEditingProfile(false)} 
-                        className={`px-5 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition ${textSizeClasses.base}`}>
-                        Cancel
-                      </button>
-                      <button onClick={updateProfile} 
-                        className={`flex items-center gap-2 px-5 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition ${textSizeClasses.base}`}>
-                        <FaSave /> Save
-                      </button>
-                    </div>
-                  )}
+                  {!isEditingProfile ? <button onClick={() => setIsEditingProfile(true)} className={`flex items-center gap-2 px-5 py-2 bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition font-medium ${textSizeClasses.base}`}><FaEditIcon /> Edit Profile</button> : <div className="flex gap-3"><button onClick={() => setIsEditingProfile(false)} className={`px-5 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition ${textSizeClasses.base}`}>Cancel</button><button onClick={updateProfile} className={`flex items-center gap-2 px-5 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition ${textSizeClasses.base}`}><FaSave /> Save</button></div>}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="bg-gray-50 rounded-xl p-6">
-                    <h4 className={`font-semibold text-violet-600 mb-5 flex items-center gap-2 ${textSizeClasses.base}`}><FaUserCircle /> Personal Info</h4>
-                    <div className="space-y-4">
-                      <div><label className={`text-gray-500 ${textSizeClasses.base}`}>First Name</label>{isEditingProfile ? (<input type="text" value={profileData.first_name} onChange={(e) => setProfileData({...profileData, first_name: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.first_name || 'Not set'}</p>)}</div>
-                      <div><label className={`text-gray-500 ${textSizeClasses.base}`}>Last Name</label>{isEditingProfile ? (<input type="text" value={profileData.last_name} onChange={(e) => setProfileData({...profileData, last_name: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.last_name || 'Not set'}</p>)}</div>
-                      <div><label className={`text-gray-500 ${textSizeClasses.base}`}>Phone</label>{isEditingProfile ? (<input type="tel" value={profileData.phone} onChange={(e) => setProfileData({...profileData, phone: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.phone || 'Not set'}</p>)}</div>
-                    </div>
-                  </div>
-                  <div className="bg-gray-50 rounded-xl p-6">
-                    <h4 className={`font-semibold text-violet-600 mb-5 flex items-center gap-2 ${textSizeClasses.base}`}><FaKey /> Account Settings</h4>
-                    <button onClick={() => setShowPasswordModal(true)} className={`flex items-center gap-2 px-6 py-3 border border-violet-600 text-violet-600 rounded-xl hover:bg-violet-50 transition ${textSizeClasses.base}`}>
-                      <FaKey /> Change Password
-                    </button>
-                    <div className="mt-6 pt-4 border-t border-gray-200">
-                      <h5 className={`text-sm font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Account Info</h5>
-                      <div className={`space-y-2 ${textSizeClasses.base}`}>
-                        <div className="flex justify-between"><span className="text-gray-500">Role:</span><span className="text-gray-800 font-medium">Midwife</span></div>
-                        <div className="flex justify-between"><span className="text-gray-500">Department:</span><span className="text-gray-800">{profileData.department || 'Midwife'}</span></div>
-                        <div className="flex justify-between"><span className="text-gray-500">Ward:</span><span className="text-gray-800">ANC</span></div>
-                        <div className="flex justify-between"><span className="text-gray-500">Status:</span><span className="text-green-600">● Active</span></div>
-                      </div>
-                    </div>
-                  </div>
+                  <div className="bg-gray-50 rounded-xl p-6"><h4 className={`font-semibold text-violet-600 mb-5 flex items-center gap-2 ${textSizeClasses.base}`}><FaUserCircle /> Personal Info</h4><div className="space-y-4"><div><label className={`text-gray-500 ${textSizeClasses.base}`}>First Name</label>{isEditingProfile ? <input type="text" value={profileData.first_name} onChange={(e) => setProfileData({...profileData, first_name: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} /> : <p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.first_name || 'Not set'}</p>}</div><div><label className={`text-gray-500 ${textSizeClasses.base}`}>Last Name</label>{isEditingProfile ? <input type="text" value={profileData.last_name} onChange={(e) => setProfileData({...profileData, last_name: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} /> : <p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.last_name || 'Not set'}</p>}</div><div><label className={`text-gray-500 ${textSizeClasses.base}`}>Phone</label>{isEditingProfile ? <input type="tel" value={profileData.phone} onChange={(e) => setProfileData({...profileData, phone: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} /> : <p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.phone || 'Not set'}</p>}</div></div></div>
+                  <div className="bg-gray-50 rounded-xl p-6"><h4 className={`font-semibold text-violet-600 mb-5 flex items-center gap-2 ${textSizeClasses.base}`}><FaKey /> Account Settings</h4><button onClick={() => setShowPasswordModal(true)} className={`flex items-center gap-2 px-6 py-3 border border-violet-600 text-violet-600 rounded-xl hover:bg-violet-50 transition ${textSizeClasses.base}`}><FaKey /> Change Password</button><div className="mt-6 pt-4 border-t border-gray-200"><h5 className={`text-sm font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Account Info</h5><div className={`space-y-2 ${textSizeClasses.base}`}><div className="flex justify-between"><span className="text-gray-500">Role:</span><span className="text-gray-800 font-medium">Midwife</span></div><div className="flex justify-between"><span className="text-gray-500">Department:</span><span className="text-gray-800">{profileData.department || 'Midwife'}</span></div><div className="flex justify-between"><span className="text-gray-500">Ward:</span><span className="text-gray-800">ANC</span></div><div className="flex justify-between"><span className="text-gray-500">Status:</span><span className="text-green-600">● Active</span></div></div></div></div>
                 </div>
               </div>
             </div>
@@ -1571,129 +1274,17 @@ const MidwifeDashboard = ({ user, onLogout }) => {
         {/* Send Report Modal */}
         <AnimatePresence>
           {showSendReportModal && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                       className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowSendReportModal(false)}>
-              <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-                         className="bg-white rounded-2xl p-8 max-w-lg w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                <div className="flex justify-between items-center mb-5">
-                  <h2 className={`font-bold text-gray-800 flex items-center gap-2 ${textSizeClasses.title}`}>
-                    <FaPaperPlane className="text-purple-500" /> Send Report
-                  </h2>
-                  <button onClick={() => setShowSendReportModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
-                </div>
-                
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowSendReportModal(false)}>
+              <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} className="bg-white rounded-2xl p-8 max-w-lg w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-5"><h2 className={`font-bold text-gray-800 flex items-center gap-2 ${textSizeClasses.title}`}><FaPaperPlane className="text-purple-500" /> Send Report</h2><button onClick={() => setShowSendReportModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button></div>
                 <form onSubmit={handleSendReport} className="space-y-5">
-                  <div>
-                    <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Recipient Type</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <label className="flex items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-gray-50">
-                        <input type="radio" value="hospital_admin" checked={sendReportForm.recipient_type === 'hospital_admin'}
-                               onChange={(e) => setSendReportForm({...sendReportForm, recipient_type: e.target.value, recipient_id: ''})} />
-                        <span className={textSizeClasses.base}>🏢 Hospital Admin</span>
-                      </label>
-                      <label className="flex items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-gray-50">
-                        <input type="radio" value="doctor" checked={sendReportForm.recipient_type === 'doctor'}
-                               onChange={(e) => setSendReportForm({...sendReportForm, recipient_type: e.target.value, recipient_id: ''})} />
-                        <span className={textSizeClasses.base}>👨‍⚕️ Doctor</span>
-                      </label>
-                      <label className="flex items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-gray-50">
-                        <input type="radio" value="pharmacy" checked={sendReportForm.recipient_type === 'pharmacy'}
-                               onChange={(e) => setSendReportForm({...sendReportForm, recipient_type: e.target.value, recipient_id: ''})} />
-                        <span className={textSizeClasses.base}>💊 Pharmacy</span>
-                      </label>
-                      <label className="flex items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-gray-50">
-                        <input type="radio" value="lab" checked={sendReportForm.recipient_type === 'lab'}
-                               onChange={(e) => setSendReportForm({...sendReportForm, recipient_type: e.target.value, recipient_id: ''})} />
-                        <span className={textSizeClasses.base}>🔬 Lab</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Recipient *</label>
-                    <select value={sendReportForm.recipient_id} onChange={(e) => setSendReportForm({...sendReportForm, recipient_id: e.target.value})}
-                            className={`w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 ${textSizeClasses.base}`} required>
-                      <option value="">Select Recipient...</option>
-                      {sendReportForm.recipient_type === 'hospital_admin' && hospitalAdmins.map(admin => (
-                        <option key={admin.id} value={admin.id}>{admin.full_name} - {admin.hospital_name}</option>
-                      ))}
-                      {sendReportForm.recipient_type === 'doctor' && doctors.map(doc => (
-                        <option key={doc.id} value={doc.id}>Dr. {doc.full_name} - {doc.specialization || doc.ward} Ward</option>
-                      ))}
-                      {sendReportForm.recipient_type === 'pharmacy' && pharmacyStaff.map(pharm => (
-                        <option key={pharm.id} value={pharm.id}>{pharm.full_name} - Pharmacy</option>
-                      ))}
-                      {sendReportForm.recipient_type === 'lab' && labStaff.map(lab => (
-                        <option key={lab.id} value={lab.id}>{lab.full_name} - Lab</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Priority</label>
-                    <select value={sendReportForm.priority} onChange={(e) => setSendReportForm({...sendReportForm, priority: e.target.value})}
-                            className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>
-                      <option value="low">🟢 Low</option>
-                      <option value="medium">🟡 Medium</option>
-                      <option value="high">🟠 High</option>
-                      <option value="urgent">🔴 Urgent</option>
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Title *</label>
-                    <input type="text" value={sendReportForm.title} onChange={(e) => setSendReportForm({...sendReportForm, title: e.target.value})}
-                           placeholder="e.g., Weekly ANC Report" className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} required />
-                  </div>
-                  
-                  <div>
-                    <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Message *</label>
-                    <textarea value={sendReportForm.body} onChange={(e) => setSendReportForm({...sendReportForm, body: e.target.value})}
-                              rows="5" placeholder="Enter report details..." className={`w-full p-3 border border-gray-300 rounded-xl resize-none ${textSizeClasses.base}`} required />
-                  </div>
-
-                  <div>
-                    <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Attachments</label>
-                    <input type="file" ref={fileInputRef} onChange={(e) => {
-                      const files = Array.from(e.target.files);
-                      setSendReportForm(prev => ({ ...prev, attachments: [...prev.attachments, ...files] }));
-                      files.forEach(file => {
-                        if (file.type.startsWith('image/')) {
-                          const reader = new FileReader();
-                          reader.onload = (e) => setAttachmentPreview(prev => [...prev, { name: file.name, url: e.target.result }]);
-                          reader.readAsDataURL(file);
-                        } else {
-                          setAttachmentPreview(prev => [...prev, { name: file.name, url: null }]);
-                        }
-                      });
-                    }} multiple accept="image/*,.pdf" className={`w-full p-2 border border-gray-300 rounded-xl file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 ${textSizeClasses.base}`} />
-                    {attachmentPreview.length > 0 && (
-                      <div className="mt-3 space-y-2">
-                        {attachmentPreview.map((file, idx) => (
-                          <div key={idx} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                            <div className="flex items-center gap-3">
-                              {file.url ? <img src={file.url} alt={file.name} className="w-10 h-10 object-cover rounded" /> : <FaPaperclip className="text-gray-400 text-lg" />}
-                              <span className={`text-gray-600 truncate max-w-[200px] ${textSizeClasses.base}`}>{file.name}</span>
-                            </div>
-                            <button type="button" onClick={() => {
-                              setSendReportForm(prev => ({ ...prev, attachments: prev.attachments.filter((_, i) => i !== idx) }));
-                              setAttachmentPreview(prev => prev.filter((_, i) => i !== idx));
-                            }} className="text-red-500 hover:text-red-700"><FaTrash size={16} /></button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex gap-3 pt-5">
-                    <button type="button" onClick={() => setShowSendReportModal(false)} className={`flex-1 px-4 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition ${textSizeClasses.base}`}>
-                      Cancel
-                    </button>
-                    <button type="submit" disabled={loading} className={`flex-1 px-4 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl hover:shadow-lg transition disabled:opacity-50 flex items-center justify-center gap-2 ${textSizeClasses.base}`}>
-                      {loading ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}
-                      {loading ? 'Sending...' : 'Send Report'}
-                    </button>
-                  </div>
+                  <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Recipient Type</label><div className="grid grid-cols-2 gap-2"><label className="flex items-center gap-2 p-2 border rounded-lg cursor-pointer"><input type="radio" value="hospital_admin" checked={sendReportForm.recipient_type === 'hospital_admin'} onChange={(e) => setSendReportForm({...sendReportForm, recipient_type: e.target.value, recipient_id: ''})} /><span>🏢 Hospital Admin</span></label><label className="flex items-center gap-2 p-2 border rounded-lg cursor-pointer"><input type="radio" value="doctor" checked={sendReportForm.recipient_type === 'doctor'} onChange={(e) => setSendReportForm({...sendReportForm, recipient_type: e.target.value, recipient_id: ''})} /><span>👨‍⚕️ Doctor</span></label><label className="flex items-center gap-2 p-2 border rounded-lg cursor-pointer"><input type="radio" value="pharmacy" checked={sendReportForm.recipient_type === 'pharmacy'} onChange={(e) => setSendReportForm({...sendReportForm, recipient_type: e.target.value, recipient_id: ''})} /><span>💊 Pharmacy</span></label><label className="flex items-center gap-2 p-2 border rounded-lg cursor-pointer"><input type="radio" value="lab" checked={sendReportForm.recipient_type === 'lab'} onChange={(e) => setSendReportForm({...sendReportForm, recipient_type: e.target.value, recipient_id: ''})} /><span>🔬 Lab</span></label></div></div>
+                  <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Recipient *</label><select value={sendReportForm.recipient_id} onChange={(e) => setSendReportForm({...sendReportForm, recipient_id: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 ${textSizeClasses.base}`} required><option value="">Select Recipient...</option>{sendReportForm.recipient_type === 'hospital_admin' && hospitalAdmins.map(admin => <option key={admin.id} value={admin.id}>{admin.full_name} - {admin.hospital_name}</option>)}{sendReportForm.recipient_type === 'doctor' && doctors.map(doc => <option key={doc.id} value={doc.id}>Dr. {doc.full_name} - {doc.specialization || doc.ward} Ward</option>)}{sendReportForm.recipient_type === 'pharmacy' && pharmacyStaff.map(pharm => <option key={pharm.id} value={pharm.id}>{pharm.full_name} - Pharmacy</option>)}{sendReportForm.recipient_type === 'lab' && labStaff.map(lab => <option key={lab.id} value={lab.id}>{lab.full_name} - Lab</option>)}</select></div>
+                  <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Priority</label><select value={sendReportForm.priority} onChange={(e) => setSendReportForm({...sendReportForm, priority: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`}><option value="low">🟢 Low</option><option value="medium">🟡 Medium</option><option value="high">🟠 High</option><option value="urgent">🔴 Urgent</option></select></div>
+                  <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Title *</label><input type="text" value={sendReportForm.title} onChange={(e) => setSendReportForm({...sendReportForm, title: e.target.value})} placeholder="e.g., Weekly ANC Report" className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} required /></div>
+                  <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Message *</label><textarea value={sendReportForm.body} onChange={(e) => setSendReportForm({...sendReportForm, body: e.target.value})} rows="5" placeholder="Enter report details..." className={`w-full p-3 border border-gray-300 rounded-xl resize-none ${textSizeClasses.base}`} required /></div>
+                  <div><label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Attachments</label><input type="file" ref={fileInputRef} onChange={(e) => { const files = Array.from(e.target.files); setSendReportForm(prev => ({ ...prev, attachments: [...prev.attachments, ...files] })); files.forEach(file => { if (file.type.startsWith('image/')) { const reader = new FileReader(); reader.onload = (e) => setAttachmentPreview(prev => [...prev, { name: file.name, url: e.target.result }]); reader.readAsDataURL(file); } else { setAttachmentPreview(prev => [...prev, { name: file.name, url: null }]); } }); }} multiple accept="image/*,.pdf" className={`w-full p-2 border border-gray-300 rounded-xl file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 ${textSizeClasses.base}`} /></div>
+                  <div className="flex gap-3 pt-5"><button type="button" onClick={() => setShowSendReportModal(false)} className={`flex-1 px-4 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition ${textSizeClasses.base}`}>Cancel</button><button type="submit" disabled={loading} className={`flex-1 px-4 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl hover:shadow-lg transition disabled:opacity-50 flex items-center justify-center gap-2 ${textSizeClasses.base}`}>{loading ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}{loading ? 'Sending...' : 'Send Report'}</button></div>
                 </form>
               </motion.div>
             </motion.div>
@@ -1703,43 +1294,13 @@ const MidwifeDashboard = ({ user, onLogout }) => {
         {/* Report Detail Modal */}
         {showReportDetailModal && selectedReport && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-              <div className="p-8">
-                <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-200">
-                  <div className="flex items-center gap-3">
-                    {!selectedReport.is_opened ? <FaEnvelope className="text-purple-500 text-xl" /> : <FaEnvelopeOpen className="text-gray-400 text-xl" />}
-                    <h2 className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{selectedReport.title}</h2>
-                  </div>
-                  <button onClick={() => { setShowReportDetailModal(false); setSelectedReport(null); }} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
-                </div>
-                <div className="space-y-5">
-                  <div className="flex justify-between">
-                    <div>
-                      <p className={`text-sm text-gray-500 ${textSizeClasses.base}`}>From</p>
-                      <p className={`font-semibold text-gray-800 ${textSizeClasses.base}`}>{selectedReport.sender_full_name}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className={`text-sm text-gray-500 ${textSizeClasses.base}`}>Priority</p>
-                      <span className={`px-3 py-1 rounded-full text-sm ${selectedReport.priority === 'urgent' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'} ${textSizeClasses.base}`}>
-                        {selectedReport.priority}
-                      </span>
-                    </div>
-                  </div>
-                  <div>
-                    <p className={`text-sm text-gray-500 ${textSizeClasses.base}`}>Date Received</p>
-                    <p className={`text-gray-700 ${textSizeClasses.base}`}>{new Date(selectedReport.sent_at).toLocaleString()}</p>
-                  </div>
-                  <div className="bg-gray-50 p-5 rounded-xl">
-                    <p className={`text-sm text-gray-500 mb-2 ${textSizeClasses.base}`}>Message</p>
-                    <p className={`whitespace-pre-wrap text-gray-800 ${textSizeClasses.base}`}>{selectedReport.body}</p>
-                  </div>
-                  <div className="flex gap-3 pt-4 border-t border-gray-200">
-                    <button onClick={() => { setShowReportDetailModal(false); setShowReplyModal(true); }} className={`flex-1 px-5 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl flex items-center justify-center gap-2 ${textSizeClasses.base}`}>
-                      <FaReply /> Reply
-                    </button>
-                    <button onClick={() => { setShowReportDetailModal(false); setSelectedReport(null); }} className={`flex-1 px-5 py-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>Close</button>
-                  </div>
-                </div>
+            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-8">
+              <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-200"><div className="flex items-center gap-3">{!selectedReport.is_opened ? <FaEnvelope className="text-purple-500 text-xl" /> : <FaEnvelopeOpen className="text-gray-400 text-xl" />}<h2 className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{selectedReport.title}</h2></div><button onClick={() => { setShowReportDetailModal(false); setSelectedReport(null); }} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button></div>
+              <div className="space-y-5">
+                <div className="flex justify-between"><div><p className={`text-sm text-gray-500 ${textSizeClasses.base}`}>From</p><p className={`font-semibold text-gray-800 ${textSizeClasses.base}`}>{selectedReport.sender_full_name}</p></div><div className="text-right"><p className={`text-sm text-gray-500 ${textSizeClasses.base}`}>Priority</p><span className={`px-3 py-1 rounded-full text-sm ${selectedReport.priority === 'urgent' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>{selectedReport.priority}</span></div></div>
+                <div><p className={`text-sm text-gray-500 ${textSizeClasses.base}`}>Date Received</p><p className={`text-gray-700 ${textSizeClasses.base}`}>{new Date(selectedReport.sent_at).toLocaleString()}</p></div>
+                <div className="bg-gray-50 p-5 rounded-xl"><p className={`text-sm text-gray-500 mb-2 ${textSizeClasses.base}`}>Message</p><p className={`whitespace-pre-wrap text-gray-800 ${textSizeClasses.base}`}>{selectedReport.body}</p></div>
+                <div className="flex gap-3 pt-4 border-t border-gray-200"><button onClick={() => { setShowReportDetailModal(false); setShowReplyModal(true); }} className={`flex-1 px-5 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl flex items-center justify-center gap-2 ${textSizeClasses.base}`}><FaReply /> Reply</button><button onClick={() => { setShowReportDetailModal(false); setSelectedReport(null); }} className={`flex-1 px-5 py-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>Close</button></div>
               </div>
             </div>
           </div>
@@ -1748,31 +1309,12 @@ const MidwifeDashboard = ({ user, onLogout }) => {
         {/* Reply Modal */}
         {showReplyModal && selectedReport && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
-              <div className="p-8">
-                <div className="flex justify-between items-center mb-5">
-                  <h2 className={`font-bold text-gray-800 flex items-center gap-2 ${textSizeClasses.title}`}>
-                    <FaReply className="text-purple-500" /> Reply to Report
-                  </h2>
-                  <button onClick={() => { setShowReplyModal(false); setReplyText(''); setReplyAttachment(null); }} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
-                </div>
-                <div className="mb-4 p-4 bg-gray-50 rounded-xl">
-                  <p className={`text-xs text-gray-500 mb-1 ${textSizeClasses.base}`}>Original Report</p>
-                  <p className={`font-medium text-gray-800 ${textSizeClasses.base}`}>{selectedReport.title}</p>
-                  <p className={`text-xs text-gray-400 mt-1 ${textSizeClasses.base}`}>From: {selectedReport.sender_full_name}</p>
-                </div>
-                <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} rows="5" placeholder="Type your reply here..." className={`w-full p-3 border border-gray-300 rounded-xl resize-none ${textSizeClasses.base}`} />
-                <div className="mt-4">
-                  <label className={`block text-sm font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Attachment (Optional)</label>
-                  <input type="file" onChange={(e) => setReplyAttachment(e.target.files[0])} accept="image/*,.pdf" className={`w-full p-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`} />
-                </div>
-                <div className="flex gap-3 pt-5 mt-2">
-                  <button onClick={() => { setShowReplyModal(false); setReplyText(''); setReplyAttachment(null); }} className={`flex-1 px-5 py-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>Cancel</button>
-                  <button onClick={handleSendReply} disabled={loading} className={`flex-1 px-5 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl flex items-center justify-center gap-2 ${textSizeClasses.base}`}>
-                    {loading ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}{loading ? 'Sending...' : 'Send Reply'}
-                  </button>
-                </div>
-              </div>
+            <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8">
+              <div className="flex justify-between items-center mb-5"><h2 className={`font-bold text-gray-800 flex items-center gap-2 ${textSizeClasses.title}`}><FaReply className="text-purple-500" /> Reply to Report</h2><button onClick={() => { setShowReplyModal(false); setReplyText(''); setReplyAttachment(null); }} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button></div>
+              <div className="mb-4 p-4 bg-gray-50 rounded-xl"><p className={`text-xs text-gray-500 mb-1 ${textSizeClasses.base}`}>Original Report</p><p className={`font-medium text-gray-800 ${textSizeClasses.base}`}>{selectedReport.title}</p><p className={`text-xs text-gray-400 mt-1 ${textSizeClasses.base}`}>From: {selectedReport.sender_full_name}</p></div>
+              <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} rows="5" placeholder="Type your reply here..." className={`w-full p-3 border border-gray-300 rounded-xl resize-none ${textSizeClasses.base}`} />
+              <div className="mt-4"><label className={`block text-sm font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Attachment (Optional)</label><input type="file" onChange={(e) => setReplyAttachment(e.target.files[0])} accept="image/*,.pdf" className={`w-full p-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`} /></div>
+              <div className="flex gap-3 pt-5 mt-2"><button onClick={() => { setShowReplyModal(false); setReplyText(''); setReplyAttachment(null); }} className={`flex-1 px-5 py-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>Cancel</button><button onClick={handleSendReply} disabled={loading} className={`flex-1 px-5 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl flex items-center justify-center gap-2 ${textSizeClasses.base}`}>{loading ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}{loading ? 'Sending...' : 'Send Reply'}</button></div>
             </div>
           </div>
         )}
@@ -1781,19 +1323,8 @@ const MidwifeDashboard = ({ user, onLogout }) => {
         {showPasswordModal && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
-              <div className="flex justify-between items-center mb-5">
-                <h2 className={`font-bold text-gray-800 ${textSizeClasses.title}`}>Change Password</h2>
-                <button onClick={() => setShowPasswordModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
-              </div>
-              <div className="space-y-5">
-                <input type="password" placeholder="Current Password" value={passwordData.current_password} onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} />
-                <input type="password" placeholder="New Password" value={passwordData.new_password} onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} />
-                <input type="password" placeholder="Confirm New Password" value={passwordData.confirm_password} onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} />
-                <div className="flex gap-4 pt-5">
-                  <button onClick={() => setShowPasswordModal(false)} className={`flex-1 px-5 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition ${textSizeClasses.base}`}>Cancel</button>
-                  <button onClick={changePassword} className={`flex-1 px-5 py-3 bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition ${textSizeClasses.base}`}>Change Password</button>
-                </div>
-              </div>
+              <div className="flex justify-between items-center mb-5"><h2 className={`font-bold text-gray-800 ${textSizeClasses.title}`}>Change Password</h2><button onClick={() => setShowPasswordModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button></div>
+              <div className="space-y-5"><input type="password" placeholder="Current Password" value={passwordData.current_password} onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} /><input type="password" placeholder="New Password" value={passwordData.new_password} onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} /><input type="password" placeholder="Confirm New Password" value={passwordData.confirm_password} onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} /><div className="flex gap-4 pt-5"><button onClick={() => setShowPasswordModal(false)} className={`flex-1 px-5 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition ${textSizeClasses.base}`}>Cancel</button><button onClick={changePassword} className={`flex-1 px-5 py-3 bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition ${textSizeClasses.base}`}>Change Password</button></div></div>
             </div>
           </div>
         )}
@@ -1801,15 +1332,5 @@ const MidwifeDashboard = ({ user, onLogout }) => {
     </div>
   );
 };
-
-// Helper function
-function calculateWeeks(lmp) {
-  if (!lmp) return '';
-  const lmpDate = new Date(lmp);
-  const today = new Date();
-  const diffTime = Math.abs(today - lmpDate);
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return Math.floor(diffDays / 7);
-}
 
 export default MidwifeDashboard;
