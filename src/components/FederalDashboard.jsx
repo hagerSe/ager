@@ -656,16 +656,23 @@ const viewReportDetails = async (report) => {
   try {
     console.log("📄 Opening report:", report.id);
     
-    // ✅ Fetch full report details including attachments
+    // ✅ Make sure report.id is a valid number/string
+    const reportId = report.id;
+    if (!reportId) {
+      console.error("No report ID found");
+      alert("Cannot load report: No report ID");
+      return;
+    }
+    
     const token = localStorage.getItem('token');
-    const response = await axios.get(`${API_URL}/federal/reports/${report.id}`, {
+    // ✅ CORRECT: Use backticks ` ` for template literal, NOT curly braces
+    const response = await axios.get(`${API_URL}/federal/reports/${reportId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     
     if (response.data.success) {
       const fullReport = response.data.report;
       
-      // ✅ Parse attachments if they come as string
       let attachments = fullReport.attachments || [];
       if (typeof attachments === 'string') {
         try {
@@ -677,7 +684,6 @@ const viewReportDetails = async (report) => {
         }
       }
       
-      // ✅ Format attachments for display
       const formattedAttachments = attachments.map(att => ({
         filename: att.filename || att.key?.split('/').pop() || 'file',
         originalName: att.originalName || att.filename || 'Unknown',
@@ -695,7 +701,6 @@ const viewReportDetails = async (report) => {
       });
       setShowReportDetailModal(true);
       
-      // Mark as read if not already
       if (!report.is_opened) {
         await markReportAsRead(report.id);
       }
@@ -704,10 +709,9 @@ const viewReportDetails = async (report) => {
     }
   } catch (error) {
     console.error("Error fetching report details:", error);
-    alert("Error loading report details");
+    alert("Error loading report details: " + (error.response?.data?.message || error.message));
   }
 };
-
   const getPriorityBadge = (priority) => {
     const colors = { 
       low: 'bg-teal-100 text-teal-800', 
