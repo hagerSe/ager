@@ -14,9 +14,10 @@ import {
   FaSyringe, FaNotesMedical, FaUserMd, FaPlus, FaEye, FaCheck, FaTimes, FaSync, 
   FaSearch, FaFileAlt, FaBabyCarriage, FaPrescription, FaDiagnoses, FaHospitalUser, 
   FaSignOutAlt, FaBed, FaArrowRight, FaArrowLeft, FaPrint, FaDownload, FaHistory,
-  FaFlask, FaMicroscope, FaClock, FaUserCircle, FaChevronLeft, FaChevronRight,
+  FaFlask, FaMicroscope, FaClock, FaUserCircle, FaChevronLeft, FaChevvronRight,
   FaInbox, FaPaperPlane, FaEnvelope, FaEnvelopeOpen, FaReply, FaKey, FaEdit as FaEditIcon,
-  FaSave, FaChartLine, FaBell, FaUserCheck, FaUserClock, FaBuilding, FaUsers, FaIdCard
+  FaSave, FaChartLine, FaBell, FaUserCheck, FaUserClock, FaBuilding, FaUsers, FaIdCard,
+  FaTextHeight, FaUndo
 } from 'react-icons/fa';
 
 const MidwifeDashboard = ({ user, onLogout }) => {
@@ -34,6 +35,65 @@ const MidwifeDashboard = ({ user, onLogout }) => {
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [searchTerm, setSearchTerm] = useState('');
   const [showScheduleView, setShowScheduleView] = useState(false);
+  
+  // ==================== TEXT SIZE STATE ====================
+  const [textSize, setTextSize] = useState('xlarge');
+  const [showTextSizeMenu, setShowTextSizeMenu] = useState(false);
+  
+  // ==================== LOGOUT CONFIRMATION ====================
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  
+  // ==================== HISTORY FOR BACK NAVIGATION ====================
+  const [tabHistory, setTabHistory] = useState(['antenatal']);
+  const [reportMainTab, setReportMainTab] = useState('antenatal');
+  
+  // ==================== TEXT SIZE STYLES ====================
+  const getTextSizeClasses = () => {
+    switch(textSize) {
+      case 'small':
+        return { base: 'text-sm', heading: 'text-base', title: 'text-lg', large: 'text-sm' };
+      case 'normal':
+        return { base: 'text-base', heading: 'text-lg', title: 'text-xl', large: 'text-base' };
+      case 'large':
+        return { base: 'text-lg', heading: 'text-xl', title: 'text-2xl', large: 'text-lg' };
+      case 'xlarge':
+        return { base: 'text-xl', heading: 'text-2xl', title: 'text-3xl', large: 'text-xl' };
+      default:
+        return { base: 'text-xl', heading: 'text-2xl', title: 'text-3xl', large: 'text-xl' };
+    }
+  };
+  
+  const textSizeClasses = getTextSizeClasses();
+  
+  // Apply text size to body
+  useEffect(() => {
+    document.documentElement.style.fontSize = 
+      textSize === 'small' ? '13px' : 
+      textSize === 'normal' ? '15px' : 
+      textSize === 'large' ? '17px' : '19px';
+  }, [textSize]);
+  
+  // ==================== BACK NAVIGATION HANDLER ====================
+  const handleTabChange = (tab, isSchedule = false) => {
+    if (tab !== reportMainTab || isSchedule !== showScheduleView) {
+      setTabHistory(prev => [...prev, reportMainTab]);
+      setReportMainTab(tab);
+      setShowScheduleView(isSchedule);
+    }
+  };
+  
+  const handleGoBack = () => {
+    if (tabHistory.length > 0) {
+      const previousTab = tabHistory[tabHistory.length - 1];
+      setTabHistory(prev => prev.slice(0, -1));
+      setReportMainTab(previousTab);
+      setShowScheduleView(previousTab === 'schedule');
+    }
+  };
+  
+  // ==================== GOOGLE SEARCH STATE ====================
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearchBar, setShowSearchBar] = useState(false);
   
   // ==================== REFERRAL STATE ====================
   const [showReferralModal, setShowReferralModal] = useState(false);
@@ -157,6 +217,9 @@ const MidwifeDashboard = ({ user, onLogout }) => {
   const [replyAttachment, setReplyAttachment] = useState(null);
   const [showSendReportModal, setShowSendReportModal] = useState(false);
   const [hospitalAdmins, setHospitalAdmins] = useState([]);
+  const [doctors, setDoctors] = useState([]);
+  const [pharmacyStaff, setPharmacyStaff] = useState([]);
+  const [labStaff, setLabStaff] = useState([]);
   const [sendReportForm, setSendReportForm] = useState({
     recipient_type: 'hospital_admin',
     recipient_id: '',
@@ -222,20 +285,13 @@ const MidwifeDashboard = ({ user, onLogout }) => {
     ]
   };
 
-  // Wards for filtering
-  const wards = [
-    { id: 'all', name: 'All Wards', color: '#64748b', icon: '🏥', bgClass: 'bg-gray-100', textClass: 'text-gray-700' },
-    { id: 'ANC', name: 'Antenatal', color: '#8b5cf6', icon: '🤰', bgClass: 'bg-purple-100', textClass: 'text-purple-700' },
-    { id: 'postnatal', name: 'Postnatal', color: '#10b981', icon: '👶', bgClass: 'bg-green-100', textClass: 'text-green-700' }
-  ];
-
-  // Ward configuration for ANC
+  // Ward configuration for Midwife
   const currentWard = {
     title: 'Antenatal Care Dashboard',
     primaryColor: '#8b5cf6',
     secondaryColor: '#a78bfa',
     accentColor: '#7c3aed',
-    bgGradient: 'from-violet-600 to-purple-500',
+    bgGradient: 'from-violet-600/70 to-purple-500/70',
     queueTitle: 'Antenatal Patients',
     icon: '🤰',
     sidebarIcon: '👶',
@@ -287,7 +343,7 @@ const MidwifeDashboard = ({ user, onLogout }) => {
     return (
       <div className={`fixed top-5 left-1/2 transform -translate-x-1/2 z-[10000] px-6 py-2 rounded-full shadow-lg flex items-center gap-3 ${
         connectionStatus === 'connecting' ? 'bg-amber-500' : 'bg-red-500'
-      } text-white`}>
+      } text-white ${textSizeClasses.base}`}>
         <span>{connectionStatus === 'connecting' ? '🔄 Connecting...' : '⚠️ Disconnected'}</span>
         <button 
           onClick={() => {
@@ -318,24 +374,24 @@ const MidwifeDashboard = ({ user, onLogout }) => {
         exit={{ opacity: 0, x: 100, scale: 0.9 }}
         className={`fixed bottom-6 right-6 z-[10000] max-w-md bg-white rounded-2xl shadow-2xl border-l-4 ${priorityColors[realTimeNotification.priority] || 'border-teal-500'} overflow-hidden`}
       >
-        <div className="p-4">
-          <div className="flex items-start gap-3">
+        <div className="p-5">
+          <div className="flex items-start gap-4">
             <div className="flex-shrink-0">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-blue-100">
+              <div className="w-14 h-14 rounded-full flex items-center justify-center text-3xl bg-purple-100">
                 {realTimeNotification.type === 'reply' ? '💬' : realTimeNotification.type === 'lab_result' ? '🔬' : '👶'}
               </div>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-sm font-bold text-gray-900">{realTimeNotification.title}</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className={`font-bold text-gray-900 ${textSizeClasses.heading}`}>{realTimeNotification.title}</p>
                 <span className="text-xs text-gray-400 ml-2">{realTimeNotification.priority === 'urgent' ? '🔴' : '🟡'}</span>
               </div>
-              <p className="text-sm text-gray-600 mb-2">{realTimeNotification.message}</p>
+              <p className={`text-gray-600 mb-2 ${textSizeClasses.base}`}>{realTimeNotification.message}</p>
               <div className="flex items-center gap-3 text-xs text-gray-400">
                 <span>🕒 {new Date(realTimeNotification.timestamp).toLocaleTimeString()}</span>
               </div>
             </div>
-            <button onClick={() => setRealTimeNotification(null)} className="flex-shrink-0 text-gray-400 hover:text-gray-600">×</button>
+            <button onClick={() => setRealTimeNotification(null)} className="flex-shrink-0 text-gray-400 hover:text-gray-600 text-2xl">×</button>
           </div>
         </div>
         <motion.div
@@ -358,7 +414,7 @@ const MidwifeDashboard = ({ user, onLogout }) => {
     return (
       <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-full">
         <div className={`w-2 h-2 rounded-full ${config.color} animate-pulse`} />
-        <span className="text-xs text-gray-600">{config.icon} {config.text}</span>
+        <span className={`text-xs text-gray-600 ${textSizeClasses.base}`}>{config.icon} {config.text}</span>
       </div>
     );
   };
@@ -419,60 +475,6 @@ const MidwifeDashboard = ({ user, onLogout }) => {
       });
       fetchPatients();
       fetchStats();
-      setTimeout(() => setRealTimeNotification(null), 6000);
-    });
-
-    // Listen for lab results
-    socket.current.on('lab_result_ready', (data) => {
-      console.log('📋 Lab results ready:', data);
-      setRealTimeNotification({
-        id: Date.now(),
-        type: 'lab_result',
-        title: 'Lab Results Ready',
-        message: `🔬 New lab results for ${data.patient_name}${data.critical ? ' - CRITICAL' : ''}`,
-        priority: data.critical ? 'urgent' : 'medium',
-        timestamp: new Date()
-      });
-      if (selectedPatient?.id === data.patient_id) {
-        fetchLabResults(data.patient_id);
-      }
-      setTimeout(() => setRealTimeNotification(null), 6000);
-    });
-
-    // Listen for prescription status updates
-    socket.current.on('prescription_status_update', (data) => {
-      console.log('💊 Prescription status updated:', data);
-      if (data.patient_id === selectedPatient?.id) {
-        setPrescriptions(prev => 
-          prev.map(p => 
-            p.id === data.prescription_id 
-              ? { ...p, status: data.status, pharmacy_notes: data.notes }
-              : p
-          )
-        );
-      }
-      setRealTimeNotification({
-        id: Date.now(),
-        type: 'prescription',
-        title: 'Prescription Update',
-        message: `💊 Prescription ${data.status}: ${data.medication_name}`,
-        priority: 'low',
-        timestamp: new Date()
-      });
-      setTimeout(() => setRealTimeNotification(null), 6000);
-    });
-
-    // Listen for report replies
-    socket.current.on('report_reply_from_hospital', (data) => {
-      setRealTimeNotification({
-        id: Date.now(),
-        type: 'reply',
-        title: 'New Reply',
-        message: `Hospital Admin replied to: "${data.title}"`,
-        priority: data.priority,
-        timestamp: new Date()
-      });
-      fetchReportsInbox();
       setTimeout(() => setRealTimeNotification(null), 6000);
     });
   };
@@ -542,72 +544,211 @@ const MidwifeDashboard = ({ user, onLogout }) => {
     }
   };
 
-  const fetchAntenatalVisits = async (patientId) => {
-    if (!patientId) return;
+  // ==================== REPORT FUNCTIONS ====================
+  const fetchReportsInbox = async () => {
     try {
+      setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/midwife/antenatal-visits/${patientId}`, {
+      const res = await axios.get(`${API_URL}/midwife/reports/inbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
-        setAntenatalVisits(res.data.visits || []);
+        setReportsInbox(res.data.reports);
+        setUnreadReportsCount(res.data.unreadCount);
       }
     } catch (error) {
-      console.error('Error fetching antenatal visits:', error);
+      console.error('Error fetching reports inbox:', error);
+    } finally {
+      setReportsLoading(false);
     }
   };
 
-  const fetchLabResults = async (patientId) => {
+  const fetchReportsOutbox = async () => {
     try {
+      setReportsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/midwife/lab-results/${patientId}`, {
-        params: { midwife_id: user?.id, hospital_id: user?.hospital_id },
+      const res = await axios.get(`${API_URL}/midwife/reports/outbox`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
-        setLabResults(res.data.results || []);
+        setReportsOutbox(res.data.reports);
       }
     } catch (error) {
-      if (error.response?.status !== 404) {
-        console.error('Error fetching lab results:', error);
-      }
-      setLabResults([]);
+      console.error('Error fetching reports outbox:', error);
+    } finally {
+      setReportsLoading(false);
     }
   };
 
-  const fetchDischargedPatients = async () => {
+  const fetchHospitalAdmins = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/midwife/discharged-patients`, {
-        params: { hospital_id: user?.hospital_id, ward: 'ANC' },
+      const res = await axios.get(`${API_URL}/midwife/hospital-admins`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
-        setDischargedPatients(res.data.patients || []);
+        setHospitalAdmins(res.data.admins);
       }
     } catch (error) {
-      if (error.response?.status !== 404) {
-        console.error('Error fetching discharged patients:', error);
-      }
-      setDischargedPatients([]);
+      console.error('Error fetching hospital admins:', error);
     }
   };
 
-  const fetchAvailableBeds = async () => {
+  const fetchDoctors = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/midwife/available-beds`, {
-        params: { ward: 'ANC', hospital_id: user?.hospital_id },
+      const res = await axios.get(`${API_URL}/midwife/doctors`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
-        setAvailableBedsList(res.data.beds || []);
-        return res.data.beds;
+        setDoctors(res.data.doctors);
       }
-      return [];
     } catch (error) {
-      console.error('Error fetching beds:', error);
-      return [];
+      console.error('Error fetching doctors:', error);
+    }
+  };
+
+  const fetchPharmacyStaff = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`${API_URL}/midwife/pharmacy-staff`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        setPharmacyStaff(res.data.staff);
+      }
+    } catch (error) {
+      console.error('Error fetching pharmacy staff:', error);
+    }
+  };
+
+  const fetchLabStaff = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`${API_URL}/midwife/lab-staff`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        setLabStaff(res.data.staff);
+      }
+    } catch (error) {
+      console.error('Error fetching lab staff:', error);
+    }
+  };
+
+  const handleSendReport = async (e) => {
+    e.preventDefault();
+    if (!sendReportForm.recipient_id) {
+      setMessage({ type: 'error', text: 'Please select a recipient' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      const formData = new FormData();
+      formData.append('title', sendReportForm.title);
+      formData.append('body', sendReportForm.body);
+      formData.append('priority', sendReportForm.priority);
+      formData.append('recipient_type', sendReportForm.recipient_type);
+      formData.append('recipient_id', sendReportForm.recipient_id);
+      
+      sendReportForm.attachments.forEach((file, index) => {
+        formData.append('attachments', file);
+      });
+      
+      const res = await axios.post(`${API_URL}/midwife/reports/send`, formData, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      if (res.data.success) {
+        setMessage({ type: 'success', text: 'Report sent successfully!' });
+        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+        setShowSendReportModal(false);
+        setSendReportForm({
+          recipient_type: 'hospital_admin',
+          recipient_id: '',
+          title: '',
+          body: '',
+          priority: 'medium',
+          attachments: []
+        });
+        setAttachmentPreview([]);
+        fetchReportsOutbox();
+      }
+    } catch (error) {
+      console.error('Error sending report:', error);
+      setMessage({ type: 'error', text: error.response?.data?.message || 'Error sending report' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const markReportAsRead = async (reportId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(`${API_URL}/midwife/reports/${reportId}/read`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchReportsInbox();
+    } catch (error) {
+      console.error('Error marking report as read:', error);
+    }
+  };
+
+  const viewReportDetails = (report) => {
+    setSelectedReport(report);
+    setShowReportDetailModal(true);
+    if (!report.is_opened) {
+      markReportAsRead(report.id);
+    }
+  };
+
+  const handleSendReply = async () => {
+    if (!replyText.trim() && !replyAttachment) {
+      setMessage({ type: 'error', text: 'Please enter a reply message' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      const formData = new FormData();
+      formData.append('body', replyText);
+      if (replyAttachment) {
+        formData.append('attachment', replyAttachment);
+      }
+      
+      const res = await axios.post(`${API_URL}/midwife/reports/${selectedReport.id}/reply`, formData, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      if (res.data.success) {
+        setMessage({ type: 'success', text: 'Reply sent successfully!' });
+        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+        setShowReplyModal(false);
+        setReplyText('');
+        setReplyAttachment(null);
+        fetchReportsInbox();
+        fetchReportsOutbox();
+      }
+    } catch (error) {
+      console.error('Error sending reply:', error);
+      setMessage({ type: 'error', text: error.response?.data?.message || 'Error sending reply' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -677,112 +818,6 @@ const MidwifeDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // ==================== REPORT FUNCTIONS ====================
-  const fetchReportsInbox = async () => {
-    try {
-      setReportsLoading(true);
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/midwife/reports/inbox`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.data.success) {
-        setReportsInbox(res.data.reports);
-        setUnreadReportsCount(res.data.unreadCount);
-      }
-    } catch (error) {
-      console.error('Error fetching reports inbox:', error);
-    } finally {
-      setReportsLoading(false);
-    }
-  };
-
-  const fetchReportsOutbox = async () => {
-    try {
-      setReportsLoading(true);
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/midwife/reports/outbox`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.data.success) {
-        setReportsOutbox(res.data.reports);
-      }
-    } catch (error) {
-      console.error('Error fetching reports outbox:', error);
-    } finally {
-      setReportsLoading(false);
-    }
-  };
-
-  const fetchHospitalAdmins = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/midwife/hospital-admins`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.data.success) {
-        setHospitalAdmins(res.data.admins);
-      }
-    } catch (error) {
-      console.error('Error fetching hospital admins:', error);
-    }
-  };
-
-const handleSendReport = async (e) => {
-  e.preventDefault();
-  if (!sendReportForm.recipient_id) {
-    setMessage({ type: 'error', text: 'Please select a recipient' });
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    return;
-  }
-  
-  try {
-    setLoading(true);
-    const token = localStorage.getItem('token');
-    
-    // Send as JSON - NOT FormData
-    const payload = {
-      title: sendReportForm.title,
-      body: sendReportForm.body,
-      priority: sendReportForm.priority,
-      recipient_type: sendReportForm.recipient_type,
-      recipient_id: sendReportForm.recipient_id
-    };
-    
-    console.log('Sending report payload:', payload);
-    
-    const res = await axios.post(`${API_URL}/midwife/reports/send`, payload, {
-      headers: { 
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (res.data.success) {
-      setMessage({ type: 'success', text: 'Report sent successfully!' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      setShowSendReportModal(false);
-      setSendReportForm({
-        recipient_type: 'hospital_admin',
-        recipient_id: '',
-        title: '',
-        body: '',
-        priority: 'medium',
-        attachments: []
-      });
-      setAttachmentPreview([]);
-      fetchReportsOutbox();
-    }
-  } catch (error) {
-    console.error('Error sending report:', error);
-    setMessage({ type: 'error', text: error.response?.data?.message || 'Error sending report' });
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-  } finally {
-    setLoading(false);
-  }
-};
-
-
-
   // ==================== PATIENT HANDLING ====================
   const handleTakePatient = async (patient) => {
     try {
@@ -817,11 +852,6 @@ const handleSendReport = async (e) => {
           setPrescriptions(res.data.patient.prescriptions);
         }
         
-        await Promise.all([
-          fetchAntenatalVisits(patient.id),
-          fetchLabResults(patient.id)
-        ]);
-        
         setMessage({ type: 'success', text: 'Patient assigned successfully' });
         setTimeout(() => setMessage({ type: '', text: '' }), 3000);
       }
@@ -834,575 +864,41 @@ const handleSendReport = async (e) => {
     }
   };
 
-  // ==================== DIAGNOSIS FUNCTIONS ====================
-  const handleDiagnosisChange = (e) => {
-    setDiagnosis({
-      ...diagnosis,
-      [e.target.name]: e.target.value
-    });
+  const handleLogoutClick = () => {
+    setShowLogoutConfirm(true);
+  };
+  
+  const handleConfirmLogout = () => {
+    if (socket.current) socket.current.disconnect();
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    if (onLogout) onLogout();
+    navigate('/login');
+  };
+  
+  const handleCancelLogout = () => {
+    setShowLogoutConfirm(false);
   };
 
-  const handleSaveDiagnosis = async () => {
-    if (!diagnosis.primary) {
-      setMessage({ type: 'error', text: 'Please enter primary diagnosis' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/midwife/save-diagnosis`, {
-        patient_id: selectedPatient.id,
-        diagnosis: diagnosis,
-        midwife_id: user?.id,
-        hospital_id: user?.hospital_id
-      }, { headers: { Authorization: `Bearer ${token}` } });
-
-      if (res.data.success) {
-        setMessage({ type: 'success', text: 'Diagnosis saved' });
-        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-        setSelectedPatient(prev => ({ ...prev, diagnosis }));
-      }
-    } catch (error) {
-      console.error('Error saving diagnosis:', error);
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Error saving diagnosis' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } finally {
-      setLoading(false);
+  // ==================== GOOGLE SEARCH HANDLER ====================
+  const handleGoogleSearch = () => {
+    if (searchQuery.trim()) {
+      const url = `https://www.google.com/search?q=${encodeURIComponent(searchQuery + ' midwifery obstetric medical reference')}`;
+      window.open(url, "_blank");
+      setSearchQuery('');
+      setShowSearchBar(false);
     }
   };
 
-  // ==================== PRESCRIPTION FUNCTIONS ====================
-  const handleMedicationChange = (e) => {
-    setNewMedication({
-      ...newMedication,
-      [e.target.name]: e.target.value
-    });
-  };
-
-  const addMedication = () => {
-    if (!newMedication.name || !newMedication.dosage) {
-      setMessage({ type: 'error', text: 'Please enter medication name and dosage' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      return;
-    }
-
-    const medication = {
-      id: Date.now().toString(),
-      ...newMedication,
-      prescribed_at: new Date().toISOString(),
-      status: 'pending'
-    };
-
-    setPrescriptions([...prescriptions, medication]);
-    setNewMedication({
-      name: '',
-      dosage: '',
-      frequency: '',
-      duration: '',
-      route: 'oral',
-      notes: ''
-    });
-  };
-
-  const removeMedication = (id) => {
-    setPrescriptions(prescriptions.filter(p => p.id !== id));
-  };
-
-  const savePrescriptions = async () => {
-    if (prescriptions.length === 0) {
-      setMessage({ type: 'error', text: 'No prescriptions to save' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/midwife/save-prescriptions`, {
-        patient_id: selectedPatient.id,
-        patient_name: `${selectedPatient.first_name} ${selectedPatient.last_name}`,
-        prescriptions: prescriptions.map(p => ({ ...p, status: 'sent', sent_at: new Date().toISOString() })),
-        midwife_id: user?.id,
-        midwife_name: user?.full_name,
-        ward: 'ANC',
-        hospital_id: user?.hospital_id
-      }, { headers: { Authorization: `Bearer ${token}` } });
-
-      if (res.data.success) {
-        setMessage({ type: 'success', text: 'Prescriptions sent to pharmacy' });
-        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-        setPrescriptions(res.data.prescriptions);
-        setStats(prev => ({ ...prev, pendingPharmacy: prev.pendingPharmacy + 1 }));
-        
-        if (socket.current) {
-          socket.current.emit('new_prescriptions', {
-            patient_id: selectedPatient.id,
-            patient_name: `${selectedPatient.first_name} ${selectedPatient.last_name}`,
-            midwife_name: user?.full_name,
-            ward: 'ANC',
-            hospital_id: user?.hospital_id
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error saving prescriptions:', error);
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Error saving prescriptions' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ==================== LAB REQUEST FUNCTIONS ====================
-  const handleLabRequestChange = (e) => {
-    setNewLabRequest({
-      ...newLabRequest,
-      [e.target.name]: e.target.value
-    });
-  };
-
-  const addLabRequest = async () => {
-    if (!newLabRequest.testName) {
-      setMessage({ type: 'error', text: 'Please select a test' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/midwife/request-lab`, {
-        patient_id: selectedPatient.id,
-        patient_name: `${selectedPatient.first_name} ${selectedPatient.last_name}`,
-        midwife_id: user?.id,
-        midwife_name: user?.full_name,
-        ward: 'ANC',
-        hospital_id: user?.hospital_id,
-        ...newLabRequest
-      }, { headers: { Authorization: `Bearer ${token}` } });
-
-      if (res.data.success) {
-        setMessage({ type: 'success', text: 'Lab request sent' });
-        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-        setLabRequests([...labRequests, res.data.request]);
-        setStats(prev => ({ ...prev, pendingLabs: (prev.pendingLabs || 0) + 1 }));
-        
-        setNewLabRequest({
-          testType: 'blood',
-          testName: '',
-          priority: 'routine',
-          notes: ''
-        });
-      }
-    } catch (error) {
-      console.error('Error sending lab request:', error);
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Error sending lab request' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ==================== ANTENATAL CARE FUNCTIONS ====================
-  const handleAntenatalDataChange = (e) => {
-    setAntenatalData({
-      ...antenatalData,
-      [e.target.name]: e.target.value
-    });
-  };
-
-  const handleVitalSignsChange = (e) => {
-    setVitalSigns({
-      ...vitalSigns,
-      [e.target.name]: e.target.value
-    });
-  };
-
-  const handleVisitNotesChange = (e) => {
-    setVisitNotes({
-      ...visitNotes,
-      [e.target.name]: e.target.value
-    });
-  };
-
-  const calculateWeeks = (lmp) => {
-    if (!lmp) return '';
-    const lmpDate = new Date(lmp);
-    const today = new Date();
-    const diffTime = Math.abs(today - lmpDate);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return Math.floor(diffDays / 7);
-  };
-
-  const saveAntenatalRecord = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      
-      const res = await axios.post(`${API_URL}/midwife/save-antenatal`, {
-        patient_id: selectedPatient.id,
-        antenatal_data: antenatalData,
-        vitals: vitalSigns,
-        visit_notes: visitNotes,
-        midwife_id: user?.id,
-        midwife_name: user?.full_name,
-        hospital_id: user?.hospital_id
-      }, { headers: { Authorization: `Bearer ${token}` } });
-
-      if (res.data.success) {
-        setMessage({ type: 'success', text: 'Antenatal record saved successfully' });
-        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-        
-        await fetchPatients();
-        await fetchAntenatalVisits(selectedPatient.id);
-        
-        setVisitNotes({
-          complaints: '',
-          examination: '',
-          advice: '',
-          next_appointment: ''
-        });
-      }
-    } catch (error) {
-      console.error('Error saving antenatal record:', error);
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Error saving record' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ==================== DISCHARGE FUNCTIONS ====================
-  const openDischargeLocationModal = () => {
-    setShowDischargeLocationModal(true);
-    setDischargeLocation('');
-  };
-
-  const handleDischargeWithLocation = async () => {
-    if (!dischargeLocation) {
-      setMessage({ type: 'error', text: 'Please select discharge location' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      return;
-    }
-
-    const pendingPrescriptions = prescriptions.filter(p => p.status !== 'dispensed');
-
-    if (pendingPrescriptions.length > 0) {
-      const confirmDischarge = window.confirm(
-        `⚠️ ${pendingPrescriptions.length} prescription(s) not yet dispensed by pharmacy.\n\n` +
-        `Are you sure you want to discharge to ${dischargeLocation}? (Emergency Override)`
-      );
-      if (!confirmDischarge) return;
-    }
-
-    if (!signaturePad.current || signaturePad.current.isEmpty()) {
-      setMessage({ type: 'error', text: 'Please provide your signature' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      return;
-    }
-
-    const signature = signaturePad.current.toDataURL();
-
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      
-      const res = await axios.post(`${API_URL}/midwife/discharge-patient`, {
-        patient_id: selectedPatient.id,
-        midwife_id: user?.id,
-        midwife_name: user?.full_name,
-        hospital_id: user?.hospital_id,
-        ward: 'ANC',
-        diagnosis: diagnosis,
-        prescriptions: prescriptions,
-        lab_results: labResults,
-        discharge_location: dischargeLocation,
-        signature: signature,
-        discharge_notes: diagnosis.notes
-      }, { headers: { Authorization: `Bearer ${token}` } });
-
-      if (res.data.success) {
-        setMessage({ type: 'success', text: `Patient discharged to ${dischargeLocation}` });
-        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-        
-        setShowDischargeLocationModal(false);
-        setShowPatientModal(false);
-        setSelectedPatient(null);
-        setPrescriptions([]);
-        setDiagnosis({ primary: '', icd10: '', secondary: '', notes: '' });
-        setDischargeLocation('');
-        
-        fetchStats();
-        fetchDischargedPatients();
-        
-        if (socket.current) {
-          socket.current.emit('patient_discharged', {
-            patient_id: selectedPatient.id,
-            midwife_name: user?.full_name,
-            ward: 'ANC',
-            hospital_id: user?.hospital_id
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error discharging patient:', error);
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Error discharging patient' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ==================== DELIVERY RECORD FUNCTIONS ====================
-  const recordDelivery = async () => {
-    if (!signaturePad.current || signaturePad.current.isEmpty()) {
-      setMessage({ type: 'error', text: 'Please provide your signature' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      return;
-    }
-
-    const signature = signaturePad.current.toDataURL();
-
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      
-      const deliveryData = {
-        patient_id: selectedPatient.id,
-        delivery_date: new Date(),
-        delivery_type: 'vaginal',
-        complications: '',
-        baby_weight: '',
-        baby_sex: '',
-        apgar_score: '',
-        notes: diagnosis.notes,
-        signature: signature
-      };
-      
-      const res = await axios.post(`${API_URL}/midwife/record-delivery`, deliveryData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      if (res.data.success) {
-        setMessage({ type: 'success', text: 'Delivery recorded successfully' });
-        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-        
-        await fetchPatients();
-        setShowPatientModal(false);
-        setStats(prev => ({ ...prev, deliveries: prev.deliveries + 1 }));
-      }
-    } catch (error) {
-      console.error('Error recording delivery:', error);
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Error recording delivery' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ==================== ADMISSION FUNCTIONS ====================
-  const handleAdmit = async (bedId) => {
-    if (!bedId) {
-      setMessage({ type: 'error', text: 'Please select a bed' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      return;
-    }
-
-    if (!signaturePad.current || signaturePad.current.isEmpty()) {
-      setMessage({ type: 'error', text: 'Please provide your signature' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      return;
-    }
-
-    const signature = signaturePad.current.toDataURL();
-
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/midwife/admit-patient`, {
-        patient_id: selectedPatient.id,
-        midwife_id: user?.id,
-        midwife_name: user?.full_name,
-        hospital_id: user?.hospital_id,
-        ward: 'ANC',
-        bed_id: bedId,
-        diagnosis: diagnosis,
-        prescriptions: prescriptions,
-        lab_results: labResults,
-        signature: signature,
-        admission_notes: diagnosis.notes
-      }, { headers: { Authorization: `Bearer ${token}` } });
-
-      if (res.data.success) {
-        setMessage({ type: 'success', text: 'Patient admitted successfully' });
-        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-        
-        setShowPatientModal(false);
-        setSelectedPatient(null);
-        setPrescriptions([]);
-        setDiagnosis({ primary: '', icd10: '', secondary: '', notes: '' });
-        setShowBedListNotification(false);
-        
-        fetchStats();
-        fetchPatients();
-        
-        if (socket.current) {
-          socket.current.emit('patient_admitted', {
-            patient_id: selectedPatient.id,
-            midwife_name: user?.full_name,
-            bed_id: bedId,
-            ward: 'ANC',
-            hospital_id: user?.hospital_id
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error admitting patient:', error);
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Error admitting patient' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ==================== REFERRAL FUNCTIONS ====================
-  const openReferralModal = () => {
-    setShowReferralModal(true);
-    setReferralType('internal');
-    setSelectedInternalWard('');
-    setExternalReferralData(null);
-    setReferralSelectedBed('');
-  };
-
-  const handleInternalRefer = async () => {
-    if (!selectedInternalWard) {
-      setMessage({ type: 'error', text: 'Please select a ward' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      return;
-    }
-
-    if (!signaturePad.current || signaturePad.current.isEmpty()) {
-      setMessage({ type: 'error', text: 'Please provide your signature' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      return;
-    }
-
-    const signature = signaturePad.current.toDataURL();
-
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/midwife/refer-patient`, {
-        patient_id: selectedPatient.id,
-        midwife_id: user?.id,
-        midwife_name: user?.full_name,
-        hospital_id: user?.hospital_id,
-        ward: 'ANC',
-        referral_type: 'internal',
-        destination: selectedInternalWard,
-        bed_id: referralSelectedBed || null,
-        diagnosis: diagnosis,
-        prescriptions: prescriptions,
-        lab_results: labResults,
-        signature: signature,
-        referral_notes: diagnosis.notes
-      }, { headers: { Authorization: `Bearer ${token}` } });
-
-      if (res.data.success) {
-        const bedMessage = referralSelectedBed ? ` with Bed ${res.data.bed_number || ''}` : '';
-        setMessage({ type: 'success', text: `Patient referred to ${selectedInternalWard} ward${bedMessage}` });
-        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-        
-        setShowPatientModal(false);
-        setShowReferralModal(false);
-        setSelectedPatient(null);
-        setPrescriptions([]);
-        setDiagnosis({ primary: '', icd10: '', secondary: '', notes: '' });
-        setSelectedInternalWard('');
-        setReferralSelectedBed('');
-        
-        fetchStats();
-        
-        if (socket.current) {
-          socket.current.emit('patient_referred', {
-            patient_id: selectedPatient.id,
-            midwife_name: user?.full_name,
-            referral_type: 'internal',
-            destination: selectedInternalWard,
-            ward: 'ANC',
-            hospital_id: user?.hospital_id
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error referring patient:', error);
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Error referring patient' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleExternalRefer = async () => {
-    if (!externalReferralData || !externalReferralData.hospital) {
-      setMessage({ type: 'error', text: 'Please select a hospital' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      return;
-    }
-
-    if (!signaturePad.current || signaturePad.current.isEmpty()) {
-      setMessage({ type: 'error', text: 'Please provide your signature' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      return;
-    }
-
-    const signature = signaturePad.current.toDataURL();
-
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_URL}/midwife/refer-patient`, {
-        patient_id: selectedPatient.id,
-        midwife_id: user?.id,
-        midwife_name: user?.full_name,
-        hospital_id: user?.hospital_id,
-        ward: 'ANC',
-        referral_type: 'external',
-        destination: externalReferralData.hospital.name,
-        external_data: externalReferralData,
-        diagnosis: diagnosis,
-        prescriptions: prescriptions,
-        lab_results: labResults,
-        signature: signature,
-        referral_notes: diagnosis.notes
-      }, { headers: { Authorization: `Bearer ${token}` } });
-
-      if (res.data.success) {
-        setMessage({ type: 'success', text: `Patient referred to ${externalReferralData.hospital.name}` });
-        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-        
-        setShowPatientModal(false);
-        setShowReferralModal(false);
-        setSelectedPatient(null);
-        setPrescriptions([]);
-        setDiagnosis({ primary: '', icd10: '', secondary: '', notes: '' });
-        
-        fetchStats();
-      }
-    } catch (error) {
-      console.error('Error referring patient:', error);
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Error referring patient' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } finally {
-      setLoading(false);
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleGoogleSearch();
     }
   };
 
   // Filtered patients based on active tab
   const getFilteredPatients = () => {
-    switch(activeTab) {
+    switch(reportMainTab) {
       case 'antenatal':
         return queuePatients.filter(p => p.status === 'in_anc');
       case 'postnatal':
@@ -1422,80 +918,6 @@ const handleSendReport = async (e) => {
     patient.card_number?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleLogout = () => {
-    if (socket.current) socket.current.disconnect();
-    if (onLogout) onLogout();
-    navigate('/login');
-  };
-// Add this function after handleSendReply
-
-
-// Add this function if not already present
-const viewReportDetails = (report) => {
-  setSelectedReport(report);
-  setShowReportDetailModal(true);
-  if (!report.is_opened) {
-    markReportAsRead(report.id);
-  }
-};
-
-// Make sure markReportAsRead is properly defined
-const markReportAsRead = async (reportId) => {
-  try {
-    console.log('Calling mark as read for report:', reportId);
-    const token = localStorage.getItem('token');
-    const response = await axios.put(`${API_URL}/midwife/reports/${reportId}/read`, {}, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    console.log('Response:', response.data);
-    fetchReportsInbox();
-  } catch (error) {
-    console.error('Error marking report as read:', error);
-    console.error('Error response:', error.response?.data);
-  }
-};
-const handleSendReply = async () => {
-  if (!replyText.trim() && !replyAttachment) {
-    setMessage({ type: 'error', text: 'Please enter a reply message' });
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    return;
-  }
-  
-  try {
-    setLoading(true);
-    const token = localStorage.getItem('token');
-    
-    // Send as JSON - NOT FormData
-    const payload = {
-      body: replyText
-    };
-    
-    console.log('Sending reply payload:', payload);
-    
-    const res = await axios.post(`${API_URL}/midwife/reports/${selectedReport.id}/reply`, payload, {
-      headers: { 
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (res.data.success) {
-      setMessage({ type: 'success', text: 'Reply sent successfully!' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-      setShowReplyModal(false);
-      setReplyText('');
-      setReplyAttachment(null);
-      fetchReportsInbox();
-      fetchReportsOutbox();
-    }
-  } catch (error) {
-    console.error('Error sending reply:', error);
-    setMessage({ type: 'error', text: error.response?.data?.message || 'Error sending reply' });
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-  } finally {
-    setLoading(false);
-  }
-};
   // ==================== INITIAL LOAD ====================
   useEffect(() => {
     if (!user?.hospital_id) return;
@@ -1507,6 +929,9 @@ const handleSendReply = async () => {
     fetchReportsInbox();
     fetchReportsOutbox();
     fetchHospitalAdmins();
+    fetchDoctors();
+    fetchPharmacyStaff();
+    fetchLabStaff();
     fetchProfile();
 
     const interval = setInterval(() => {
@@ -1526,165 +951,181 @@ const handleSendReply = async () => {
 
   // ==================== RENDER ====================
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 to-purple-50 flex">
+    <div className={`min-h-screen bg-gradient-to-br from-violet-50/50 to-purple-50/50 flex ${textSizeClasses.base}`}>
       <RealTimeNotification />
       <ConnectionStatusBanner />
-      
-      <style>{`
-        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        @keyframes glow { 0% { box-shadow: 0 0 5px rgba(139,92,246,0.2); } 50% { box-shadow: 0 0 20px rgba(139,92,246,0.5); } 100% { box-shadow: 0 0 5px rgba(139,92,246,0.2); } }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-slide-in { animation: slideIn 0.3s ease-out; }
-        .animate-glow { animation: glow 2s infinite; }
-        .animate-fade-in { animation: fadeIn 0.5s ease; }
-      `}</style>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10001] p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8"
+          >
+            <div className="text-center">
+              <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5">
+                <FaSignOutAlt className="text-red-600 text-3xl" />
+              </div>
+              <h3 className={`font-bold text-gray-800 mb-3 ${textSizeClasses.title}`}>Confirm Logout</h3>
+              <p className={`text-gray-600 mb-8 ${textSizeClasses.base}`}>Are you sure you want to logout?</p>
+              <div className="flex gap-4">
+                <button
+                  onClick={handleCancelLogout}
+                  className={`flex-1 px-6 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition font-medium ${textSizeClasses.base}`}
+                >
+                  No, Stay
+                </button>
+                <button
+                  onClick={handleConfirmLogout}
+                  className={`flex-1 px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition font-medium ${textSizeClasses.base}`}
+                >
+                  Yes, Logout
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* ==================== SIDEBAR ==================== */}
-      <div className={`bg-gradient-to-b from-violet-900 to-purple-800 text-white transition-all duration-300 ${
-        sidebarCollapsed ? 'w-20' : 'w-64'
-      } shadow-2xl flex flex-col h-screen sticky top-0 z-50`}>
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-8">
-            {!sidebarCollapsed && (
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-violet-500 to-purple-500 rounded-lg flex items-center justify-center shadow-lg">
-                  <FaBaby className="text-white text-sm" />
-                </div>
-                <span className="font-bold text-base tracking-tight">Midwife</span>
+      <div className={`${sidebarCollapsed ? 'w-24' : 'w-72'} bg-gradient-to-b from-slate-900 to-slate-800 text-white transition-all duration-300 flex flex-col h-screen sticky top-0 shadow-2xl z-50`}>
+        {/* Sidebar Header */}
+        <div className={`${sidebarCollapsed ? 'py-5 px-0' : 'p-6'} border-b border-slate-700/50 flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+          {!sidebarCollapsed && (
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-violet-500/70 to-purple-500/70 rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-2xl">{currentWard.sidebarIcon}</span>
               </div>
-            )}
-            {sidebarCollapsed && (
-              <div className="w-8 h-8 bg-gradient-to-r from-violet-500 to-purple-500 rounded-lg flex items-center justify-center shadow-lg mx-auto">
-                <FaBaby className="text-white text-sm" />
+              <div>
+                <h3 className={`m-0 font-semibold ${textSizeClasses.base}`}>Midwife</h3>
+                <p className={`mt-0.5 text-slate-400 ${textSizeClasses.base}`}>{user?.full_name || formatFullName(user)}</p>
               </div>
-            )}
-            <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="p-2 hover:bg-violet-800 rounded-lg transition-colors">
-              {sidebarCollapsed ? <FaChevronRight /> : <FaChevronLeft />}
-            </button>
-          </div>
-
-          <nav className="space-y-1">
-            <button onClick={() => { setActiveTab('antenatal'); setShowScheduleView(false); }} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm ${
-              activeTab === 'antenatal' && !showScheduleView ? 'bg-gradient-to-r from-violet-600 to-purple-600 shadow-lg' : 'hover:bg-violet-800'
-            }`}>
-              <span className="text-lg">🤰</span>
-              {!sidebarCollapsed && <span>Antenatal Care</span>}
-              {!sidebarCollapsed && stats.antenatal > 0 && (
-                <span className="ml-auto bg-yellow-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                  {stats.antenatal}
-                </span>
-              )}
-            </button>
-
-            <button onClick={() => { setActiveTab('postnatal'); setShowScheduleView(false); }} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm ${
-              activeTab === 'postnatal' && !showScheduleView ? 'bg-gradient-to-r from-violet-600 to-purple-600 shadow-lg' : 'hover:bg-violet-800'
-            }`}>
-              <span className="text-lg">👶</span>
-              {!sidebarCollapsed && <span>Postnatal Care</span>}
-              {!sidebarCollapsed && stats.postnatal > 0 && (
-                <span className="ml-auto bg-green-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                  {stats.postnatal}
-                </span>
-              )}
-            </button>
-
-            <button onClick={() => { setActiveTab('high-risk'); setShowScheduleView(false); }} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm ${
-              activeTab === 'high-risk' && !showScheduleView ? 'bg-gradient-to-r from-violet-600 to-purple-600 shadow-lg' : 'hover:bg-violet-800'
-            }`}>
-              <span className="text-lg">⚠️</span>
-              {!sidebarCollapsed && <span>High Risk</span>}
-              {!sidebarCollapsed && stats.highRisk > 0 && (
-                <span className="ml-auto bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-pulse">
-                  {stats.highRisk}
-                </span>
-              )}
-            </button>
-
-            <button onClick={() => { setActiveTab('deliveries'); setShowScheduleView(false); }} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm ${
-              activeTab === 'deliveries' && !showScheduleView ? 'bg-gradient-to-r from-violet-600 to-purple-600 shadow-lg' : 'hover:bg-violet-800'
-            }`}>
-              <span className="text-lg">🏥</span>
-              {!sidebarCollapsed && <span>Deliveries</span>}
-              {!sidebarCollapsed && stats.deliveries > 0 && (
-                <span className="ml-auto bg-blue-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                  {stats.deliveries}
-                </span>
-              )}
-            </button>
-
-            <div className="h-px bg-violet-700/50 my-4 mx-3"></div>
-
-            <div onClick={() => { setShowDischargeList(!showDischargeList); if (!showDischargeList) fetchDischargedPatients(); }} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm cursor-pointer ${showDischargeList ? 'bg-gradient-to-r from-violet-600 to-purple-600 shadow-lg' : 'hover:bg-violet-800'}`}>
-              <span className="text-lg">📋</span>
-              {!sidebarCollapsed && <span>Discharge List</span>}
-              {!sidebarCollapsed && stats.completedToday > 0 && (
-                <span className="ml-auto bg-amber-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                  {stats.completedToday}
-                </span>
-              )}
-            </div>
-
-            <div className="h-px bg-violet-700/50 my-4 mx-3"></div>
-
-            <button onClick={() => { setActiveTab('inbox'); setShowScheduleView(false); fetchReportsInbox(); }} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm relative ${
-              activeTab === 'inbox' && !showScheduleView ? 'bg-gradient-to-r from-violet-600 to-purple-600 shadow-lg' : 'hover:bg-violet-800'
-            }`}>
-              <FaInbox className="text-lg" />
-              {!sidebarCollapsed && <span>Inbox</span>}
-              {unreadReportsCount > 0 && (
-                <span className="absolute right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-pulse">
-                  {unreadReportsCount}
-                </span>
-              )}
-            </button>
-
-            <button onClick={() => { setActiveTab('outbox'); setShowScheduleView(false); fetchReportsOutbox(); }} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm ${
-              activeTab === 'outbox' && !showScheduleView ? 'bg-gradient-to-r from-violet-600 to-purple-600 shadow-lg' : 'hover:bg-violet-800'
-            }`}>
-              <FaPaperPlane className="text-lg" />
-              {!sidebarCollapsed && <span>Sent Reports</span>}
-            </button>
-
-            <div className="h-px bg-violet-700/50 my-4 mx-3"></div>
-
-            <button onClick={() => { setActiveTab('schedule'); setShowScheduleView(true); }} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm ${
-              showScheduleView ? 'bg-gradient-to-r from-violet-600 to-purple-600 shadow-lg' : 'hover:bg-violet-800'
-            }`}>
-              <FaCalendarAlt className="text-lg" />
-              {!sidebarCollapsed && <span>My Schedule</span>}
-            </button>
-
-            <button onClick={() => { setActiveTab('stats'); setShowScheduleView(false); }} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm ${
-              activeTab === 'stats' && !showScheduleView ? 'bg-gradient-to-r from-violet-600 to-purple-600 shadow-lg' : 'hover:bg-violet-800'
-            }`}>
-              <FaChartLine className="text-lg" />
-              {!sidebarCollapsed && <span>Statistics</span>}
-            </button>
-
-            <button onClick={() => { setActiveTab('profile'); setShowScheduleView(false); }} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm ${
-              activeTab === 'profile' && !showScheduleView ? 'bg-gradient-to-r from-violet-600 to-purple-600 shadow-lg' : 'hover:bg-violet-800'
-            }`}>
-              <FaUserCircle className="text-lg" />
-              {!sidebarCollapsed && <span>Profile</span>}
-            </button>
-          </nav>
-
-          {sidebarCollapsed && (
-            <div className="mt-8 text-center">
-              <div className="text-xl font-bold text-violet-400">{stats.antenatal}</div>
-              <div className="text-[10px] text-violet-300">Patients</div>
-              {unreadReportsCount > 0 && (
-                <div className="mt-3">
-                  <div className="text-lg font-bold text-red-400">{unreadReportsCount}</div>
-                  <div className="text-[10px] text-violet-300">Unread</div>
-                </div>
-              )}
             </div>
           )}
+          {sidebarCollapsed && (
+            <div className="w-10 h-10 bg-gradient-to-r from-violet-500/70 to-purple-500/70 rounded-xl flex items-center justify-center shadow-lg">
+              <span className="text-2xl">{currentWard.sidebarIcon}</span>
+            </div>
+          )}
+          <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="bg-slate-700/50 hover:bg-slate-600 rounded-lg p-2 transition">
+            {sidebarCollapsed ? <FaChevronRight size={20} /> : <FaChevronLeft size={20} />}
+          </button>
         </div>
 
-        <div className={`${sidebarCollapsed ? 'py-4 px-0' : 'p-5'} border-t border-violet-700/50 mt-auto`}>
-          <button onClick={handleLogout} className={`w-full ${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} bg-transparent border border-violet-600 rounded-xl text-red-400 cursor-pointer flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-start'} gap-3 text-sm transition-all duration-200 hover:bg-red-500/10 hover:border-red-500`}>
+        {/* Navigation Menu */}
+        <div className={`flex-1 ${sidebarCollapsed ? 'py-4 px-0' : 'p-4'}`}>
+          {/* Antenatal Care */}
+          <div onClick={() => { setShowDischargeList(false); handleTabChange('antenatal', false); }} 
+               className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 rounded-xl ${reportMainTab === 'antenatal' && !showDischargeList && !showScheduleView ? 'bg-gradient-to-r from-violet-600/70 to-purple-600/70 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all`}>
+            <span className="text-xl">🤰</span>
+            {!sidebarCollapsed && (
+              <>
+                <span className={`flex-1 font-medium ${textSizeClasses.base}`}>Antenatal Care</span>
+                <span className="px-2 py-0.5 rounded-full text-xs bg-white/20">{stats.antenatal}</span>
+              </>
+            )}
+          </div>
+
+          {/* Postnatal Care */}
+          <div onClick={() => { setShowDischargeList(false); handleTabChange('postnatal', false); }}
+               className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${reportMainTab === 'postnatal' && !showDischargeList && !showScheduleView ? 'bg-gradient-to-r from-violet-600/70 to-purple-600/70 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all`}>
+            <span className="text-xl">👶</span>
+            {!sidebarCollapsed && (
+              <>
+                <span className={`flex-1 font-medium ${textSizeClasses.base}`}>Postnatal Care</span>
+                <span className="px-2 py-0.5 rounded-full text-xs bg-green-500/80">{stats.postnatal}</span>
+              </>
+            )}
+          </div>
+
+          {/* High Risk */}
+          <div onClick={() => { setShowDischargeList(false); handleTabChange('high-risk', false); }}
+               className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${reportMainTab === 'high-risk' && !showDischargeList && !showScheduleView ? 'bg-gradient-to-r from-violet-600/70 to-purple-600/70 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all`}>
+            <span className="text-xl">⚠️</span>
+            {!sidebarCollapsed && (
+              <>
+                <span className={`flex-1 font-medium ${textSizeClasses.base}`}>High Risk</span>
+                <span className="px-2 py-0.5 rounded-full text-xs bg-red-500 animate-pulse">{stats.highRisk}</span>
+              </>
+            )}
+          </div>
+
+          {/* Deliveries */}
+          <div onClick={() => { setShowDischargeList(false); handleTabChange('deliveries', false); }}
+               className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${reportMainTab === 'deliveries' && !showDischargeList && !showScheduleView ? 'bg-gradient-to-r from-violet-600/70 to-purple-600/70 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all`}>
+            <span className="text-xl">🏥</span>
+            {!sidebarCollapsed && (
+              <>
+                <span className={`flex-1 font-medium ${textSizeClasses.base}`}>Deliveries</span>
+                <span className="px-2 py-0.5 rounded-full text-xs bg-blue-500/80">{stats.deliveries}</span>
+              </>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="h-px bg-slate-700/50 my-3 mx-3"></div>
+
+          {/* Discharge List */}
+          <div onClick={() => { setShowDischargeList(!showDischargeList); if (!showDischargeList) fetchDischargedPatients(); }} 
+               className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${showDischargeList ? 'bg-gradient-to-r from-violet-600/70 to-purple-600/70 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all`}>
+            <span className="text-xl">📋</span>
+            {!sidebarCollapsed && <span className={`flex-1 font-medium ${textSizeClasses.base}`}>Discharge List</span>}
+          </div>
+
+          {/* Divider */}
+          <div className="h-px bg-slate-700/50 my-3 mx-3"></div>
+
+          {/* My Schedule */}
+          <div onClick={() => { setShowDischargeList(false); handleTabChange('schedule', true); }}
+               className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${showScheduleView ? 'bg-gradient-to-r from-violet-600/70 to-purple-600/70 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all`}>
+            <span className="text-xl">📅</span>
+            {!sidebarCollapsed && <span className={`flex-1 font-medium ${textSizeClasses.base}`}>My Schedule</span>}
+          </div>
+
+          {/* Reports Inbox */}
+          <div onClick={() => { setShowDischargeList(false); handleTabChange('inbox', false); fetchReportsInbox(); }}
+               className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${reportMainTab === 'inbox' && !showDischargeList && !showScheduleView ? 'bg-gradient-to-r from-violet-600/70 to-purple-600/70 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all relative`}>
+            <span className="text-xl">📬</span>
+            {!sidebarCollapsed && (
+              <>
+                <span className={`flex-1 font-medium ${textSizeClasses.base}`}>Inbox</span>
+                {unreadReportsCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-xs bg-red-500 animate-pulse">{unreadReportsCount}</span>
+                )}
+              </>
+            )}
+            {sidebarCollapsed && unreadReportsCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-[10px] flex items-center justify-center">{unreadReportsCount}</span>
+            )}
+          </div>
+
+          {/* Sent Reports */}
+          <div onClick={() => { setShowDischargeList(false); handleTabChange('outbox', false); fetchReportsOutbox(); }}
+               className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${reportMainTab === 'outbox' && !showDischargeList && !showScheduleView ? 'bg-gradient-to-r from-violet-600/70 to-purple-600/70 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all`}>
+            <span className="text-xl">📤</span>
+            {!sidebarCollapsed && <span className={`flex-1 font-medium ${textSizeClasses.base}`}>Sent Reports</span>}
+          </div>
+
+          {/* Statistics */}
+          <div onClick={() => { setShowDischargeList(false); handleTabChange('stats', false); }}
+               className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${reportMainTab === 'stats' && !showDischargeList && !showScheduleView ? 'bg-gradient-to-r from-violet-600/70 to-purple-600/70 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all`}>
+            <span className="text-xl">📊</span>
+            {!sidebarCollapsed && <span className={`flex-1 font-medium ${textSizeClasses.base}`}>Statistics</span>}
+          </div>
+
+          {/* Profile */}
+          <div onClick={() => { setShowDischargeList(false); handleTabChange('profile', false); }}
+               className={`${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} mx-2 mt-2 rounded-xl ${reportMainTab === 'profile' && !showDischargeList && !showScheduleView ? 'bg-gradient-to-r from-violet-600/70 to-purple-600/70 shadow-lg' : 'bg-slate-800/50 hover:bg-slate-700'} flex items-center gap-3 cursor-pointer transition-all`}>
+            <span className="text-xl">👤</span>
+            {!sidebarCollapsed && <span className={`flex-1 font-medium ${textSizeClasses.base}`}>Profile</span>}
+          </div>
+        </div>
+
+        {/* Logout Button */}
+        <div className={`${sidebarCollapsed ? 'py-4 px-0' : 'p-5'} border-t border-slate-700/50`}>
+          <button onClick={handleLogoutClick} className={`w-full ${sidebarCollapsed ? 'py-3 px-0 justify-center' : 'py-3 px-4'} bg-transparent border border-slate-600 rounded-xl text-red-400 flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-start'} gap-3 transition-all hover:bg-red-500/10 ${textSizeClasses.base}`}>
             <span className="text-lg">🚪</span>
             {!sidebarCollapsed && <span>Logout</span>}
           </button>
@@ -1693,61 +1134,118 @@ const handleSendReply = async () => {
 
       {/* ==================== MAIN CONTENT ==================== */}
       <div className="flex-1 overflow-y-auto">
-        {/* Header */}
-        <div className={`bg-gradient-to-r ${currentWard.bgGradient} py-6 px-8 shadow-xl sticky top-0 z-40`}>
-          <div className="max-w-[1600px] mx-auto flex justify-between items-center flex-wrap gap-4">
-            <div>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center text-2xl shadow-lg animate-glow">
-                  <span>{currentWard.icon}</span>
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold text-white m-0 drop-shadow-md tracking-tight">
-                    {showScheduleView ? 'My Work Schedule' : 
-                     activeTab === 'inbox' ? 'Reports - Inbox' :
-                     activeTab === 'outbox' ? 'Reports - Sent' :
-                     activeTab === 'stats' ? 'Midwife Statistics' :
-                     activeTab === 'profile' ? 'My Profile' :
-                     currentWard.title}
-                  </h1>
-                  <p className="text-base text-white/90 mt-1 flex items-center gap-2 flex-wrap">
-                    <span>{formatFullName(user)}</span>
-                    <span className="text-white/50">•</span>
-                    <span>{user?.hospital_name}</span>
-                    <span className="bg-white/20 px-3 py-0.5 rounded-full text-xs font-medium backdrop-blur">Midwife - ANC Ward</span>
-                  </p>
+        {/* Header with Stats */}
+        <div className={`bg-gradient-to-r ${currentWard.bgGradient} backdrop-blur-sm py-8 px-10 shadow-xl sticky top-0 z-40`}>
+          <div className="max-w-[1600px] mx-auto flex justify-between items-center flex-wrap gap-5">
+            <div className="flex items-center gap-5">
+              {/* Back Button */}
+              {tabHistory.length > 0 && (
+                <button
+                  onClick={handleGoBack}
+                  className="bg-white/20 backdrop-blur p-3 rounded-xl text-white hover:bg-white/30 transition-all duration-200 shadow-lg flex items-center gap-2 group"
+                  title="Go Back"
+                >
+                  <FaUndo className="text-white text-lg" />
+                  <span className={`hidden sm:inline ${textSizeClasses.base}`}>Back</span>
+                </button>
+              )}
+              
+              <div>
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center text-3xl shadow-lg animate-glow">
+                    <span>{currentWard.icon}</span>
+                  </div>
+                  <div>
+                    <h1 className={`font-bold text-white m-0 drop-shadow-md tracking-tight ${textSizeClasses.title}`}>
+                      {showScheduleView ? 'My Work Schedule' : 
+                       reportMainTab === 'inbox' ? 'Reports - Inbox' :
+                       reportMainTab === 'outbox' ? 'Reports - Sent' :
+                       reportMainTab === 'stats' ? 'Midwife Statistics' :
+                       reportMainTab === 'profile' ? 'My Profile' :
+                       currentWard.title}
+                    </h1>
+                    <p className={`text-white/90 mt-2 flex items-center gap-3 flex-wrap ${textSizeClasses.base}`}>
+                      <span>{formatFullName(user)}</span>
+                      <span className="text-white/50 text-lg">•</span>
+                      <span>{user?.hospital_name}</span>
+                      <span className="bg-white/20 px-4 py-1 rounded-full text-sm font-medium backdrop-blur">Midwife - ANC Ward</span>
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3 flex-wrap">
+            
+            <div className="flex items-center gap-4 flex-wrap">
+              {/* Text Size Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowTextSizeMenu(!showTextSizeMenu)}
+                  className="bg-white/20 backdrop-blur px-4 py-3 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg"
+                  title="Adjust Text Size"
+                >
+                  <FaTextHeight className="text-lg" />
+                  <span className={`hidden md:inline ${textSizeClasses.base}`}>Text Size</span>
+                </button>
+                
+                {showTextSizeMenu && (
+                  <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden z-50">
+                    <button onClick={() => { setTextSize('small'); setShowTextSizeMenu(false); }} className={`w-full px-5 py-3 text-left hover:bg-gray-50 transition flex items-center justify-between ${textSize === 'small' ? 'bg-purple-50 text-purple-600' : 'text-gray-700'} ${textSizeClasses.base}`}>
+                      <span>Small</span>
+                      {textSize === 'small' && <FaCheck className="text-purple-500" />}
+                    </button>
+                    <button onClick={() => { setTextSize('normal'); setShowTextSizeMenu(false); }} className={`w-full px-5 py-3 text-left hover:bg-gray-50 transition flex items-center justify-between ${textSize === 'normal' ? 'bg-purple-50 text-purple-600' : 'text-gray-700'} ${textSizeClasses.base}`}>
+                      <span>Normal</span>
+                      {textSize === 'normal' && <FaCheck className="text-purple-500" />}
+                    </button>
+                    <button onClick={() => { setTextSize('large'); setShowTextSizeMenu(false); }} className={`w-full px-5 py-3 text-left hover:bg-gray-50 transition flex items-center justify-between ${textSize === 'large' ? 'bg-purple-50 text-purple-600' : 'text-gray-700'} ${textSizeClasses.base}`}>
+                      <span>Large</span>
+                      {textSize === 'large' && <FaCheck className="text-purple-500" />}
+                    </button>
+                    <button onClick={() => { setTextSize('xlarge'); setShowTextSizeMenu(false); }} className={`w-full px-5 py-3 text-left hover:bg-gray-50 transition flex items-center justify-between ${textSize === 'xlarge' ? 'bg-purple-50 text-purple-600' : 'text-gray-700'} ${textSizeClasses.base}`}>
+                      <span>Extra Large</span>
+                      {textSize === 'xlarge' && <FaCheck className="text-purple-500" />}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Google Search Button */}
+              <button onClick={() => setShowSearchBar(!showSearchBar)}
+                      className="bg-white/20 backdrop-blur px-5 py-3 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition shadow-lg font-medium">
+                <FaSearch /> <span className="hidden sm:inline">Medical Search</span>
+              </button>
+
+              {/* Send Report Button */}
+              <button onClick={() => { setShowSendReportModal(true); fetchHospitalAdmins(); fetchDoctors(); fetchPharmacyStaff(); fetchLabStaff(); }}
+                      className="bg-white/20 backdrop-blur px-5 py-3 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition shadow-lg font-medium">
+                <FaPaperPlane /> <span className="hidden sm:inline">Send Report</span>
+              </button>
+              
+              {/* Socket Status Indicator */}
               <SocketStatusIndicator />
-              <button onClick={() => { setActiveTab('sendReport'); setShowScheduleView(false); setShowSendReportModal(true); fetchHospitalAdmins(); }} className="bg-white/20 backdrop-blur px-4 py-2.5 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg text-sm font-medium">
-                <FaPaperPlane className="text-sm" /> Send Report
-              </button>
-              <button onClick={() => { fetchPatients(); fetchStats(); }} className="bg-white/20 backdrop-blur px-4 py-2.5 rounded-xl text-white flex items-center gap-2 hover:bg-white/30 transition-all duration-200 shadow-lg text-sm font-medium">
-                <FaSync className={loading ? 'animate-spin' : ''} /> Refresh
-              </button>
-              <div className="flex gap-4 bg-white/10 backdrop-blur py-2 px-5 rounded-full">
+              
+              {/* Stats Display in Header */}
+              <div className="flex gap-5 bg-white/10 backdrop-blur py-3 px-6 rounded-full">
                 <div className="text-center">
-                  <div className="text-xl font-bold text-white">{stats.antenatal}</div>
-                  <div className="text-[10px] text-white/70 uppercase tracking-wider">Antenatal</div>
+                  <div className={`font-bold text-white ${textSizeClasses.title}`}>{stats.antenatal}</div>
+                  <div className="text-xs text-white/70 uppercase tracking-wider mt-1">Antenatal</div>
                 </div>
-                <div className="w-px h-8 bg-white/30" />
+                <div className="w-px h-10 bg-white/30" />
                 <div className="text-center">
-                  <div className="text-xl font-bold text-white">{stats.postnatal}</div>
-                  <div className="text-[10px] text-white/70 uppercase tracking-wider">Postnatal</div>
+                  <div className={`font-bold text-white ${textSizeClasses.title}`}>{stats.postnatal}</div>
+                  <div className="text-xs text-white/70 uppercase tracking-wider mt-1">Postnatal</div>
                 </div>
-                <div className="w-px h-8 bg-white/30" />
+                <div className="w-px h-10 bg-white/30" />
                 <div className="text-center">
-                  <div className="text-xl font-bold text-white">{stats.deliveries}</div>
-                  <div className="text-[10px] text-white/70 uppercase tracking-wider">Deliveries</div>
+                  <div className={`font-bold text-white ${textSizeClasses.title}`}>{stats.deliveries}</div>
+                  <div className="text-xs text-white/70 uppercase tracking-wider mt-1">Deliveries</div>
                 </div>
                 {stats.highRisk > 0 && (
                   <>
-                    <div className="w-px h-8 bg-white/30" />
+                    <div className="w-px h-10 bg-white/30" />
                     <div className="text-center">
-                      <div className="text-xl font-bold text-white">{stats.highRisk}</div>
-                      <div className="text-[10px] text-white/70 uppercase tracking-wider">High Risk</div>
+                      <div className={`font-bold text-white ${textSizeClasses.title}`}>{stats.highRisk}</div>
+                      <div className="text-xs text-white/70 uppercase tracking-wider mt-1">High Risk</div>
                     </div>
                   </>
                 )}
@@ -1756,105 +1254,55 @@ const handleSendReply = async () => {
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="max-w-[1600px] mx-auto p-8">
-          {/* Message Display */}
-          {message.text && (
-            <div className={`mb-6 p-4 rounded-xl border-l-4 ${message.type === 'error' ? 'bg-red-50 border-red-500 text-red-700' : 'bg-green-50 border-green-500 text-green-700'} flex justify-between items-center animate-fade-in`}>
-              <span>{message.text}</span>
-              <button onClick={() => setMessage({ type: '', text: '' })} className="text-lg hover:opacity-70">×</button>
-            </div>
-          )}
-
-          {/* Search Bar - Only for patient tabs */}
-          {(activeTab === 'antenatal' || activeTab === 'postnatal' || activeTab === 'high-risk' || activeTab === 'deliveries') && !showDischargeList && !showScheduleView && (
-            <div className="mb-6 relative">
-              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by patient name or card number..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
-              />
-            </div>
-          )}
-
-          {/* Patient List View */}
-          {!showDischargeList && !showScheduleView && activeTab !== 'inbox' && activeTab !== 'outbox' && activeTab !== 'stats' && activeTab !== 'profile' && (
-            <div className="bg-white rounded-2xl shadow-md border border-gray-100">
-              <div className="p-6 border-b border-gray-200">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                  {activeTab === 'antenatal' && '🤰 Antenatal Care Patients'}
-                  {activeTab === 'postnatal' && '👶 Postnatal Care Patients'}
-                  {activeTab === 'high-risk' && '⚠️ High Risk Pregnancies'}
-                  {activeTab === 'deliveries' && '🏥 Recent Deliveries'}
-                </h2>
+        {/* Google Search Bar - Animated */}
+        <AnimatePresence>
+          {showSearchBar && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="bg-white shadow-xl p-6 border-b border-gray-100"
+            >
+              <div className="max-w-2xl mx-auto flex gap-4">
+                <input
+                  type="text"
+                  placeholder="Search midwifery and obstetric medical information on Google..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  className={`flex-1 px-5 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all ${textSizeClasses.base}`}
+                />
+                <button
+                  onClick={handleGoogleSearch}
+                  className="px-6 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 font-medium"
+                >
+                  Search Google
+                </button>
               </div>
-              <div className="p-6">
-                {loading && filteredPatients.length === 0 ? (
-                  <div className="text-center py-12">
-                    <FaSpinner className="animate-spin text-3xl text-violet-500 mx-auto mb-3" />
-                    <p className="text-gray-500">Loading patients...</p>
-                  </div>
-                ) : filteredPatients.length === 0 ? (
-                  <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                    <FaBabyCarriage className="text-5xl text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500">No patients found</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {filteredPatients.map(patient => {
-                      const isHighRisk = patient.antenatal_data?.high_risk;
-                      const weeks = patient.antenatal_data?.gestational_weeks || (patient.antenatal_data?.lmp ? calculateWeeks(patient.antenatal_data.lmp) : 'N/A');
-                      return (
-                        <div key={patient.id} className="border border-gray-200 rounded-xl p-5 hover:shadow-md transition-all bg-white">
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-3 flex-wrap">
-                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-violet-100 text-violet-800">{weeks} weeks</span>
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRiskLevelColor(isHighRisk)}`}>{getRiskLevelText(isHighRisk)}</span>
-                                {patient.antenatal_data?.edd && (
-                                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                    EDD: {new Date(patient.antenatal_data.edd).toLocaleDateString()}
-                                  </span>
-                                )}
-                              </div>
-                              <h3 className="font-semibold text-lg">{patient.first_name} {patient.middle_name} {patient.last_name}</h3>
-                              <p className="text-sm text-gray-500 mt-1">Card: {patient.card_number} • Age: {patient.age} yrs • G{patient.antenatal_data?.gravida || '?'} P{patient.antenatal_data?.para || '?'}</p>
-                              {patient.antenatal_data?.risk_factors?.length > 0 && (
-                                <p className="text-xs text-red-600 mt-1">⚠️ Risk: {patient.antenatal_data.risk_factors.join(', ')}</p>
-                              )}
-                            </div>
-                            <button onClick={() => handleTakePatient(patient)} disabled={loading} className="px-4 py-2 bg-violet-500 text-white rounded-lg hover:bg-violet-600 flex items-center gap-2 transition">
-                              <FaEye /> View Care
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
+            </motion.div>
           )}
+        </AnimatePresence>
 
-          {/* Discharge List View */}
-          {showDischargeList && !showScheduleView && (
-            <DischargeList hospitalId={user?.hospital_id} ward="ANC" dischargedPatients={dischargedPatients} onRefresh={fetchDischargedPatients} />
-          )}
+        {/* Message Toast */}
+        {message.text && (
+          <div className={`fixed bottom-8 right-8 z-[1000] ${message.type === 'error' ? 'bg-red-100 text-red-800 border-red-400' : 'bg-green-100 text-green-800 border-green-400'} py-3 px-6 rounded-lg shadow-md border-l-4 animate-slide-in ${textSizeClasses.base}`}>
+            {message.text}
+          </div>
+        )}
 
-          {/* Schedule View */}
+        {/* Main Content Area */}
+        <div className="max-w-[1600px] mx-auto p-10">
+          {/* My Schedule View */}
           {showScheduleView && (
-            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
+            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8">
               <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-violet-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
-                    <FaCalendarAlt className="text-white text-lg" />
+                  <div className="w-12 h-12 bg-gradient-to-r from-violet-500/70 to-purple-500/70 rounded-xl flex items-center justify-center shadow-lg">
+                    <FaCalendarAlt className="text-white text-xl" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-800">My Work Schedule</h2>
-                    <p className="text-sm text-gray-500">View your upcoming shifts and weekly schedule</p>
+                    <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>My Work Schedule</h2>
+                    <p className={`text-gray-500 ${textSizeClasses.base}`}>View your upcoming shifts and weekly schedule</p>
                   </div>
                 </div>
                 <button 
@@ -1862,7 +1310,7 @@ const handleSendReply = async () => {
                     const event = new CustomEvent('refreshSchedule');
                     window.dispatchEvent(event);
                   }}
-                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition text-sm font-medium flex items-center gap-2"
+                  className={`px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition font-medium flex items-center gap-2 ${textSizeClasses.base}`}
                 >
                   <FaSync className="text-sm" /> Refresh
                 </button>
@@ -1871,37 +1319,114 @@ const handleSendReply = async () => {
             </div>
           )}
 
-          {/* Inbox Tab */}
-          {activeTab === 'inbox' && !showScheduleView && (
-            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-              <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-xl font-bold text-gray-800">📬 Inbox</h2>
-                  {unreadReportsCount > 0 && <span className="px-3 py-1 bg-red-500 text-white text-xs rounded-full animate-pulse">{unreadReportsCount} unread</span>}
+          {/* Discharge List View */}
+          {showDischargeList && !showScheduleView && (
+            <DischargeList hospitalId={user?.hospital_id} ward="ANC" dischargedPatients={dischargedPatients} onRefresh={fetchDischargedPatients} />
+          )}
+
+          {/* Patient List Views */}
+          {(reportMainTab === 'antenatal' || reportMainTab === 'postnatal' || reportMainTab === 'high-risk' || reportMainTab === 'deliveries') && !showDischargeList && !showScheduleView && (
+            <>
+              {/* Search Bar */}
+              <div className="mb-6 relative">
+                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search by patient name or card number..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className={`w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white ${textSizeClasses.base}`}
+                />
+              </div>
+
+              {/* Patient Cards */}
+              <div className="bg-white rounded-2xl p-8 shadow-md border border-gray-100">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>
+                    {reportMainTab === 'antenatal' && '🤰 Antenatal Care Patients'}
+                    {reportMainTab === 'postnatal' && '👶 Postnatal Care Patients'}
+                    {reportMainTab === 'high-risk' && '⚠️ High Risk Pregnancies'}
+                    {reportMainTab === 'deliveries' && '🏥 Recent Deliveries'}
+                  </h2>
+                  <button onClick={() => { fetchPatients(); fetchStats(); }} className={`px-4 py-2 bg-gray-100 rounded-xl hover:bg-gray-200 flex items-center gap-2 ${textSizeClasses.base}`}>
+                    <FaSpinner className={loading ? 'animate-spin' : ''} /> Refresh
+                  </button>
                 </div>
-                <button onClick={() => { setShowSendReportModal(true); fetchHospitalAdmins(); }} className="px-4 py-2 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl hover:shadow-lg transition text-sm font-medium">
-                  New Report
+                
+                {loading && filteredPatients.length === 0 ? (
+                  <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                    <FaSpinner className="animate-spin text-3xl text-purple-500 mx-auto mb-3" />
+                    <p className={`text-gray-500 ${textSizeClasses.base}`}>Loading patients...</p>
+                  </div>
+                ) : filteredPatients.length === 0 ? (
+                  <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                    <span className="text-6xl block mb-4">🤰</span>
+                    <p className={`text-gray-500 ${textSizeClasses.base}`}>No patients found</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-5">
+                    {filteredPatients.map(patient => {
+                      const isHighRisk = patient.antenatal_data?.high_risk;
+                      const weeks = patient.antenatal_data?.gestational_weeks || (patient.antenatal_data?.lmp ? calculateWeeks(patient.antenatal_data.lmp) : 'N/A');
+                      return (
+                        <div key={patient.id} className="border border-gray-200 rounded-xl p-6 flex justify-between items-center shadow-sm hover:shadow-lg transition-all bg-white">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-3 flex-wrap">
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 ${textSizeClasses.base}`}>{weeks} weeks</span>
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${getRiskLevelColor(isHighRisk)} ${textSizeClasses.base}`}>{getRiskLevelText(isHighRisk)}</span>
+                              {patient.antenatal_data?.edd && (
+                                <span className={`px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 ${textSizeClasses.base}`}>
+                                  EDD: {new Date(patient.antenatal_data.edd).toLocaleDateString()}
+                                </span>
+                              )}
+                            </div>
+                            <h3 className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{patient.first_name} {patient.middle_name} {patient.last_name}</h3>
+                            <p className={`text-gray-500 mt-1 ${textSizeClasses.base}`}>Card: {patient.card_number} • Age: {patient.age} yrs • G{patient.antenatal_data?.gravida || '?'} P{patient.antenatal_data?.para || '?'}</p>
+                            {patient.antenatal_data?.risk_factors?.length > 0 && (
+                              <p className={`text-red-600 mt-2 ${textSizeClasses.base}`}>⚠️ Risk: {patient.antenatal_data.risk_factors.join(', ')}</p>
+                            )}
+                          </div>
+                          <button onClick={() => handleTakePatient(patient)} disabled={loading} className={`py-3 px-8 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl hover:shadow-lg transition font-semibold ml-5 ${textSizeClasses.base}`}>
+                            <FaEye className="inline mr-2" /> View Care
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Reports Inbox View */}
+          {reportMainTab === 'inbox' && !showScheduleView && (
+            <div className="bg-white rounded-2xl p-8 shadow-md border border-gray-100">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>📬 Reports Inbox</h2>
+                <button onClick={fetchReportsInbox} className={`px-4 py-2 bg-gray-100 rounded-xl hover:bg-gray-200 flex items-center gap-2 ${textSizeClasses.base}`}>
+                  <FaSpinner className={reportsLoading ? 'animate-spin' : ''} /> Refresh
                 </button>
               </div>
-              {reportsLoading && reportsInbox.length === 0 ? (
-                <div className="text-center py-12"><FaSpinner className="animate-spin text-3xl text-gray-400 mx-auto mb-3" /><p className="text-gray-500">Loading reports...</p></div>
-              ) : reportsInbox.length === 0 ? (
-                <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200"><FaInbox className="text-5xl text-gray-300 mx-auto mb-3" /><p className="text-gray-500 text-sm">No reports in inbox</p></div>
+              {reportsInbox.length === 0 ? (
+                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                  <span className="text-6xl block mb-4">📭</span>
+                  <p className={`text-gray-500 ${textSizeClasses.base}`}>No reports in inbox</p>
+                </div>
               ) : (
-                <div className="space-y-4">
+                <div className="grid gap-5">
                   {reportsInbox.map(report => (
-                    <div key={report.id} className={`border rounded-xl p-5 cursor-pointer hover:shadow-md transition-all ${!report.is_opened ? 'border-violet-300 bg-violet-50' : 'border-gray-200 bg-white'}`} onClick={() => viewReportDetails(report)}>
-                      <div className="flex justify-between items-start mb-3">
+                    <div key={report.id} className={`border rounded-xl p-6 cursor-pointer hover:shadow-md transition-all ${!report.is_opened ? 'border-purple-300 bg-purple-50' : 'border-gray-200 bg-white'}`} onClick={() => viewReportDetails(report)}>
+                      <div className="flex justify-between items-start mb-4">
                         <div className="flex items-center gap-3">
-                          {!report.is_opened ? <FaEnvelope className="text-violet-500" /> : <FaEnvelopeOpen className="text-gray-400" />}
-                          <h3 className="font-semibold text-gray-800">{report.title}</h3>
+                          {!report.is_opened ? <FaEnvelope className="text-purple-500 text-lg" /> : <FaEnvelopeOpen className="text-gray-400 text-lg" />}
+                          <h3 className={`font-semibold text-gray-800 ${textSizeClasses.heading}`}>{report.title}</h3>
                         </div>
-                        <span className={`text-xs px-3 py-1 rounded-full ${report.priority === 'urgent' ? 'bg-red-100 text-red-800' : report.priority === 'high' ? 'bg-orange-100 text-orange-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                        <span className={`px-3 py-1 rounded-full text-sm font-semibold ${report.priority === 'urgent' ? 'bg-red-100 text-red-800' : report.priority === 'high' ? 'bg-orange-100 text-orange-800' : 'bg-yellow-100 text-yellow-800'}`}>
                           {report.priority}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{report.body}</p>
-                      <div className="flex justify-between items-center text-xs text-gray-500">
+                      <p className={`text-gray-600 mb-3 line-clamp-2 ${textSizeClasses.base}`}>{report.body}</p>
+                      <div className={`flex justify-between items-center text-gray-500 ${textSizeClasses.base}`}>
                         <span>From: {report.sender_full_name}</span>
                         <span>{new Date(report.sent_at).toLocaleString()}</span>
                       </div>
@@ -1912,27 +1437,28 @@ const handleSendReply = async () => {
             </div>
           )}
 
-          {/* Outbox Tab */}
-          {activeTab === 'outbox' && !showScheduleView && (
-            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
+          {/* Sent Reports View */}
+          {reportMainTab === 'outbox' && !showScheduleView && (
+            <div className="bg-white rounded-2xl p-8 shadow-md border border-gray-100">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-gray-800">📤 Sent Reports</h2>
-                <button onClick={() => fetchReportsOutbox()} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition text-sm font-medium">Refresh</button>
+                <h2 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>📤 Sent Reports</h2>
+                <button onClick={fetchReportsOutbox} className={`px-4 py-2 bg-gray-100 rounded-xl hover:bg-gray-200 ${textSizeClasses.base}`}>Refresh</button>
               </div>
-              {reportsLoading && reportsOutbox.length === 0 ? (
-                <div className="text-center py-12"><FaSpinner className="animate-spin text-3xl text-gray-400 mx-auto mb-3" /><p className="text-gray-500">Loading sent reports...</p></div>
-              ) : reportsOutbox.length === 0 ? (
-                <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200"><FaPaperPlane className="text-5xl text-gray-300 mx-auto mb-3" /><p className="text-gray-500 text-sm">No sent reports</p></div>
+              {reportsOutbox.length === 0 ? (
+                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                  <span className="text-6xl block mb-4">📪</span>
+                  <p className={`text-gray-500 ${textSizeClasses.base}`}>No sent reports</p>
+                </div>
               ) : (
-                <div className="space-y-4">
+                <div className="grid gap-5">
                   {reportsOutbox.map(report => (
-                    <div key={report.id} className="border border-gray-200 rounded-xl p-5 cursor-pointer hover:shadow-md bg-white" onClick={() => viewReportDetails(report)}>
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex items-center gap-3"><FaPaperPlane className="text-gray-400" /><h3 className="font-semibold text-gray-800">{report.title}</h3></div>
-                        <span className={`text-xs px-3 py-1 rounded-full ${report.priority === 'urgent' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>{report.priority}</span>
+                    <div key={report.id} className="border border-gray-200 rounded-xl p-6 cursor-pointer hover:shadow-md bg-white" onClick={() => viewReportDetails(report)}>
+                      <div className="flex justify-between items-start mb-4">
+                        <h3 className={`font-semibold text-gray-800 ${textSizeClasses.heading}`}>{report.title}</h3>
+                        <span className={`px-3 py-1 rounded-full text-sm font-semibold ${report.priority === 'urgent' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>{report.priority}</span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{report.body}</p>
-                      <div className="flex justify-between items-center text-xs text-gray-500">
+                      <p className={`text-gray-600 mb-3 line-clamp-2 ${textSizeClasses.base}`}>{report.body}</p>
+                      <div className={`flex justify-between items-center text-gray-500 ${textSizeClasses.base}`}>
                         <span>To: {report.recipient_full_name}</span>
                         <span>Sent: {new Date(report.sent_at).toLocaleString()}</span>
                       </div>
@@ -1943,144 +1469,92 @@ const handleSendReply = async () => {
             </div>
           )}
 
-          {/* Statistics Tab */}
-          {activeTab === 'stats' && !showScheduleView && (
-            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-6">📊 Midwife Statistics</h2>
+          {/* Statistics View */}
+          {reportMainTab === 'stats' && !showScheduleView && (
+            <div className="bg-white rounded-2xl p-8 shadow-md border border-gray-100">
+              <h2 className={`font-bold text-gray-800 mb-6 ${textSizeClasses.heading}`}>📊 Midwife Statistics</h2>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-6">
                 <div className="bg-gradient-to-br from-violet-500 to-purple-500 rounded-2xl p-5 text-white shadow-lg">
-                  <p className="text-sm opacity-90 mb-1">Active Patients</p>
-                  <p className="text-3xl font-bold">{stats.antenatal + stats.postnatal}</p>
+                  <p className={`text-sm opacity-90 mb-1 ${textSizeClasses.base}`}>Active Patients</p>
+                  <p className={`font-bold ${textSizeClasses.title}`}>{stats.antenatal + stats.postnatal}</p>
                 </div>
                 <div className="bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl p-5 text-white shadow-lg">
-                  <p className="text-sm opacity-90 mb-1">Total Deliveries</p>
-                  <p className="text-3xl font-bold">{stats.deliveries}</p>
+                  <p className={`text-sm opacity-90 mb-1 ${textSizeClasses.base}`}>Total Deliveries</p>
+                  <p className={`font-bold ${textSizeClasses.title}`}>{stats.deliveries}</p>
                 </div>
                 <div className="bg-gradient-to-br from-red-500 to-rose-500 rounded-2xl p-5 text-white shadow-lg">
-                  <p className="text-sm opacity-90 mb-1">High Risk</p>
-                  <p className="text-3xl font-bold">{stats.highRisk}</p>
+                  <p className={`text-sm opacity-90 mb-1 ${textSizeClasses.base}`}>High Risk</p>
+                  <p className={`font-bold ${textSizeClasses.title}`}>{stats.highRisk}</p>
                 </div>
                 <div className="bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl p-5 text-white shadow-lg">
-                  <p className="text-sm opacity-90 mb-1">Due This Week</p>
-                  <p className="text-3xl font-bold">{stats.dueThisWeek}</p>
+                  <p className={`text-sm opacity-90 mb-1 ${textSizeClasses.base}`}>Due This Week</p>
+                  <p className={`font-bold ${textSizeClasses.title}`}>{stats.dueThisWeek}</p>
                 </div>
               </div>
               <div className="bg-gray-50 rounded-xl p-6 text-center">
-                <p className="text-gray-500">Today's Summary: {stats.antenatal} antenatal, {stats.postnatal} postnatal patients</p>
-                <p className="text-xs text-gray-400 mt-2">Pending pharmacy prescriptions: {stats.pendingPharmacy}</p>
+                <p className={`text-gray-500 ${textSizeClasses.base}`}>Today's Summary: {stats.antenatal} antenatal, {stats.postnatal} postnatal patients</p>
+                <p className={`text-xs text-gray-400 mt-2 ${textSizeClasses.base}`}>Pending pharmacy prescriptions: {stats.pendingPharmacy}</p>
               </div>
             </div>
           )}
 
-          {/* Profile Tab */}
-          {activeTab === 'profile' && !showScheduleView && (
+          {/* Profile View */}
+          {reportMainTab === 'profile' && !showScheduleView && (
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
-              <div className="bg-gradient-to-r from-violet-600 to-purple-500 px-8 py-10">
-                <div className="flex items-center gap-6">
-                  <div className="relative">
-                    <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-xl">
-                      <FaUserCircle className="text-violet-600 text-6xl" />
-                    </div>
+              <div className="bg-gradient-to-r from-violet-600/70 to-purple-600/70 px-10 py-12">
+                <div className="flex items-center gap-8">
+                  <div className="w-28 h-28 bg-white rounded-full flex items-center justify-center shadow-xl">
+                    <FaUserCircle className="text-violet-600 text-7xl" />
                   </div>
                   <div className="text-white">
-                    <h2 className="text-2xl font-bold mb-1">
+                    <h2 className={`font-bold mb-2 ${textSizeClasses.title}`}>
                       {profileData.first_name} {profileData.middle_name ? profileData.middle_name + ' ' : ''}{profileData.last_name}
                     </h2>
-                    <p className="text-violet-100 flex items-center gap-2">
-                      <FaBaby className="text-sm" /> {profileData.department || 'Midwife'} - ANC Ward
+                    <p className={`text-violet-100 flex items-center gap-3 ${textSizeClasses.base}`}>
+                      <FaBaby className="text-lg" /> {profileData.department || 'Midwife'} • ANC Ward
                     </p>
-                    <p className="text-violet-100 text-sm mt-1 opacity-80">{user?.hospital_name}</p>
+                    <p className={`text-violet-100 mt-2 opacity-80 ${textSizeClasses.base}`}>{user?.hospital_name}</p>
                   </div>
                 </div>
               </div>
-              
-              <div className="p-8">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-bold text-gray-800">Professional Information</h3>
+              <div className="p-10">
+                <div className="flex justify-between items-center mb-8">
+                  <h3 className={`font-bold text-gray-800 ${textSizeClasses.heading}`}>Professional Information</h3>
                   {!isEditingProfile ? (
                     <button onClick={() => setIsEditingProfile(true)} 
-                      className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition text-sm font-medium">
+                      className={`flex items-center gap-2 px-5 py-2 bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition font-medium ${textSizeClasses.base}`}>
                       <FaEditIcon /> Edit Profile
                     </button>
                   ) : (
-                    <div className="flex gap-2">
+                    <div className="flex gap-3">
                       <button onClick={() => setIsEditingProfile(false)} 
-                        className="px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition">
+                        className={`px-5 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition ${textSizeClasses.base}`}>
                         Cancel
                       </button>
                       <button onClick={updateProfile} 
-                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition">
+                        className={`flex items-center gap-2 px-5 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition ${textSizeClasses.base}`}>
                         <FaSave /> Save
                       </button>
                     </div>
                   )}
                 </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-gray-50 rounded-xl p-5">
-                    <h4 className="font-semibold text-violet-600 mb-4 flex items-center gap-2"><FaUserCircle /> Personal Info</h4>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-xs text-gray-500">First Name</label>
-                        {isEditingProfile ? 
-                          <input type="text" value={profileData.first_name} onChange={(e) => setProfileData({...profileData, first_name: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" /> : 
-                          <p className="text-gray-800">{profileData.first_name || 'Not set'}</p>
-                        }
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-500">Middle Name</label>
-                        {isEditingProfile ? 
-                          <input type="text" value={profileData.middle_name} onChange={(e) => setProfileData({...profileData, middle_name: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" /> : 
-                          <p className="text-gray-800">{profileData.middle_name || '—'}</p>
-                        }
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-500">Last Name</label>
-                        {isEditingProfile ? 
-                          <input type="text" value={profileData.last_name} onChange={(e) => setProfileData({...profileData, last_name: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" /> : 
-                          <p className="text-gray-800">{profileData.last_name || 'Not set'}</p>
-                        }
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="text-xs text-gray-500">Gender</label>
-                          {isEditingProfile ? 
-                            <select value={profileData.gender} onChange={(e) => setProfileData({...profileData, gender: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm">
-                              <option>Male</option><option>Female</option><option>Other</option>
-                            </select> : 
-                            <p className="text-gray-800">{profileData.gender || 'Not set'}</p>
-                          }
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-500">Age</label>
-                          {isEditingProfile ? 
-                            <input type="number" value={profileData.age} onChange={(e) => setProfileData({...profileData, age: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" /> : 
-                            <p className="text-gray-800">{profileData.age ? `${profileData.age} years` : 'Not set'}</p>
-                          }
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-500">Phone</label>
-                        {isEditingProfile ? 
-                          <input type="tel" value={profileData.phone} onChange={(e) => setProfileData({...profileData, phone: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" /> : 
-                          <p className="text-gray-800">{profileData.phone || 'Not set'}</p>
-                        }
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-500">Email</label>
-                        <p className="text-gray-800">{profileData.email || 'Not set'}</p>
-                      </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <h4 className={`font-semibold text-violet-600 mb-5 flex items-center gap-2 ${textSizeClasses.base}`}><FaUserCircle /> Personal Info</h4>
+                    <div className="space-y-4">
+                      <div><label className={`text-gray-500 ${textSizeClasses.base}`}>First Name</label>{isEditingProfile ? (<input type="text" value={profileData.first_name} onChange={(e) => setProfileData({...profileData, first_name: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.first_name || 'Not set'}</p>)}</div>
+                      <div><label className={`text-gray-500 ${textSizeClasses.base}`}>Last Name</label>{isEditingProfile ? (<input type="text" value={profileData.last_name} onChange={(e) => setProfileData({...profileData, last_name: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.last_name || 'Not set'}</p>)}</div>
+                      <div><label className={`text-gray-500 ${textSizeClasses.base}`}>Phone</label>{isEditingProfile ? (<input type="tel" value={profileData.phone} onChange={(e) => setProfileData({...profileData, phone: e.target.value})} className={`w-full px-4 py-2 border rounded-lg ${textSizeClasses.base}`} />) : (<p className={`text-gray-800 ${textSizeClasses.base}`}>{profileData.phone || 'Not set'}</p>)}</div>
                     </div>
                   </div>
-                  
-                  <div className="bg-gray-50 rounded-xl p-5">
-                    <h4 className="font-semibold text-violet-600 mb-4 flex items-center gap-2"><FaKey /> Account Settings</h4>
-                    <button onClick={() => setShowPasswordModal(true)} className="flex items-center gap-2 px-4 py-2 border border-violet-600 text-violet-600 rounded-xl hover:bg-violet-50 transition text-sm font-medium w-full justify-center">
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <h4 className={`font-semibold text-violet-600 mb-5 flex items-center gap-2 ${textSizeClasses.base}`}><FaKey /> Account Settings</h4>
+                    <button onClick={() => setShowPasswordModal(true)} className={`flex items-center gap-2 px-6 py-3 border border-violet-600 text-violet-600 rounded-xl hover:bg-violet-50 transition ${textSizeClasses.base}`}>
                       <FaKey /> Change Password
                     </button>
                     <div className="mt-6 pt-4 border-t border-gray-200">
-                      <h5 className="text-sm font-medium text-gray-700 mb-2">Account Info</h5>
-                      <div className="space-y-2 text-sm">
+                      <h5 className={`text-sm font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Account Info</h5>
+                      <div className={`space-y-2 ${textSizeClasses.base}`}>
                         <div className="flex justify-between"><span className="text-gray-500">Role:</span><span className="text-gray-800 font-medium">Midwife</span></div>
                         <div className="flex justify-between"><span className="text-gray-500">Department:</span><span className="text-gray-800">{profileData.department || 'Midwife'}</span></div>
                         <div className="flex justify-between"><span className="text-gray-500">Ward:</span><span className="text-gray-800">ANC</span></div>
@@ -2093,258 +1567,249 @@ const handleSendReply = async () => {
             </div>
           )}
         </div>
-      </div>
 
-      {/* ==================== MODALS ==================== */}
-      
-      {/* Patient Consultation Modal - Keep existing modal code here */}
-      {showPatientModal && selectedPatient && (
-        // ... (keep your existing patient modal JSX - it's long so I'm omitting for brevity)
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2000] backdrop-blur-sm overflow-y-auto">
-          {/* Your existing patient modal content */}
-        </div>
-      )}
-
-      {/* Discharge Location Modal */}
-      {showDischargeLocationModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2100]">
-          <div className="bg-white rounded-3xl p-8 max-w-md w-[90%]">
-            <h3 className="text-xl font-semibold mb-6">Select Discharge Location</h3>
-            <select value={dischargeLocation} onChange={(e) => setDischargeLocation(e.target.value)} className="w-full p-3 border border-gray-200 rounded-lg mb-6">
-              <option value="">Choose location...</option>
-              {dischargeLocations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
-            </select>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setShowDischargeLocationModal(false)} className="px-6 py-2 bg-gray-100 rounded-lg">Cancel</button>
-              <button onClick={handleDischargeWithLocation} disabled={!dischargeLocation || loading} className="px-6 py-2 bg-green-500 text-white rounded-lg">Confirm Discharge</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Referral Modal */}
-      {showReferralModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2100]">
-          <div className="bg-white rounded-3xl p-8 max-w-lg w-[90%] max-h-[80vh] overflow-auto">
-            <h3 className="text-xl font-semibold mb-6">Refer Patient</h3>
-            <div className="flex gap-4 mb-6">
-              <button onClick={() => { setReferralType('internal'); setSelectedInternalWard(''); setExternalReferralData(null); }} className={`flex-1 py-3 rounded-lg font-semibold ${referralType === 'internal' ? 'text-white' : 'bg-gray-100'}`} style={{ backgroundColor: referralType === 'internal' ? '#8b5cf6' : '' }}>🏥 Internal</button>
-              <button onClick={() => { setReferralType('external'); setSelectedInternalWard(''); setExternalReferralData(null); }} className={`flex-1 py-3 rounded-lg font-semibold ${referralType === 'external' ? 'text-white' : 'bg-gray-100'}`} style={{ backgroundColor: referralType === 'external' ? '#8b5cf6' : '' }}>🌍 External</button>
-            </div>
-            {referralType === 'internal' && (
-              <div>
-                <select value={selectedInternalWard} onChange={(e) => setSelectedInternalWard(e.target.value)} className="w-full p-3 border border-gray-200 rounded-lg mb-4">
-                  <option value="">Select Ward...</option>
-                  {internalWards.map(ward => <option key={ward} value={ward}>{ward} Ward</option>)}
-                </select>
-                {selectedInternalWard && (
-                  <div className="mt-4">
-                    <label className="text-sm font-medium mb-2 block">Select Bed (Optional)</label>
-                    <BedSelection ward={selectedInternalWard} hospitalId={user?.hospital_id} onBedSelect={setReferralSelectedBed} selectedBed={referralSelectedBed} title="Available Beds" />
-                  </div>
-                )}
-                <div className="flex justify-end gap-3 mt-6">
-                  <button onClick={() => setShowReferralModal(false)} className="px-6 py-2 bg-gray-100 rounded-lg">Cancel</button>
-                  <button onClick={handleInternalRefer} disabled={!selectedInternalWard || loading} className="px-6 py-2 bg-violet-500 text-white rounded-lg">Send Referral</button>
+        {/* Send Report Modal */}
+        <AnimatePresence>
+          {showSendReportModal && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                       className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowSendReportModal(false)}>
+              <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+                         className="bg-white rounded-2xl p-8 max-w-lg w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-5">
+                  <h2 className={`font-bold text-gray-800 flex items-center gap-2 ${textSizeClasses.title}`}>
+                    <FaPaperPlane className="text-purple-500" /> Send Report
+                  </h2>
+                  <button onClick={() => setShowSendReportModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
                 </div>
-              </div>
-            )}
-            {referralType === 'external' && (
-              <div>
-                <EthiopianHierarchySelector onSelect={setExternalReferralData} />
-                <div className="flex justify-end gap-3 mt-6">
-                  <button onClick={() => setShowReferralModal(false)} className="px-6 py-2 bg-gray-100 rounded-lg">Cancel</button>
-                  <button onClick={handleExternalRefer} disabled={!externalReferralData || loading} className="px-6 py-2 bg-violet-500 text-white rounded-lg">Send Referral</button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Bed Selection Modal */}
-      {showBedListNotification && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2100]">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full">
-            <h3 className="text-xl font-semibold mb-4">Select Bed for Admission</h3>
-            <p className="text-sm text-gray-600 mb-3">Available Beds in ANC Ward:</p>
-            {availableBedsList.length === 0 ? (
-              <div className="text-center py-8 bg-yellow-50 rounded-lg">
-                <span className="text-4xl block">🛏️</span>
-                <p>No beds available</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-3 max-h-80 overflow-y-auto mb-4">
-                {availableBedsList.map(bed => (
-                  <button key={bed.id} onClick={() => { setShowBedListNotification(false); handleAdmit(bed.id); }} className="border-2 border-green-200 bg-green-50 hover:bg-green-100 rounded-xl p-4">
-                    <div className="flex justify-between">
-                      <span className="font-bold">Bed {bed.number}</span>
-                      <span>🛏️</span>
-                    </div>
-                    <div className="text-xs text-gray-600">{bed.type === 'general' ? 'General Ward' : 'Private Room'}</div>
-                    <div className="text-xs text-green-600 mt-2">✓ Available</div>
-                  </button>
-                ))}
-              </div>
-            )}
-            <button onClick={() => setShowBedListNotification(false)} className="w-full px-4 py-2 bg-gray-100 rounded-lg">Cancel</button>
-          </div>
-        </div>
-      )}
-
-      {/* Send Report Modal */}
-      {showSendReportModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                  <FaPaperPlane className="text-violet-500" /> Send Report
-                </h2>
-                <button onClick={() => setShowSendReportModal(false)} className="p-2 hover:bg-gray-100 rounded-full">×</button>
-              </div>
-              <form onSubmit={handleSendReport} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Recipient *</label>
-                  <select value={sendReportForm.recipient_id} onChange={(e) => setSendReportForm({...sendReportForm, recipient_id: e.target.value})} className="w-full p-3 border border-gray-300 rounded-xl" required>
-                    <option value="">Select Hospital Admin...</option>
-                    {hospitalAdmins.map(admin => (<option key={admin.id} value={admin.id}>{admin.full_name} - {admin.hospital_name}</option>))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
-                  <select value={sendReportForm.priority} onChange={(e) => setSendReportForm({...sendReportForm, priority: e.target.value})} className="w-full p-3 border border-gray-300 rounded-xl">
-                    <option value="low">🟢 Low</option>
-                    <option value="medium">🟡 Medium</option>
-                    <option value="high">🟠 High</option>
-                    <option value="urgent">🔴 Urgent</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Title *</label>
-                  <input type="text" value={sendReportForm.title} onChange={(e) => setSendReportForm({...sendReportForm, title: e.target.value})} placeholder="e.g., Weekly ANC Report" className="w-full p-3 border border-gray-300 rounded-xl" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Message *</label>
-                  <textarea value={sendReportForm.body} onChange={(e) => setSendReportForm({...sendReportForm, body: e.target.value})} rows="5" placeholder="Enter report details..." className="w-full p-3 border border-gray-300 rounded-xl resize-none" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Attachments</label>
-                  <input type="file" ref={fileInputRef} onChange={(e) => { const files = Array.from(e.target.files); setSendReportForm(prev => ({ ...prev, attachments: [...prev.attachments, ...files] })); }} multiple accept="image/*,.pdf,.doc,.docx" className="w-full p-2 border border-gray-300 rounded-xl" />
-                </div>
-                <div className="flex justify-end gap-3 pt-4">
-                  <button type="button" onClick={() => setShowSendReportModal(false)} className="px-5 py-2 border border-gray-300 rounded-xl">Cancel</button>
-                  <button type="submit" disabled={loading} className="px-5 py-2 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl flex items-center gap-2">
-                    {loading ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}{loading ? 'Sending...' : 'Send Report'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Report Detail Modal */}
-      {showReportDetailModal && selectedReport && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-200">
-                <div className="flex items-center gap-2">
-                  {!selectedReport.is_opened ? <FaEnvelope className="text-violet-500" /> : <FaEnvelopeOpen className="text-gray-400" />}
-                  <h2 className="text-xl font-bold text-gray-800">{selectedReport.title}</h2>
-                </div>
-                <button onClick={() => { setShowReportDetailModal(false); setSelectedReport(null); }} className="p-2 hover:bg-gray-100 rounded-full">×</button>
-              </div>
-              <div className="space-y-4">
-                <div className="flex justify-between">
+                
+                <form onSubmit={handleSendReport} className="space-y-5">
                   <div>
-                    <p className="text-sm text-gray-500">From</p>
-                    <p className="font-semibold text-gray-800">{selectedReport.sender_full_name}</p>
+                    <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Recipient Type</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="flex items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-gray-50">
+                        <input type="radio" value="hospital_admin" checked={sendReportForm.recipient_type === 'hospital_admin'}
+                               onChange={(e) => setSendReportForm({...sendReportForm, recipient_type: e.target.value, recipient_id: ''})} />
+                        <span className={textSizeClasses.base}>🏢 Hospital Admin</span>
+                      </label>
+                      <label className="flex items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-gray-50">
+                        <input type="radio" value="doctor" checked={sendReportForm.recipient_type === 'doctor'}
+                               onChange={(e) => setSendReportForm({...sendReportForm, recipient_type: e.target.value, recipient_id: ''})} />
+                        <span className={textSizeClasses.base}>👨‍⚕️ Doctor</span>
+                      </label>
+                      <label className="flex items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-gray-50">
+                        <input type="radio" value="pharmacy" checked={sendReportForm.recipient_type === 'pharmacy'}
+                               onChange={(e) => setSendReportForm({...sendReportForm, recipient_type: e.target.value, recipient_id: ''})} />
+                        <span className={textSizeClasses.base}>💊 Pharmacy</span>
+                      </label>
+                      <label className="flex items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-gray-50">
+                        <input type="radio" value="lab" checked={sendReportForm.recipient_type === 'lab'}
+                               onChange={(e) => setSendReportForm({...sendReportForm, recipient_type: e.target.value, recipient_id: ''})} />
+                        <span className={textSizeClasses.base}>🔬 Lab</span>
+                      </label>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-500">Priority</p>
-                    <span className={`px-3 py-1 rounded-full text-xs ${selectedReport.priority === 'urgent' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                      {selectedReport.priority}
-                    </span>
+
+                  <div>
+                    <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Recipient *</label>
+                    <select value={sendReportForm.recipient_id} onChange={(e) => setSendReportForm({...sendReportForm, recipient_id: e.target.value})}
+                            className={`w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 ${textSizeClasses.base}`} required>
+                      <option value="">Select Recipient...</option>
+                      {sendReportForm.recipient_type === 'hospital_admin' && hospitalAdmins.map(admin => (
+                        <option key={admin.id} value={admin.id}>{admin.full_name} - {admin.hospital_name}</option>
+                      ))}
+                      {sendReportForm.recipient_type === 'doctor' && doctors.map(doc => (
+                        <option key={doc.id} value={doc.id}>Dr. {doc.full_name} - {doc.specialization || doc.ward} Ward</option>
+                      ))}
+                      {sendReportForm.recipient_type === 'pharmacy' && pharmacyStaff.map(pharm => (
+                        <option key={pharm.id} value={pharm.id}>{pharm.full_name} - Pharmacy</option>
+                      ))}
+                      {sendReportForm.recipient_type === 'lab' && labStaff.map(lab => (
+                        <option key={lab.id} value={lab.id}>{lab.full_name} - Lab</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Priority</label>
+                    <select value={sendReportForm.priority} onChange={(e) => setSendReportForm({...sendReportForm, priority: e.target.value})}
+                            className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>
+                      <option value="low">🟢 Low</option>
+                      <option value="medium">🟡 Medium</option>
+                      <option value="high">🟠 High</option>
+                      <option value="urgent">🔴 Urgent</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Title *</label>
+                    <input type="text" value={sendReportForm.title} onChange={(e) => setSendReportForm({...sendReportForm, title: e.target.value})}
+                           placeholder="e.g., Weekly ANC Report" className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} required />
+                  </div>
+                  
+                  <div>
+                    <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Message *</label>
+                    <textarea value={sendReportForm.body} onChange={(e) => setSendReportForm({...sendReportForm, body: e.target.value})}
+                              rows="5" placeholder="Enter report details..." className={`w-full p-3 border border-gray-300 rounded-xl resize-none ${textSizeClasses.base}`} required />
+                  </div>
+
+                  <div>
+                    <label className={`block font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Attachments</label>
+                    <input type="file" ref={fileInputRef} onChange={(e) => {
+                      const files = Array.from(e.target.files);
+                      setSendReportForm(prev => ({ ...prev, attachments: [...prev.attachments, ...files] }));
+                      files.forEach(file => {
+                        if (file.type.startsWith('image/')) {
+                          const reader = new FileReader();
+                          reader.onload = (e) => setAttachmentPreview(prev => [...prev, { name: file.name, url: e.target.result }]);
+                          reader.readAsDataURL(file);
+                        } else {
+                          setAttachmentPreview(prev => [...prev, { name: file.name, url: null }]);
+                        }
+                      });
+                    }} multiple accept="image/*,.pdf" className={`w-full p-2 border border-gray-300 rounded-xl file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 ${textSizeClasses.base}`} />
+                    {attachmentPreview.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        {attachmentPreview.map((file, idx) => (
+                          <div key={idx} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                            <div className="flex items-center gap-3">
+                              {file.url ? <img src={file.url} alt={file.name} className="w-10 h-10 object-cover rounded" /> : <FaPaperclip className="text-gray-400 text-lg" />}
+                              <span className={`text-gray-600 truncate max-w-[200px] ${textSizeClasses.base}`}>{file.name}</span>
+                            </div>
+                            <button type="button" onClick={() => {
+                              setSendReportForm(prev => ({ ...prev, attachments: prev.attachments.filter((_, i) => i !== idx) }));
+                              setAttachmentPreview(prev => prev.filter((_, i) => i !== idx));
+                            }} className="text-red-500 hover:text-red-700"><FaTrash size={16} /></button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex gap-3 pt-5">
+                    <button type="button" onClick={() => setShowSendReportModal(false)} className={`flex-1 px-4 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition ${textSizeClasses.base}`}>
+                      Cancel
+                    </button>
+                    <button type="submit" disabled={loading} className={`flex-1 px-4 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl hover:shadow-lg transition disabled:opacity-50 flex items-center justify-center gap-2 ${textSizeClasses.base}`}>
+                      {loading ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}
+                      {loading ? 'Sending...' : 'Send Report'}
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Report Detail Modal */}
+        {showReportDetailModal && selectedReport && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+              <div className="p-8">
+                <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-200">
+                  <div className="flex items-center gap-3">
+                    {!selectedReport.is_opened ? <FaEnvelope className="text-purple-500 text-xl" /> : <FaEnvelopeOpen className="text-gray-400 text-xl" />}
+                    <h2 className={`font-bold text-gray-800 ${textSizeClasses.title}`}>{selectedReport.title}</h2>
+                  </div>
+                  <button onClick={() => { setShowReportDetailModal(false); setSelectedReport(null); }} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
+                </div>
+                <div className="space-y-5">
+                  <div className="flex justify-between">
+                    <div>
+                      <p className={`text-sm text-gray-500 ${textSizeClasses.base}`}>From</p>
+                      <p className={`font-semibold text-gray-800 ${textSizeClasses.base}`}>{selectedReport.sender_full_name}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-sm text-gray-500 ${textSizeClasses.base}`}>Priority</p>
+                      <span className={`px-3 py-1 rounded-full text-sm ${selectedReport.priority === 'urgent' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'} ${textSizeClasses.base}`}>
+                        {selectedReport.priority}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <p className={`text-sm text-gray-500 ${textSizeClasses.base}`}>Date Received</p>
+                    <p className={`text-gray-700 ${textSizeClasses.base}`}>{new Date(selectedReport.sent_at).toLocaleString()}</p>
+                  </div>
+                  <div className="bg-gray-50 p-5 rounded-xl">
+                    <p className={`text-sm text-gray-500 mb-2 ${textSizeClasses.base}`}>Message</p>
+                    <p className={`whitespace-pre-wrap text-gray-800 ${textSizeClasses.base}`}>{selectedReport.body}</p>
+                  </div>
+                  <div className="flex gap-3 pt-4 border-t border-gray-200">
+                    <button onClick={() => { setShowReportDetailModal(false); setShowReplyModal(true); }} className={`flex-1 px-5 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl flex items-center justify-center gap-2 ${textSizeClasses.base}`}>
+                      <FaReply /> Reply
+                    </button>
+                    <button onClick={() => { setShowReportDetailModal(false); setSelectedReport(null); }} className={`flex-1 px-5 py-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>Close</button>
                   </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500">Date Received</p>
-                  <p className="text-sm text-gray-700">{new Date(selectedReport.sent_at).toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Reply Modal */}
+        {showReplyModal && selectedReport && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
+              <div className="p-8">
+                <div className="flex justify-between items-center mb-5">
+                  <h2 className={`font-bold text-gray-800 flex items-center gap-2 ${textSizeClasses.title}`}>
+                    <FaReply className="text-purple-500" /> Reply to Report
+                  </h2>
+                  <button onClick={() => { setShowReplyModal(false); setReplyText(''); setReplyAttachment(null); }} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
                 </div>
-                <div className="bg-gray-50 p-4 rounded-xl">
-                  <p className="text-sm text-gray-500 mb-2">Message</p>
-                  <p className="whitespace-pre-wrap text-gray-800">{selectedReport.body}</p>
+                <div className="mb-4 p-4 bg-gray-50 rounded-xl">
+                  <p className={`text-xs text-gray-500 mb-1 ${textSizeClasses.base}`}>Original Report</p>
+                  <p className={`font-medium text-gray-800 ${textSizeClasses.base}`}>{selectedReport.title}</p>
+                  <p className={`text-xs text-gray-400 mt-1 ${textSizeClasses.base}`}>From: {selectedReport.sender_full_name}</p>
                 </div>
-                <div className="flex gap-3 pt-4 border-t border-gray-200">
-                  <button onClick={() => { setShowReportDetailModal(false); setShowReplyModal(true); }} className="flex-1 px-4 py-2 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl flex items-center justify-center gap-2">
-                    <FaReply /> Reply
+                <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} rows="5" placeholder="Type your reply here..." className={`w-full p-3 border border-gray-300 rounded-xl resize-none ${textSizeClasses.base}`} />
+                <div className="mt-4">
+                  <label className={`block text-sm font-medium text-gray-700 mb-2 ${textSizeClasses.base}`}>Attachment (Optional)</label>
+                  <input type="file" onChange={(e) => setReplyAttachment(e.target.files[0])} accept="image/*,.pdf" className={`w-full p-2 border border-gray-300 rounded-xl ${textSizeClasses.base}`} />
+                </div>
+                <div className="flex gap-3 pt-5 mt-2">
+                  <button onClick={() => { setShowReplyModal(false); setReplyText(''); setReplyAttachment(null); }} className={`flex-1 px-5 py-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`}>Cancel</button>
+                  <button onClick={handleSendReply} disabled={loading} className={`flex-1 px-5 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl flex items-center justify-center gap-2 ${textSizeClasses.base}`}>
+                    {loading ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}{loading ? 'Sending...' : 'Send Reply'}
                   </button>
-                  <button onClick={() => { setShowReportDetailModal(false); setSelectedReport(null); }} className="flex-1 px-4 py-2 border border-gray-300 rounded-xl">Close</button>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Reply Modal */}
-      {showReplyModal && selectedReport && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                  <FaReply className="text-violet-500" /> Reply to Report
-                </h2>
-                <button onClick={() => { setShowReplyModal(false); setReplyText(''); setReplyAttachment(null); }} className="p-2 hover:bg-gray-100 rounded-full">×</button>
+        {/* Change Password Modal */}
+        {showPasswordModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+              <div className="flex justify-between items-center mb-5">
+                <h2 className={`font-bold text-gray-800 ${textSizeClasses.title}`}>Change Password</h2>
+                <button onClick={() => setShowPasswordModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-2xl">×</button>
               </div>
-              <div className="mb-4 p-4 bg-gray-50 rounded-xl">
-                <p className="text-xs text-gray-500 mb-1">Original Report</p>
-                <p className="text-sm font-medium text-gray-800">{selectedReport.title}</p>
-                <p className="text-xs text-gray-400 mt-1">From: {selectedReport.sender_full_name}</p>
-              </div>
-              <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} rows="5" placeholder="Type your reply here..." className="w-full p-3 border border-gray-300 rounded-xl resize-none" />
-              <div className="mt-3">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Attachment (Optional)</label>
-                <input type="file" onChange={(e) => setReplyAttachment(e.target.files[0])} accept="image/*,.pdf,.doc,.docx" className="w-full p-2 border border-gray-300 rounded-xl" />
-              </div>
-              <div className="flex gap-3 pt-4 mt-2">
-                <button onClick={() => { setShowReplyModal(false); setReplyText(''); setReplyAttachment(null); }} className="flex-1 px-4 py-2 border border-gray-300 rounded-xl">Cancel</button>
-                <button onClick={handleSendReply} disabled={loading} className="flex-1 px-4 py-2 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl flex items-center justify-center gap-2">
-                  {loading ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}{loading ? 'Sending...' : 'Send Reply'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Change Password Modal */}
-      {showPasswordModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-gray-800">Change Password</h2>
-                <button onClick={() => setShowPasswordModal(false)} className="p-2 hover:bg-gray-100 rounded-full">×</button>
-              </div>
-              <div className="space-y-4">
-                <input type="password" placeholder="Current Password" value={passwordData.current_password} onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})} className="w-full p-3 border border-gray-300 rounded-xl" />
-                <input type="password" placeholder="New Password" value={passwordData.new_password} onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})} className="w-full p-3 border border-gray-300 rounded-xl" />
-                <input type="password" placeholder="Confirm New Password" value={passwordData.confirm_password} onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})} className="w-full p-3 border border-gray-300 rounded-xl" />
-                <div className="flex gap-3 pt-4">
-                  <button onClick={() => setShowPasswordModal(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-xl">Cancel</button>
-                  <button onClick={changePassword} className="flex-1 px-4 py-2 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl">Change Password</button>
+              <div className="space-y-5">
+                <input type="password" placeholder="Current Password" value={passwordData.current_password} onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} />
+                <input type="password" placeholder="New Password" value={passwordData.new_password} onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} />
+                <input type="password" placeholder="Confirm New Password" value={passwordData.confirm_password} onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-xl ${textSizeClasses.base}`} />
+                <div className="flex gap-4 pt-5">
+                  <button onClick={() => setShowPasswordModal(false)} className={`flex-1 px-5 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition ${textSizeClasses.base}`}>Cancel</button>
+                  <button onClick={changePassword} className={`flex-1 px-5 py-3 bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition ${textSizeClasses.base}`}>Change Password</button>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
+
+// Helper function
+function calculateWeeks(lmp) {
+  if (!lmp) return '';
+  const lmpDate = new Date(lmp);
+  const today = new Date();
+  const diffTime = Math.abs(today - lmpDate);
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return Math.floor(diffDays / 7);
+}
 
 export default MidwifeDashboard;
